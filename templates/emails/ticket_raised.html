@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ticket Raised - Creworder</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f9f9f9; color: #333;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f9f9f9; padding: 20px 0;">
+        <tr>
+            <td align="center">
+                <table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff; border: 1px solid #ddd; border-radius: 8px;">
+                    <!-- Header Section -->
+                    <tr>
+                        <td style="background-color: #405189; padding: 20px; text-align: center;">
+                            <img src="https://creworder.com/logo.png" alt="Creworder Logo" style="max-width: 150px; height: auto; display: block; margin: 0 auto;">
+                        </td>
+                    </tr>
+                    <!-- Content Section -->
+                    <tr>
+                        <td style="padding: 20px;">
+                            <h1 style="color: #444; font-size: 24px; margin-bottom: 20px;">Ticket Raised Successfully</h1>
+                            <p style="margin: 0 0 15px;">Dear {{full_name}},</p>
+                            <p style="margin: 0 0 15px;">Thank you for reaching out to us. Your ticket has been successfully raised. Please find the details of your ticket below:</p>
+                            <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
+                                <tr>
+                                    <td style="padding: 8px 0;"><strong>Ticket ID:</strong></td>
+                                    <td style="padding: 8px 0;">{{ticket_id}}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px 0;"><strong>Subject:</strong></td>
+                                    <td style="padding: 8px 0;">{{ticket_subject}}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px 0;"><strong>Submitted On:</strong></td>
+                                    <td style="padding: 8px 0;">{{submitted_on}}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px 0;"><strong>Status:</strong></td>
+                                    <td style="padding: 8px 0;">{{ticket_status}}</td>
+                                </tr>
+                            </table>
+                            <p style="margin: 0 0 15px;">Our team is actively working on resolving your issue. We will get back to you as soon as possible.</p>
+                            <p style="margin: 0;">Thank you for your patience and understanding!</p>
+                            <p style="margin: 0;">Best regards,</p>
+                            <p style="margin: 0;">The Creworder Support Team</p>
+                        </td>
+                    </tr>
+                    <!-- Footer Section -->
+                    <tr>
+                        <td style="background-color: #f1f1f1; padding: 20px; text-align: center; font-size: 14px; color: #777;">
+                            <p style="margin: 0 0 10px;">For support, contact us at <a href="mailto:support@creworder.com" style="color: #405189; text-decoration: none;">support@creworder.com</a>.</p>
+                            <p style="margin: 0 0 10px;">© Creworder. All rights reserved.</p>
+                            <p style="margin: 0;">
+                                <a href="https://creworder.com/terms" style="color: #405189; text-decoration: none; margin-right: 10px;">Terms of Service</a>
+                                <a href="https://creworder.com/privacy" style="color: #405189; text-decoration: none;">Privacy Policy</a>
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
