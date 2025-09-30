@@ -1,11 +1,11 @@
-# **/__pycache__
+**/__pycache__
 media/*
 logs/*
 logs/
-# __pycache__/
-# # *.pyc
+__pycache__/
+*.pyc
 venv/*
-# # Django migration files
-# # **/migrations/
-# # **/migrations/*.py
-# # !**/migrations/__init__.py  # Keep the __init__.py so the folder is recognized as a module
+# Django migration files
+**/migrations/
+**/migrations/*.py
+!**/migrations/__init__.py  # Keep the __init__.py so the folder is recognized as a module
