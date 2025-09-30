@@ -167,25 +167,9 @@ DATABASES = {
 
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'crew_crew_django',
-
-
-
-
-
-
-
-
-        'USER': 'crew_admin',
-
-
-
-
-
-
-
-
-        'PASSWORD': 'admin',
+        'NAME': 'crew_stag',
+        'USER': 'root',
+        'PASSWORD': 'your_password',
         'HOST': 'localhost',
         'PORT': '3306',
         'CONN_MAX_AGE': 240,  # Keep connection alive for 240 seconds
