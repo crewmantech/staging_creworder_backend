@@ -3609,6 +3609,20 @@ class CompanyUserAPIKeyViewSet(viewsets.ModelViewSet):
     serializer_class = CompanyUserAPIKeySerializer
     permission_classes = [IsAuthenticated]
 
+    def get_queryset(self):
+        user = self.request.user
+        
+        # if user is superadmin → return all
+        if hasattr(user, "profile") and getattr(user.profile, "user_type", "").lower() == "superadmin":
+            return CompanyUserAPIKey.objects.all()
+        
+        # else filter by company
+        if hasattr(user, "profile") and user.profile.company:
+            return CompanyUserAPIKey.objects.filter(company=user.profile.company)
+        
+        # fallback empty queryset
+        return CompanyUserAPIKey.objects.none()
+    
     def perform_create(self, serializer):
         # Get the current user's company
         company = self.request.user.profile.company

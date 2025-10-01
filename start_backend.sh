@@ -1,8 +1,8 @@
 #!/bin/bash
 
-PROJECT_DIR="/home/creworder.com/public_html/Creworder_backend"
+PROJECT_DIR="/home/creworder.com/public_html/staging_creworder_backend"
 VENV_DIR="/home/creworder.com/public_html/venv"
-GUNICORN_PORT="8001"
+GUNICORN_PORT="8002"
 GUNICORN_WORKERS=3
 
 source $VENV_DIR/bin/activate
