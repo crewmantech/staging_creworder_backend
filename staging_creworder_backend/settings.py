@@ -180,7 +180,7 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'crew_stag',
-        'USER': 'root',
+        'USER': 'crew_stag',
         'PASSWORD': 'your_password',
         'HOST': 'localhost',
         'PORT': '3306',
