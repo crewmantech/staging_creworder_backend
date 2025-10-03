@@ -8,7 +8,7 @@ from django.contrib.contenttypes.models import ContentType
 from rest_framework import serializers
 # from rest_framework.authtoken.models import Token
 from accounts.models import ExpiringToken as Token
-from creworder_backend import settings
+from staging_creworder_backend import settings
 from lead_management.models import Lead, LeadSourceModel
 from orders.models import  Products
 from services.email.email_service import send_email

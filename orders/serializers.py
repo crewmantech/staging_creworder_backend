@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from accounts.models import AdminBankDetails, Company
-from creworder_backend import settings
+from staging_creworder_backend import settings
 from kyc.serializers import KYCSerializer
 from shipment.models import ShipmentModel
 from .models import Customer_State, SmsConfig, Order_Table, OrderDetail,Category, OrderStatusWorkflow, OrderValueSetting, Payment_Status, PincodeLocality,Products,OrderLogModel,Payment_Type,OrderStatus, AllowStatus, ReturnType,LableLayout,invoice_layout

@@ -4,7 +4,7 @@ import re
 from venv import logger
 from django.template.loader import render_to_string
 import requests
-from creworder_backend import settings
+from staging_creworder_backend import settings
 from kyc.models import KYC, GSTState, OTPModel
 from kyc.serializers import GSTStateSerializer, KYCSerializer, OTPSerializer
 from services.email.email_service import send_email

@@ -20,7 +20,7 @@ from django.contrib import admin
 from django.urls import path, include
 from . import views
 
-from creworder_backend.views import CustomLoginView,VerifyOTPView,LogoutView
+from staging_creworder_backend.views import CustomLoginView,VerifyOTPView,LogoutView
 
 urlpatterns = [
     path('superadmin/', admin.site.urls),
