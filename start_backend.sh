@@ -11,7 +11,7 @@ cd $PROJECT_DIR
 python manage.py migrate --noinput
 python manage.py collectstatic --noinput
 
-exec gunicorn creworder_backend.wsgi:application \
+exec gunicorn staging_creworder_backend.wsgi:application \
   --bind 127.0.0.1:$GUNICORN_PORT \
   --workers $GUNICORN_WORKERS \
   --timeout 120 \

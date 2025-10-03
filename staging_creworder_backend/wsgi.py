@@ -1,5 +1,5 @@
 """
-WSGI config for creworder_backend project.
+WSGI config for staging_creworder_backend project.
 
 It exposes the WSGI callable as a module-level variable named ``application``.
 
