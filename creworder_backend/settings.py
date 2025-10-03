@@ -90,6 +90,8 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "https://creworder.com",
     "https://www.creworder.com",
+    "https://stg.creworder.com",
+    "https://stg.creworder.com",
 ]
 
 # CORS_ALLOW_CREDENTIALS = True
@@ -119,6 +121,10 @@ CSRF_TRUSTED_ORIGINS = [
     "https://www.creworder.com",
     "https://app.creworder.com",
     "http://localhost:3000",
+    "https://stg.creworder.com",
+    "https://www.stg.creworder.com",
+    "https://api.creworder.com",
+    "https://www.api.creworder.com",
 ]
 AUTHENTICATION_BACKENDS = (
     'django.contrib.auth.backends.ModelBackend',
