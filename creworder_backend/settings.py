@@ -31,7 +31,12 @@ ALLOWED_HOSTS = [
     '127.0.0.1',
     'localhost',
     'app.creworder.com',  # Add this domain to the allowed hosts list
-    'creworder.com',    # Add any other domains you need
+    'creworder.com',
+    'www.creworder.com',
+    'api.creworder.com',
+    'www.api.creworder.com',
+    'stg.creworder.com',
+    'www.stg.creworder.com',    # Add any other domains you need
 ]
 
 # Application definition
