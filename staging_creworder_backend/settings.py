@@ -186,8 +186,8 @@ DATABASES = {
         'PORT': '3306',
         'CONN_MAX_AGE': 240,  # Keep connection alive for 240 seconds
         'OPTIONS': {
-            'init_command': "SET SESSION max_execution_time=1000000"  # use correct variable
-        },
+            'init_command': "SET SESSION max_statement_time=200",  # 200 seconds (MariaDB only)
+        }
     }
 }
 
