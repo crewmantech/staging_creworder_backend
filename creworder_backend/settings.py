@@ -30,14 +30,7 @@ BASE_URL = "https://app.creworder.com"
 ALLOWED_HOSTS = [
     '127.0.0.1',
     'localhost',
-    'creworder.com',
-    'www.creworder.com',
-    'app.creworder.com',
-    'www.app.creworder.com',
-    'dev.creworder.com',
-    'www.dev.creworder.com',
-    'api.creworder.com',          # ✅ Add this
-    'www.api.creworder.com',      # optional, if needed
+    '.creworder.com',      # optional, if needed
 ]
 
 # Application definition
