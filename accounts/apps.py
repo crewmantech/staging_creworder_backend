@@ -29,6 +29,8 @@ class AccountsConfig(AppConfig):
         from django.contrib.auth.models import Group
         from datetime import time, datetime,timedelta
         from apscheduler.triggers.cron import CronTrigger
+        from datetime import timedelta
+        from django.utils import timezone
         def process_pending_inquiries():
             try:
                 pending_inquiries = CompanyInquiry.objects.filter(status="pending")
@@ -131,7 +133,22 @@ class AccountsConfig(AppConfig):
             except Exception as e:
                 logger.error(f"❌ Error while fixing attendance clock_out: {e}")
                 return 0
-
+        def deactivate_old_demo_companies():
+            print("-----------------137")
+            """Deactivate companies with 'demo' package older than 3 days."""
+            three_days_ago = timezone.now().date() - timedelta(days=3)
+            companies = Company.objects.filter(
+                created_at__lte=three_days_ago,
+                package__name__iexact='demo',
+                status=True
+            )
+            updated_count = companies.update(status=False)
+            print(f"Deactivated {updated_count} demo companies older than 3 days.")
+            # for company in companies:
+            #     company.status = False
+            #     status = company.update(update_fields=['status'])
+            #     print(status)
+            #     print(f"Deactivated demo company: {company.name} (created at: {company.created_at})")
         def start_scheduler(sender, **kwargs):
             scheduler = BackgroundScheduler()
             scheduler.add_job(
@@ -148,6 +165,14 @@ class AccountsConfig(AppConfig):
                 max_instances=1,
                 replace_existing=True,
             )
+            scheduler.add_job(deactivate_old_demo_companies, 'interval', hours=24, id='deactivate_old_demo_companies')
+            # scheduler.add_job(
+            #     deactivate_old_demo_companies,
+            #     IntervalTrigger(seconds=40),  # Run every 30 seconds
+            #     id="deactivate_old_demo_companies",
+            #     max_instances=1,
+            #     misfire_grace_time=30,  # Optional
+            # )
             scheduler.start()
 
         # Ensure the scheduler starts after migrations are complete

@@ -2453,7 +2453,7 @@ class ExternalOrderCreateView(APIView):
                 return Response({"error": "API key is required."}, status=status.HTTP_400_BAD_REQUEST)
 
             try:
-                company_user = CompanyUserAPIKey.objects.select_related('user').get(api_key=api_key)
+                company_user = CompanyUserAPIKey.objects.select_related('user').get(api_key=api_key,status=True)
             except CompanyUserAPIKey.DoesNotExist:
                 return Response({"error": "Invalid API key."}, status=status.HTTP_401_UNAUTHORIZED)
 

@@ -93,7 +93,7 @@ class OTPModel(models.Model):
     def create_otp(cls, contact_info=None, username=None):
         otp_code = str(random.randint(1000, 9999))
         expiration_time = timezone.now() + timedelta(minutes=5)
-
+        print(otp_code,"--------------96")
         otp_instance = cls.objects.create(
             phone_number=contact_info if contact_info and contact_info.isdigit() else None,
             email=contact_info if contact_info and "@" in contact_info else None,

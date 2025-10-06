@@ -798,8 +798,8 @@ class UserTargetsDelailsSerializer(serializers.ModelSerializer):
 class CompanyUserAPIKeySerializer(serializers.ModelSerializer):
     class Meta:
         model = CompanyUserAPIKey
-        fields = ['id', 'user', 'company', 'api_key']
-        read_only_fields = ['company', 'api_key']
+        fields = ['id', 'user', 'company', 'api_key','status']
+        read_only_fields = ['company', 'api_key','status']
 
     def create(self, validated_data):
         instance, created = CompanyUserAPIKey.objects.get_or_create(**validated_data)

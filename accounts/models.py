@@ -152,6 +152,7 @@ class Company(BaseModel):
                 return company_id.upper()
 
     def save(self, *args, **kwargs):
+        system_update = kwargs.pop('system_update', False)
         request = get_request()
         if request :
             user = request.user
@@ -161,8 +162,9 @@ class Company(BaseModel):
             if user and user.profile.user_type != 'superadmin':
                 raise PermissionDenied("Only superadmins can create companies.")
         else:  # Updating an existing company
-            if not (user and (user.is_superuser or user.has_perm('accounts.can_edit_own_company'))):
-                raise PermissionDenied("You do not have permission to edit this company.")
+            if not system_update:
+                if not (user and (user.is_superuser or user.has_perm('accounts.can_edit_own_company'))):
+                    raise PermissionDenied("You do not have permission to edit this company.")
 
         if not self.id:
             self.id = self.generate_id()
@@ -903,7 +905,7 @@ class CompanyUserAPIKey(BaseModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     company = models.ForeignKey(Company, on_delete=models.CASCADE)
     api_key = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
-
+    status = models.BooleanField(default=True)
     class Meta:
         unique_together = ('user', 'company')
 

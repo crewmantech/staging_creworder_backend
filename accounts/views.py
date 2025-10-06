@@ -1149,49 +1149,86 @@ class AttendanceViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """
-        Customize queryset based on user role, permissions, and month/year filtering.
+        Customize queryset based on user role, permissions, and safe date filtering.
+        Handles exact date, month/year, and date_range.
         """
         user = self.request.user
-
-        # Base filters
-        if user.profile.user_type == 'superadmin':
-            filters = Q(company=None, branch=None)
-        else:
-            branch = user.profile.branch.id if hasattr(user, "profile") and user.profile.branch else None
-            company = user.profile.company.id if hasattr(user, "profile") and user.profile.company else None
-            filters = Q(company=company)
-            if user.profile.user_type == 'admin':
-                filters &= Q(branch=branch)
-            elif not user.has_perm('accounts.view_attendance'):
-                filters &= Q(user=user)
-
-        # --- Month & Year filtering ---
         today = date.today()
-        month = self.request.query_params.get("date__month")
-        year = self.request.query_params.get("date__year")
-        status_param = self.request.query_params.get("status")
-        print(status_param,"----------------1165")
-        if status_param is not None:
-            if status_param.lower() == "true":
-                filters &= Q(user__profile__status=1)  # active only
-            elif status_param.lower() == "false":
-                filters &= ~Q(user__profile__status=1)  # exclude active
-        if month and year:
-            filters &= Q(date__year=year, date__month=month)
-        else:
-            # Default to current month if no filter provided
+        filters = Q()
+
+        # --- Base filters according to role ---
+        try:
+            if user.profile.user_type == 'superadmin':
+                filters = Q(company=None, branch=None)
+            else:
+                branch = getattr(user.profile.branch, "id", None)
+                company = getattr(user.profile.company, "id", None)
+                filters = Q(company=company)
+                if user.profile.user_type == 'admin':
+                    filters &= Q(branch=branch)
+                elif not user.has_perm('accounts.view_attendance'):
+                    filters &= Q(user=user)
+        except Exception as e:
+            print(f"[Role Filter Error] {e}")
+            # fallback: return nothing if profile is broken
+            return Attendance.objects.none()
+
+        # --- Date filtering ---
+        try:
+            # 1. Exact date filter
+            exact_date = self.request.query_params.get("date")
+            if exact_date:
+                filters &= Q(date=exact_date)
+            else:
+                # 2. Month + Year filter
+                month = self.request.query_params.get("date__month")
+                year = self.request.query_params.get("date__year")
+
+                if month and year:
+                    filters &= Q(date__year=int(year), date__month=int(month))
+                else:
+                    # Default to current month
+                    filters &= Q(date__year=today.year, date__month=today.month)
+
+            # 3. Date range filter
+            date_range = self.request.query_params.get("date_range")
+            if date_range:
+                try:
+                    start_date, end_date = date_range.split(" - ")
+                    filters &= Q(date__range=(start_date.strip(), end_date.strip()))
+                except ValueError:
+                    print(f"[Date Range Format Error] {date_range}")
+        except Exception as e:
+            print(f"[Date Filter Error] {e}")
             filters &= Q(date__year=today.year, date__month=today.month)
 
-        # --- Date range filter (optional override) ---
-        date_range = self.request.query_params.get("date_range")
-        if date_range:
-            try:
-                start_date, end_date = date_range.split(" - ")
-                filters &= Q(date__range=(start_date, end_date))
-            except ValueError:
-                pass  # ignore bad format
+        # --- Status filter ---
+        try:
+            status_param = self.request.query_params.get("status")
+            if status_param is not None:
+                if status_param.lower() == "true":
+                    filters &= Q(user__profile__status=1)  # active
+                elif status_param.lower() == "false":
+                    filters &= ~Q(user__profile__status=1)  # inactive
+        except Exception as e:
+            print(f"[Status Filter Error] {e}")
 
-        return Attendance.objects.filter(filters)
+        # --- User filter (single or multiple IDs) ---
+        try:
+            user_ids = self.request.query_params.get("user")
+            if user_ids:
+                user_id_list = [int(uid) for uid in str(user_ids).split(",") if uid.isdigit()]
+                if user_id_list:
+                    filters &= Q(user__id__in=user_id_list)
+        except Exception as e:
+            print(f"[User Filter Error] {e}")
+
+        # --- Final queryset ---
+        try:
+            return Attendance.objects.filter(filters)
+        except Exception as e:
+            print(f"[Queryset Error] {e}")
+            return Attendance.objects.none()
 
     def perform_create(self, serializer):
         """
