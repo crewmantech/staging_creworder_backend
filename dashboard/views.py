@@ -586,9 +586,9 @@ class GetUserDashboardtiles1(APIView):
             qs = qs.filter(order_status__name=status_name)
         return qs
 
-    def _count_and_amount(self, qs, start_dt, end_dt, is_admin):
+    def _count_and_amount(self, qs, start_dt, end_dt, is_admin,permission):
         """Return both count and total_amount."""
-        if is_admin:
+        if is_admin or not permission:
             filtered_qs = qs.filter(created_at__range=(start_dt, end_dt))
         else:
             filtered_qs = qs.filter(Q(created_at__range=(start_dt, end_dt)) | Q(updated_at__range=(start_dt, end_dt)))
@@ -605,7 +605,7 @@ class GetUserDashboardtiles1(APIView):
         branch, start_dt, end_dt, mgr, tl, own = self._branch_and_user_ids(request)
         company = request.user.profile.company
         tiles = {}
-
+        permission = request.user.has_perm('accounts.edit_order_others')
         for key, (status_name, suffix) in self.TILES.items():
             # Permission check
             allowed = (
@@ -649,13 +649,13 @@ class GetUserDashboardtiles1(APIView):
                     )
                 else:
                     qs = Order_Table.objects.none()
-                cnt, amount = self._count_and_amount(qs, start_dt, end_dt, is_admin)
+                cnt, amount = self._count_and_amount(qs, start_dt, end_dt, is_admin,permission)
                 # cnt = self._count(qs, None, start_dt, end_dt)
                 # total_amount = qs.aggregate(total_amount=Sum('total_amount'))['total_amount'] or 0
             else:
                 # Default logic for all other tiles
                 qs = self._base_query(request, branch, company, mgr, tl, own, status_name)
-                cnt, amount = self._count_and_amount(qs, start_dt, end_dt, is_admin)
+                cnt, amount = self._count_and_amount(qs, start_dt, end_dt, is_admin,permission)
                 # cnt = self._count(qs, status_name, start_dt, end_dt)
                 # total_amount = qs.aggregate(total_amount=Sum('total_amount'))['total_amount'] or 0
 

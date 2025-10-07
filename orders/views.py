@@ -3160,7 +3160,6 @@ class OrderListView(APIView):
         # else:
         #     print("3093")
             # return qs.none()
-        print(user.profile.user_type,"-----------------------3089")
         if user.profile.user_type == "agent":
             tile_q = Q()
             if status_name:
@@ -3234,17 +3233,16 @@ class OrderListView(APIView):
         ).prefetch_related("orderdetail_set")
 
         if status_name and status_name.lower() == "running":
-            if request.user.profile.user_type == "agent":
+            if request.user.profile.user_type == "agent" and request.user.has_perm('accounts.edit_order_others'):
                 qs = qs.filter(Q(created_at__range=(start_dt, end_dt)) | Q(updated_at__range=(start_dt, end_dt)))
             else:
                 qs = qs.filter(created_at__range=(start_dt, end_dt))
         else:
             if start_dt and end_dt:
-                if request.user.profile.user_type == "agent":
+                if request.user.profile.user_type == "agent" and request.user.has_perm('accounts.edit_order_others'):
                     qs = qs.filter(Q(created_at__range=(start_dt, end_dt)) | Q(updated_at__range=(start_dt, end_dt)))
                 else:    
                     qs = qs.filter(created_at__range=(start_dt, end_dt))
-        print(qs,"------------3168")
         qs = self._scope_queryset(qs, request.user, status_name)
         # print(qs,"0---------------------3178")
         if pk:
