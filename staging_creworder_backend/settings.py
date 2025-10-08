@@ -93,15 +93,18 @@ MIDDLEWARE = [
 
 CORS_ALLOW_ALL_ORIGINS = True  # REMOVE or set to False
 CORS_ALLOWED_ORIGINS = [
-    r"^https?:\/\/localhost(:\d+)?$",
-    r"^https?:\/\/127\.0\.0\.1(:\d+)?$",
+   
     "http://localhost:3000",
     "https://creworder.com",
     "https://www.creworder.com",
     "https://stg.creworder.com",
     "https://stg.creworder.com",
 ]
-
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https?:\/\/localhost(:\d+)?$",
+    r"^https?:\/\/127\.0\.0\.1(:\d+)?$",
+    r"^https?:\/\/0\.0\.0\.0(:\d+)?$",  # optional for Docker or LAN testing
+]
 # CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOW_HEADERS = [
