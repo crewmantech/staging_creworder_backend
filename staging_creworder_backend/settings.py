@@ -90,7 +90,7 @@ MIDDLEWARE = [
     'middleware.sleep_kill_middleware.SleepQueryCleanerMiddleware'
 ]  
 
-CORS_ALLOW_ALL_ORIGINS = True  # REMOVE or set to False
+CORS_ALLOW_ALL_ORIGINS = False  # REMOVE or set to False
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
