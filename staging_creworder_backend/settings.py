@@ -100,6 +100,8 @@ CORS_ALLOWED_ORIGINS = [
     "https://www.creworder.com",
     "https://dev.creworder.com",
     "https://dev.creworder.com",
+    "https://api.creworder.com",  # backend origin (optional, self)
+    "https://dev.creworder.com",
 ]
 
 # CORS_ALLOW_CREDENTIALS = True
