@@ -105,7 +105,7 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^https?:\/\/127\.0\.0\.1(:\d+)?$",
     r"^https?:\/\/0\.0\.0\.0(:\d+)?$",  # optional for Docker or LAN testing
 ]
-# CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOW_HEADERS = [
     "authorization",
