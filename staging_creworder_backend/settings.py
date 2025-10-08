@@ -98,8 +98,8 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3002",
     "https://creworder.com",
     "https://www.creworder.com",
-    "https://stg.creworder.com",
-    "https://stg.creworder.com",
+    "https://dev.creworder.com",
+    "https://dev.creworder.com",
 ]
 
 # CORS_ALLOW_CREDENTIALS = True
