@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 from pathlib import Path
 import os
+from corsheaders.defaults import default_headers
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -91,8 +92,9 @@ MIDDLEWARE = [
 ]  
 
 CORS_ALLOW_ALL_ORIGINS = True  # REMOVE or set to False
-
 CORS_ALLOWED_ORIGINS = [
+    r"^https?:\/\/localhost(:\d+)?$",
+    r"^https?:\/\/127\.0\.0\.1(:\d+)?$",
     "http://localhost:3000",
     "https://creworder.com",
     "https://www.creworder.com",
