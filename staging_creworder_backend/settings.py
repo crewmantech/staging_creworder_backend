@@ -90,21 +90,24 @@ MIDDLEWARE = [
     'middleware.sleep_kill_middleware.SleepQueryCleanerMiddleware'
 ]  
 
-CORS_ALLOW_ALL_ORIGINS = False  # REMOVE or set to False
+CORS_ALLOW_ALL_ORIGINS = True  # REMOVE or set to False
+
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "http://localhost:3002",
     "https://creworder.com",
     "https://www.creworder.com",
     "https://dev.creworder.com",
-    "https://dev.creworder.com",
-    "https://api.creworder.com",  # backend origin (optional, self)
-    "https://dev.creworder.com",
+    "https://stg.creworder.com",
+    "https://api.creworder.com",
+    "http://localhost:3000",
 ]
 
-# CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https?:\/\/localhost(:\d+)?$",  # allow any localhost port
+    r"^https?:\/\/127\.0\.0\.1(:\d+)?$",
+]
+
+CORS_ALLOW_CREDENTIALS = True  # if using cookies/session auth
 
 CORS_ALLOW_HEADERS = [
     "authorization",
@@ -114,7 +117,7 @@ CORS_ALLOW_HEADERS = [
     "origin",
     "user-agent",
     "x-requested-with",
-    'no-cache',
+    "no-cache",
 ]
 
 CORS_ALLOW_METHODS = [
@@ -123,18 +126,16 @@ CORS_ALLOW_METHODS = [
     "PUT",
     "PATCH",
     "DELETE",
-    "OPTIONS"
+    "OPTIONS",
 ]
 
 CSRF_TRUSTED_ORIGINS = [
     "https://creworder.com",
     "https://www.creworder.com",
-    "https://app.creworder.com",
-    "http://localhost:3000",
+    "https://dev.creworder.com",
     "https://stg.creworder.com",
-    "https://www.stg.creworder.com",
+    "http://localhost:3000",
     "https://api.creworder.com",
-    "https://www.api.creworder.com",
 ]
 AUTHENTICATION_BACKENDS = (
     'django.contrib.auth.backends.ModelBackend',
