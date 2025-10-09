@@ -110,7 +110,7 @@ class FormEnquirySerializer(serializers.ModelSerializer):
     class Meta:
         model = FormEnquiry
         fields = '__all__'
-
+        read_only_fields = ['id']
     def validate_phone(self, value):
         """
         Validate the phone number and normalize it to E.164 format.
@@ -358,7 +358,7 @@ class DepartmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Department
         fields = ['id', 'name', 'company', 'created_by', 'updated_by', 'created_at', 'updated_at']
-        read_only_fields = ['company', 'created_by', 'updated_by', 'created_at', 'updated_at']
+        read_only_fields = ['company', 'created_by', 'updated_by', 'created_at', 'updated_at','id']
 
 
 
@@ -370,31 +370,34 @@ class DesignationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Designation
         fields = ['id', 'name', 'company', 'created_by', 'updated_by', 'created_at', 'updated_at']
-        read_only_fields = ['company', 'created_by', 'updated_by', 'created_at', 'updated_at']
+        read_only_fields = ['company', 'created_by', 'updated_by', 'created_at', 'updated_at','id']
 
 
 class LeaveSerializer(serializers.ModelSerializer):
     class Meta:
         model = Leaves
         fields = '__all__'
-
+        read_only_fields = ['id']
 
 class HolidaySerializer(serializers.ModelSerializer):
     class Meta:
         model = Holiday
         fields = '__all__'
+        read_only_fields = ['id']
 
 
 class AwardSerializer(serializers.ModelSerializer):
     class Meta:
         model = Award
         fields = '__all__'
+        read_only_fields = ['id']
 
 
 class AppreciationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Appreciation
         fields = '__all__'
+        read_only_fields = ['id']
 
 
 class ShiftSerializer(serializers.ModelSerializer):
@@ -406,7 +409,7 @@ class ShiftRosterSerializer(serializers.ModelSerializer):
     class Meta:
         model = Shift_Roster
         fields = ['user', 'branch', 'ShiftTiming', 'date', 'remark']  # Added 'ShiftTiming'
-
+        read_only_fields = ['id']
     def validate(self, data):
         # Validate start and end dates
         start_date = self.context['request'].data.get('startdate', None)
@@ -448,7 +451,7 @@ class AttendanceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Attendance
         fields = '__all__'
-        read_only_fields = ['user', 'company', 'branch']
+        read_only_fields = ['user', 'company', 'branch','id']
 
     def get_user_status(self, obj):
         # Only return for real Attendance instances (GET)
@@ -505,6 +508,7 @@ class CustomAuthGroupSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomAuthGroup
         fields = ['id', 'group', 'name','branch', 'company', 'remark', 'branch_id', 'company_id', 'created_at', 'updated_at','for_user']
+        read_only_fields = ['id']
 
     def create(self, validated_data):
         request = self.context.get('request')
@@ -544,6 +548,7 @@ class PickUpPointSerializer(serializers.ModelSerializer):
     class Meta:
         model = PickUpPoint
         fields = '__all__'
+        read_only_fields = ['id']
 
     def validate_contact_number(self, value):
         """
@@ -638,6 +643,7 @@ class AllowedIPSerializers(serializers.ModelSerializer):
     class Meta:
         model = AllowedIP
         fields = '__all__'
+        read_only_fields = ['id']
 
     def validate(self, data):
         """Check if the IP address already exists for the same branch."""

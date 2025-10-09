@@ -342,7 +342,7 @@ class Notice(BaseModel):
 class FormEnquiry(BaseModel):
     class Meta:
         verbose_name_plural = "Form Enquiries"
-
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
     name = models.CharField(max_length=70, blank=False, null=False)
     phone = PhoneNumberField(null=False, blank=False)
     email = models.EmailField(null=False, blank=False)
@@ -350,6 +350,10 @@ class FormEnquiry(BaseModel):
     created_at = models.DateField(auto_now_add=True)
     updated_at = models.DateField(auto_now=True)
 
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_unique_id(FormEnquiry, prefix='FOQ')
+        super().save(*args, **kwargs)
     def __str__(self):
         return self.id
 
@@ -400,6 +404,7 @@ class SupportTicket(BaseModel):
 
 
 class Department(BaseModel):
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
     name = models.CharField(max_length=200, null=False, blank=False)
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name="departments", null=True, blank=True)
     created_at = models.DateField(auto_now_add=True)  # Automatically sets the time when the object is first created
@@ -410,8 +415,9 @@ class Department(BaseModel):
     # updated_by = models.ForeignKey(User, related_name="department_updated_by", on_delete=models.SET_NULL, null=True, blank=True)
     def __str__(self):
         return self.name
-
     def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_unique_id(Department, prefix='DEP')
         super().save(*args, **kwargs)
 
         content_type, _ = ContentType.objects.get_or_create(
@@ -452,6 +458,7 @@ class Department(BaseModel):
         except IntegrityError:
             pass
 class Designation(BaseModel):
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
     name = models.CharField(max_length=200, null=False, blank=False)
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name="designations", null=True, blank=True)
     created_at = models.DateField(auto_now_add=True)
@@ -460,6 +467,10 @@ class Designation(BaseModel):
     # updated_by = models.ForeignKey(User, related_name="designation_updated_by", on_delete=models.SET_NULL, null=True, blank=True)
     class Meta:
         unique_together = ("name", "company")
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_unique_id(Designation, prefix='DEG')
+        super().save(*args, **kwargs)
     def __str__(self):
         return self.name
 
@@ -482,6 +493,7 @@ class Leaves(BaseModel):
         ('approved', 'Approved'),
         ('disapprove','Disapprove')
     ]
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
 
     user = models.ForeignKey(User, related_name="leaves", on_delete=models.CASCADE, null=False, blank=False)
     duration = models.CharField(max_length=30, null=True, blank=True, choices=duration_choices)
@@ -496,41 +508,62 @@ class Leaves(BaseModel):
         permissions = (
             ('can_approve_disapprove_leaves', 'Can approve disapprove leaves'),
         )
-
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_unique_id(Leaves, prefix='LEV')
+        super().save(*args, **kwargs)
     def __str__(self):
         return f'{self.user.username} - {self.reason}'
 
 
 class Holiday(BaseModel):
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
     occasion = models.CharField(max_length=100, null=False, blank=False)
     date = models.DateField(null=False, blank=False)
     department = models.ForeignKey(Department, null=True, blank=True, on_delete=models.PROTECT)
     designation = models.ForeignKey(Designation, null=True, blank=True, on_delete=models.PROTECT)
     branch = models.ForeignKey(Branch, null=True, blank=True, related_name="holidays", on_delete=models.CASCADE)
+    
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_unique_id(Holiday, prefix='HOD')
+        super().save(*args, **kwargs)
     def __str__(self):
         return f'{self.occasion} - {self.date}'
 
 
 class Award(BaseModel):
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
     title = models.CharField(max_length=120, null=False, blank=False, unique=True)
     branch = models.ForeignKey(Branch, on_delete=models.CASCADE, null=True, blank=True, related_name="awards")
     summary = models.CharField(max_length=255, null=True, blank=True)
+    
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_unique_id(Award, prefix='AWD')
+        super().save(*args, **kwargs)
     def __str__(self):
         return f'{self.title} - {self.branch.branch_id}'
 
 
 class Appreciation(BaseModel):
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
     award = models.ForeignKey(Award, on_delete=models.CASCADE, null=False, blank=False)
     user = models.ForeignKey(User, related_name="appreciations", null=False, blank=False, on_delete=models.CASCADE)
     date_given = models.DateField(null=False, blank=False)
     summary = models.CharField(max_length=500, null=True, blank=True)
     award_image = models.ImageField(upload_to='award_images/', blank=True, null=True)
 
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_unique_id(Appreciation, prefix='APN')
+        super().save(*args, **kwargs)
     def __str__(self):
         return f'{self.award.title} - {self.user.username}'
     
 
 class Shift_Roster(BaseModel):
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="shift_rosters")
     branch = models.ForeignKey(Branch, on_delete=models.CASCADE, null=True, blank=True, related_name="shift_rosters")
     ShiftTiming = models.ForeignKey(ShiftTiming, on_delete=models.CASCADE, null=True, blank=True, related_name="shift_rosters")  # New Field
@@ -542,6 +575,10 @@ class Shift_Roster(BaseModel):
     class Meta:
         db_table = 'shift_roster_table'
 
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_unique_id(Shift_Roster, prefix='SHR')
+        super().save(*args, **kwargs)
     def __str__(self):
         return f'{self.user.username} - {self.branch.branch_id} '
 
@@ -558,6 +595,7 @@ class Attendance(BaseModel):
         ('A', 'A'),
         ('P', 'P'),
     ]
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
     date = models.DateField(null=False, blank=False)
     ShiftTiming = models.ForeignKey(ShiftTiming, on_delete=models.PROTECT, related_name="shift_wise_attendances", null=True)
     user = models.ForeignKey(User, related_name="attendances", null=False, blank=False, on_delete=models.CASCADE)
@@ -567,11 +605,18 @@ class Attendance(BaseModel):
     clock_out = models.TimeField(null=True, blank=True)
     working_from = models.CharField(max_length=80, null=False, blank=False, choices=working_choices, default="office")
     attendance = models.CharField(choices=attendance, max_length=80, default="A", null=False, blank=False, )
+    
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_unique_id(Attendance, prefix='ATE')
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f'{self.user.username} - {self.date}'
 
 
 class AllowedIP(BaseModel):
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
     ip_address = models.GenericIPAddressField()
     ip_from_choices = [('home', 'Home'),('office', 'Office')]
     ip_from = models.CharField(max_length=100, choices=ip_from_choices, null=False,default='office')
@@ -580,10 +625,15 @@ class AllowedIP(BaseModel):
     created_at = models.DateTimeField(default=now)
     updated_at = models.DateTimeField(auto_now=True)
 
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_unique_id(AllowedIP, prefix='ALP')
+        super().save(*args, **kwargs)
     def __str__(self):
         return f"{self.ip_address} for {self.branch.branch_id}"
     
 class CustomAuthGroup(BaseModel):
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
     group = models.OneToOneField(Group, on_delete=models.CASCADE, related_name='custom_group')
     branch = models.ForeignKey(Branch, on_delete=models.SET_NULL, null=True, blank=True, related_name='created_branch')
     company = models.ForeignKey(Company, on_delete=models.SET_NULL, null=True, blank=True, related_name='created_company')
@@ -596,6 +646,10 @@ class CustomAuthGroup(BaseModel):
         db_table = 'custom_auth_group'
         unique_together = ('name', 'branch', 'company')
 
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_unique_id(CustomAuthGroup, prefix='CAG')
+        super().save(*args, **kwargs)
     def __str__(self):
         return f"{self.name} ({self.company} - {self.branch} - {self.group.id})"
 
@@ -610,6 +664,7 @@ class CustomAuthGroup(BaseModel):
 
      
 class PickUpPoint(BaseModel):
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
     pickup_location_name = models.CharField(max_length=255)  # <-- New field
     
     contact_person_name = models.CharField(max_length=255)
@@ -641,7 +696,10 @@ class PickUpPoint(BaseModel):
         db_table = 'pick_up_point_table'
         # No uniqueness constraint on pickup_location_name
         # You can optionally add ordering or other Meta options
-
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_unique_id(PickUpPoint, prefix='PUP')
+        super().save(*args, **kwargs)
     def __str__(self):
         return f"{self.pickup_location_name or self.contact_person_name} - {self.complete_address} ({self.pincode})"
 
