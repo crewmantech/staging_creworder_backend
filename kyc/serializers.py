@@ -25,8 +25,9 @@ class KYCSerializer(serializers.ModelSerializer):
         Validate GST Number format (15 characters)
         e.g. '27ABCDE1234F1Z5'
         """
-        if not re.match(r'\d{2}[A-Z]{5}\d{4}[A-Z]{1}[A-Z\d]{1}[Z]{1}[A-Z\d]{1}', value):
-            raise serializers.ValidationError("Invalid GST number format.")
+        if value:
+            if not re.match(r'\d{2}[A-Z]{5}\d{4}[A-Z]{1}[A-Z\d]{1}[Z]{1}[A-Z\d]{1}', value):
+                raise serializers.ValidationError("Invalid GST number format.")
         return value
 
     def validate_tan_number(self, value):
