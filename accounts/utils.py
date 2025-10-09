@@ -35,3 +35,13 @@ def check_and_kill_sleep_queries():
                         logger.warning(f"Kill failed: {str(e)}")
     except Exception as e:
         logger.error(f"Sleep kill check failed: {str(e)}")
+
+
+import random
+import string
+
+def generate_unique_id(model_class, prefix='ord', length=5, field_name='id'):
+    while True:
+        random_id = prefix + ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
+        if not model_class.objects.filter(**{field_name: random_id}).exists():
+            return random_id

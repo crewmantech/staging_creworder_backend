@@ -19,6 +19,7 @@ from django.core.exceptions import ValidationError
 from django.utils.timezone import now
 
 from rest_framework import serializers
+from accounts.utils import generate_unique_id
 from middleware.request_middleware import get_request
 from shipment.models import ShipmentModel
 
@@ -50,6 +51,7 @@ class Module(BaseModel):
 
 
 class Package(BaseModel):
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
     name = models.CharField(max_length=100, null=False, blank=False)
     type = models.CharField(max_length=20, choices=[('free', 'Free'), ('paid', 'Paid')], blank=False, null=False,
                             default='free')
@@ -70,6 +72,8 @@ class Package(BaseModel):
     def save(self, *args, **kwargs):
         if self.created_by.profile.user_type != 'superadmin':
             raise PermissionDenied("Only superadmins can create packages.")
+        if not self.id:
+            self.id = generate_unique_id(Package, prefix='PKG')
         super().save(*args, **kwargs)
 
     def __str__(self):
