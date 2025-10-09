@@ -9,6 +9,7 @@ class KYCSerializer(serializers.ModelSerializer):
     class Meta:
         model = KYC
         fields = '__all__'
+        read_only_fields = ['id']
 
     def validate_pan_card_number(self, value):
         """
@@ -57,7 +58,7 @@ class GSTStateSerializer(serializers.ModelSerializer):
     class Meta:
         model = GSTState
         fields = ['id', 'state_name', 'state_code']
-
+        read_only_fields = ['id']
 
 class OTPSerializer(serializers.ModelSerializer):
     class Meta:

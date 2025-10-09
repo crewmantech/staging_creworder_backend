@@ -8,13 +8,13 @@ class LeadSerializer(serializers.ModelSerializer):
     class Meta:
         model = LeadModel
         fields = '__all__'
-
+        read_only_fields = ['id']
 
 class LeadSourceModelSerializer(serializers.ModelSerializer):
     class Meta:
         model = LeadSourceModel
         fields = ['id', 'name', 'branch', 'company', 'created_at', 'updated_at']
-        read_only_fields = ['created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at','id']
 
 
 class LeadNewSerializer(serializers.ModelSerializer):
@@ -25,6 +25,7 @@ class LeadNewSerializer(serializers.ModelSerializer):
         model = Lead
         fields = '__all__'  # includes product and assign_user (as IDs)
         extra_fields = ['product_name', 'assign_user_name','status_name']
+        read_only_fields = ['id']
 
     def get_product_name(self, obj):
         return obj.product.product_name if obj.product else None
@@ -45,18 +46,19 @@ class LeadStatusModelSerializer(serializers.ModelSerializer):
     class Meta:
         model = LeadStatusModel
         fields = ['id', 'name', 'branch', 'company', 'created_at', 'updated_at']
-        read_only_fields = ['created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at','id']
 
 class DealCategoryModelSerializer(serializers.ModelSerializer):
     class Meta:
         model = DealCategoryModel
         fields = ['id', 'name', 'branch', 'company', 'created_at', 'updated_at']
-        read_only_fields = ['created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at','id']
 
 class UserCategoryAssignmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserCategoryAssignment
         fields = '__all__'
+        read_only_fields = ['id']
 
 
 class PipelineSerializer(serializers.ModelSerializer):
@@ -65,9 +67,11 @@ class PipelineSerializer(serializers.ModelSerializer):
     class Meta:
         model = Pipeline
         fields =  '__all__'
+        read_only_fields = ['id']
 
 
 class DynamicRequestSerializer(serializers.ModelSerializer):
     class Meta:
         model = lead_form
         fields = ['id', 'fields','form_name', 'pipeline', 'created_at']
+        read_only_fields = ['id']

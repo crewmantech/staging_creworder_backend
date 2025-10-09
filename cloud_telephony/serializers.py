@@ -10,6 +10,7 @@ class CloudTelephonyVendorSerializer(serializers.ModelSerializer):
     class Meta:
         model = CloudTelephonyVendor
         fields = '__all__'
+        read_only_fields = ['id']
         
 class CloudTelephonyChannelSerializer(serializers.ModelSerializer):
     cloudtelephony_vendor_name = serializers.CharField(source='cloudtelephony_vendor.name', read_only=True)
@@ -21,6 +22,7 @@ class CloudTelephonyChannelSerializer(serializers.ModelSerializer):
     class Meta:
         model = CloudTelephonyChannel
         fields = '__all__'
+        read_only_fields = ['id']
 
 
 class CloudTelephonyChannelAssignSerializer(serializers.ModelSerializer):

@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from accounts.models import Company, Branch
+from accounts.utils import generate_unique_id
 from middleware.request_middleware import get_request
 
 class BaseModel(models.Model):
@@ -20,6 +21,7 @@ class BaseModel(models.Model):
 
 
 class CloudTelephonyVendor(BaseModel):
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
     name = models.CharField(max_length=255, unique=True)
     image = models.ImageField(upload_to='cloudtelephony_vendor_images/', null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -27,7 +29,10 @@ class CloudTelephonyVendor(BaseModel):
 
     class Meta:
         db_table = 'cloud_telephony_vendor_table'
-
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_unique_id(CloudTelephonyVendor, prefix='CVI')
+        super().save(*args, **kwargs)
     def __str__(self):
         return self.name
 
@@ -43,7 +48,7 @@ class CloudTelephonyChannel(BaseModel):
         (0, "Inactive"),
         (1, "Active"),
     ]
-
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
     cloudtelephony_vendor = models.ForeignKey(
         CloudTelephonyVendor, on_delete=models.CASCADE, null=True, blank=True, related_name="cloudtelephony"
     )
@@ -63,7 +68,10 @@ class CloudTelephonyChannel(BaseModel):
     other = models.CharField(max_length=500,null=True)
     class Meta:
         db_table = "cloud_telephony_channel"
-
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_unique_id(CloudTelephonyChannel, prefix='CTI')
+        super().save(*args, **kwargs)
     def __str__(self):
         return f"{self.cloudtelephony_vendor}"
 

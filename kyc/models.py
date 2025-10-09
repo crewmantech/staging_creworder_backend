@@ -1,6 +1,7 @@
 import random
 from django.db import models
 from accounts.models import Company
+from accounts.utils import generate_unique_id
 from middleware.request_middleware import get_request
 from django.contrib.auth.models import User
 # Create your models here.
@@ -29,6 +30,7 @@ class KYC(BaseModel):
         (0, "Inactive"),
         (1, "Active"),
     ]
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
     gst_state_code = models.CharField(max_length=2, blank=True, null=True)
     select_kyc_type = models.CharField(max_length=50)  # e.g., 'PAN', 'GST', etc.
     pan_card_number = models.CharField(max_length=10, blank=True, null=True)
@@ -64,12 +66,20 @@ class KYC(BaseModel):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_unique_id(KYC, prefix='KYI')
+        super().save(*args, **kwargs)
 
 class GSTState(BaseModel):
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
     state_name = models.CharField(max_length=100)
     state_code = models.CharField(max_length=5)
 
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_unique_id(GSTState, prefix='GSI')
+        super().save(*args, **kwargs)
     def __str__(self):
         return self.state_name
     

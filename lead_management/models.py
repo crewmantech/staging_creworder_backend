@@ -4,6 +4,7 @@ from django.db import models
 from accounts.models import Company, Branch
 from django.contrib.auth.models import User
 
+from accounts.utils import generate_unique_id
 from orders.models import Products
 
 
@@ -28,6 +29,7 @@ class LeadModel(BaseModel):
         (1,"Read"),
         (0,"Unread")
     ]
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
     customer_name = models.CharField(max_length=50)
     customer_number = models.CharField(max_length=50)
     customer_call_id = models.CharField(max_length=50)
@@ -40,6 +42,10 @@ class LeadModel(BaseModel):
     updated_at = models.DateTimeField(auto_now=True)
     class Meta:
         db_table = 'lead_table'
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_unique_id(LeadModel, prefix='KYI')
+        super().save(*args, **kwargs)
     def __str__(self):
         return self.customer_name
     
@@ -50,10 +56,13 @@ class LeadSourceModel(BaseModel):
     name = models.CharField(max_length=200, null=False, blank=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
     class Meta:
         db_table = 'lead_source_table'
-
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_unique_id(LeadSourceModel, prefix='KYI')
+        super().save(*args, **kwargs)
     def __str__(self):
         return self.name
 
@@ -118,10 +127,13 @@ class LeadStatusModel(BaseModel):
     name = models.CharField(max_length=200, null=False, blank=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
     class Meta:
         db_table = 'lead_status_table'
-
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_unique_id(LeadSourceModel, prefix='KYI')
+        super().save(*args, **kwargs)
     def __str__(self):
         return self.name
     
@@ -132,10 +144,13 @@ class DealCategoryModel(BaseModel):
     name = models.CharField(max_length=200, null=False, blank=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
     class Meta:
         db_table = 'deal_category_table'
-
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_unique_id(LeadSourceModel, prefix='KYI')
+        super().save(*args, **kwargs)
     def __str__(self):
         return self.name
     
@@ -144,7 +159,11 @@ class UserCategoryAssignment(BaseModel):
     user_profile = models.ForeignKey(User, on_delete=models.CASCADE, related_name="category_assignments")
     deal_category = models.ForeignKey(DealCategoryModel, on_delete=models.CASCADE)
     assigned_at = models.DateTimeField(auto_now_add=True)
-
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_unique_id(LeadSourceModel, prefix='KYI')
+        super().save(*args, **kwargs)
     def __str__(self):
         return f"{self.user_profile.profile} - {self.deal_category.name}"
     
@@ -159,7 +178,12 @@ class Pipeline(BaseModel):
     round_robin = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    last_assigned_index = models.IntegerField(default=-1)  
+    last_assigned_index = models.IntegerField(default=-1)
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_unique_id(LeadSourceModel, prefix='KYI')
+        super().save(*args, **kwargs)  
     def __str__(self):
         return f"Pipeline {self.id} - {self.lead_source}"
     
@@ -190,7 +214,7 @@ class Lead(BaseModel):
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
     def generate_lead_id(self):
         """Generate a custom id with prefix LEAD and 5 random alphanumeric characters"""
         return f"LEAD{''.join(random.choices(string.ascii_uppercase + string.digits, k=5))}"
@@ -203,6 +227,8 @@ class Lead(BaseModel):
                 if not Lead.objects.filter(lead_id=new_id).exists():
                     self.lead_id = new_id
                     unique = True
+        if not self.id:
+            self.id = generate_unique_id(LeadSourceModel, prefix='KYI')
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -215,11 +241,17 @@ class Lead(BaseModel):
         
 
 class lead_form(BaseModel):
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
     form_name = models.CharField(max_length=255)
     fields = models.JSONField()  # To store the dynamic fields and values
     pipeline = models.ForeignKey(Pipeline, on_delete=models.SET_NULL, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     class Meta:
         db_table = 'lead_form'
+
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_unique_id(LeadSourceModel, prefix='KYI')
+        super().save(*args, **kwargs)     
     def __str__(self):
         return f"Request {self.id} - Pipeline {self.pipeline}"
