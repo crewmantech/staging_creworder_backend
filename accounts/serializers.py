@@ -82,7 +82,7 @@ class PackageDetailsSerializer(serializers.ModelSerializer):
     class Meta:
         model = PackageDetailsModel
         fields = '__all__'
-
+        read_only_fields = ['id']
     def get_menu_url(self, data):
         return data.menu.url if data.menu else None
     def get_sub_menu_url(self,data):
