@@ -407,8 +407,46 @@ class Department(BaseModel):
     def __str__(self):
         return self.name
 
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
 
+        content_type, _ = ContentType.objects.get_or_create(
+            app_label=self._meta.app_label,
+            model=self._meta.model_name
+        )
 
+        # 🔹 Create fixed permissions (only once per content type)
+        fixed_permissions = [
+            ("can_view_all_department", "Can view all departments"),
+            ("can_view_own_department", "Can view own department"),
+        ]
+        for codename, label in fixed_permissions:
+            Permission.objects.get_or_create(
+                codename=f"department_{codename}",
+                name=f"Department {label}",
+                content_type=content_type,
+            )
+
+        # 🔹 Create department-specific permission (unique per department per company)
+        company_name = self.company.name if self.company else "SuperAdmin"
+        perm_name = "can_view_department"
+        readable_label = perm_name.replace('_', ' ').capitalize()
+
+        # ✅ Human-readable name (no company code)
+        readable_name = f"Department {readable_label} {self.name}"
+
+        # ✅ Unique codename (includes company + department ID to prevent duplicates)
+        unique_suffix = f"{self.company_id or 'superadmin'}_{self.id}"
+        codename = f"department_{perm_name}_{self.name.lower().replace(' ', '_')}_{unique_suffix}"
+
+        try:
+            Permission.objects.get_or_create(
+                codename=codename,
+                name=readable_name,
+                content_type=content_type,
+            )
+        except IntegrityError:
+            pass
 class Designation(BaseModel):
     name = models.CharField(max_length=200, null=False, blank=False)
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name="designations", null=True, blank=True)

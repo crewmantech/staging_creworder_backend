@@ -243,6 +243,36 @@ class UserViewSet(viewsets.ModelViewSet):
 
             elif user.profile.user_type == "agent":
                 queryset = queryset.filter(profile__branch=user.profile.branch)
+                try:
+                    user_permissions = user.user_permissions.values_list('codename', flat=True)
+
+                    # 🟢 1. Full Access: All departments
+                    if 'department_can_view_all_department' in user_permissions:
+                        pass  # full access
+
+                    # 🟡 2. Own Department Access
+                    elif 'department_can_view_own_department' in user_permissions:
+                        queryset = queryset.filter(profile__department=user.profile.department)
+
+                    else:
+                        # 🔵 3. Specific Department(s) Access
+                        department_permissions = [
+                            perm.split('department_can_view_department_')[1]
+                            for perm in user_permissions
+                            if perm.startswith('department_can_view_department_')
+                        ]
+
+                        if department_permissions:
+                            queryset = queryset.filter(
+                                profile__department__name__in=department_permissions
+                            )
+                        else:
+                            # 🔴 4. Default: Only self (no permission)
+                            queryset = queryset.filter(id=user.id)
+
+                except Exception as e:
+                    print("Agent filtering error:", e)
+                    queryset = queryset.none()
         except Exception as e:
             print(f"Error in get_queryset: {e}")
         return queryset
