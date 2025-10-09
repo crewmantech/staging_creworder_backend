@@ -312,6 +312,7 @@ class AadhaarOTPVerificationView(APIView):
     def verify_otp(self, otp,reference_id):
         """Verify OTP and retrieve Aadhaar details"""
         api_service = SandboxAPIService()
+        print(api_service,"--------------------315")
         data, status_code = api_service.aadhaar_verify_otp( otp,reference_id)
 
         return Response(data, status=status_code)

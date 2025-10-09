@@ -125,6 +125,7 @@ class SandboxAPIService:
             "otp": otp
         }
         response = self._make_request("post", endpoint, data=data)
+        print(response,"-------------------128")
         return response
     def aadhaar_generate_otp(self, aadhaar_number):
         """Generate OTP for Aadhaar verification"""
