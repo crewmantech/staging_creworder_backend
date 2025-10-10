@@ -14,7 +14,7 @@ router.register(r'pipelines', PipelineViewSet)
 router.register(r'lead-form', LeadformViewSet, basename='lead-form')
 urlpatterns = [
     path('lead/', views.LeadCreateAPIView.as_view(), name='lead-list'),
-    path('lead/<int:pk>', views.LeadCreateAPIView.as_view(), name='lead-lists'),
+    path('lead/<str:pk>', views.LeadCreateAPIView.as_view(), name='lead-lists'),
     path('lead/create/', views.LeadCreateAPIView.as_view(), name='lead-create'),
      path('lead/bulk-upload/', LeadBulkUploadView.as_view(), name='upload_bulk_leads'),
     path('', include(router.urls)),

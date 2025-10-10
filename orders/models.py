@@ -6,6 +6,7 @@ from django.core.exceptions import PermissionDenied
 from accounts.models import Company, Branch,PickUpPoint
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth.models import Permission
+from accounts.utils import generate_unique_id
 from middleware.request_middleware import get_request
 from shipment.models import ShipmentModel, ShipmentVendor
 from django.core.validators import RegexValidator, URLValidator
@@ -29,7 +30,7 @@ class Category(models.Model):
         (0, "Inactive"),
         (1, "Active"),
     ]
-    id = models.AutoField(primary_key=True)
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=False, null=False)
     image = models.ImageField(
@@ -44,11 +45,16 @@ class Category(models.Model):
     class Meta:
         db_table = 'category_table'
         unique_together = ("name", "branch", "company")
+    
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_unique_id(Category, prefix='CGI')
+        super().save(*args, **kwargs)  
     def __str__(self):
         return f"category {self.id} by {self.name}"
     
 class Products(models.Model):
-    id = models.AutoField(primary_key=True)
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
     product_id = models.CharField(max_length=100, unique=True,null=True, blank=True)
     product_name = models.CharField(max_length=255)
     product_sku = models.CharField(max_length=255)
@@ -78,6 +84,8 @@ class Products(models.Model):
         return f"products {self.id} by {self.product_name}"
     
     def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_unique_id(Products, prefix='PDI')
         super().save(*args, **kwargs)
         content_type, created = ContentType.objects.get_or_create(
             app_label="orders",  # Fixed app label
@@ -94,7 +102,7 @@ class Products(models.Model):
             )
     
 class Payment_Type(models.Model):
-    id = models.AutoField(primary_key=True)
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
     name = models.CharField(max_length=50)
     # branch = models.ForeignKey(Branch, on_delete=models.CASCADE, default=1)
     # company = models.ForeignKey(Company, on_delete=models.CASCADE, default=1)
@@ -102,11 +110,15 @@ class Payment_Type(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     class Meta:
         db_table = 'payment_types_table'
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_unique_id(Payment_Type, prefix='PTI')
+        super().save(*args, **kwargs)  
     def __str__(self):
         return self.name
     
 class OrderStatus(models.Model):
-    id = models.AutoField(primary_key=True)
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
     name = models.CharField(max_length=50)
     description = models.TextField(default="Order Status")
     # branch = models.ForeignKey(Branch, on_delete=models.CASCADE, default=1)
@@ -125,6 +137,8 @@ class OrderStatus(models.Model):
         return self.name
     
     def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_unique_id(OrderStatus, prefix='OSI')
         super().save(*args, **kwargs)
         content_type, created = ContentType.objects.get_or_create(
             app_label="orders",  # Fixed app label
@@ -139,7 +153,7 @@ class OrderStatus(models.Model):
             )
     
 class Payment_Status(models.Model):
-    id = models.AutoField(primary_key=True)
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
     name = models.CharField(max_length=50)
     # branch = models.ForeignKey(Branch, on_delete=models.CASCADE, default=1)
     # company = models.ForeignKey(Company, on_delete=models.CASCADE, default=1)
@@ -149,6 +163,12 @@ class Payment_Status(models.Model):
     
     class Meta:
         db_table = 'payment_status_table'
+    
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_unique_id(Payment_Status, prefix='PSI')
+        super().save(*args, **kwargs)  
+
     def __str__(self):
         return self.name
 
@@ -169,7 +189,7 @@ class Customer_State(models.Model):
     # The above code is a comment in Python. Comments are used to provide explanations or notes within
     # the code and are not executed by the Python interpreter. In this case, the comment is indicating
     # that the code is using the `id` function, but it is not actually calling the function.
-    id = models.AutoField(primary_key=True)
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
     name = models.CharField(max_length=50, unique=True) 
     gst_state_code = models.CharField(max_length=20,blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -177,12 +197,15 @@ class Customer_State(models.Model):
 
     class Meta:
         db_table = 'state_table'
-
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_unique_id(Customer_State, prefix='CSI')
+        super().save(*args, **kwargs) 
     def __str__(self):
         return self.name
     
 class Order_Table(BaseModel):
-    id = models.AutoField(primary_key=True)
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
     order_id = models.CharField(max_length=100, unique=True, null=True, blank=True)
     network_ip = models.CharField(max_length=100)
     customer_name = models.CharField(max_length=255)
@@ -252,9 +275,10 @@ class Order_Table(BaseModel):
 
     class Meta:
         db_table = 'orders_table'
-
     def save(self, *args, **kwargs):
         created = self.pk is None
+        if not self.id:
+            self.id = generate_unique_id(Order_Table, prefix='OTI')
         super().save(*args, **kwargs)
         OrderLogModel.objects.create(
             order=self,
@@ -266,7 +290,7 @@ class Order_Table(BaseModel):
     
 
 class OrderDetail(models.Model):
-    id = models.AutoField(primary_key=True)
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
     order = models.ForeignKey(Order_Table, on_delete=models.CASCADE)
     product = models.ForeignKey(Products, on_delete=models.PROTECT,default=1)
     product_name = models.CharField(max_length=255, default='0')
@@ -284,11 +308,15 @@ class OrderDetail(models.Model):
             ('view_orderdetail_order_payment_status', 'orderdetail view Order Payment Status'),
             ('view_orderdetail_Product_Information', 'orderdetail view Products Information'),
             )
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_unique_id(OrderDetail, prefix='ODI')
+        super().save(*args, **kwargs)
     def __str__(self):
         return self.order
     
 class OrderLogModel(models.Model):
-    id = models.AutoField(primary_key=True)
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
     order = models.ForeignKey(Order_Table, on_delete=models.CASCADE)
     order_status = models.ForeignKey(OrderStatus, on_delete=models.PROTECT)
     action_by = models.ForeignKey(User, on_delete=models.PROTECT)
@@ -298,6 +326,10 @@ class OrderLogModel(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     class Meta:
         db_table = 'order_log_table'
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_unique_id(OrderLogModel, prefix='OLI')
+        super().save(*args, **kwargs)
     def __str__(self):
         return f"category {self.id} by {self.order}"
 
@@ -331,7 +363,7 @@ class PincodeLocality(BaseModel):
 
 
 class OrderValueSetting(models.Model):
-    
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
     title = models.CharField(max_length=255)
     payment_type = models.ForeignKey(Payment_Type, on_delete=models.PROTECT)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
@@ -341,22 +373,31 @@ class OrderValueSetting(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_unique_id(OrderValueSetting, prefix='OVI')
+        super().save(*args, **kwargs)
     def __str__(self):
         return f"{self.title} - {self.payment_type} - {self.amount}"
     
     
 class AllowStatus(models.Model):
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
     name = models.CharField(max_length=50)
     status_code = models.CharField(max_length=20)
     shipment_vendor = models.ForeignKey(ShipmentVendor, on_delete=models.CASCADE)
     class Meta:
         db_table = 'allow_status'
         unique_together = ('name', 'shipment_vendor')
-
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_unique_id(AllowStatus, prefix='ASI')
+        super().save(*args, **kwargs)
     def __str__(self):
         return f"{self.name} ({self.status_code})"
 
 class OrderStatusWorkflow(models.Model):
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
     order_status = models.ForeignKey(OrderStatus, on_delete=models.CASCADE)
     shipment_vendor = models.ForeignKey(ShipmentVendor, on_delete=models.CASCADE)
     allow_status = models.ManyToManyField(AllowStatus, related_name='workflows')
@@ -365,16 +406,23 @@ class OrderStatusWorkflow(models.Model):
     class Meta:
         db_table = 'order_status_workflow'
         unique_together = ('order_status', 'shipment_vendor')
-
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_unique_id(OrderStatusWorkflow, prefix='OWI')
+        super().save(*args, **kwargs)
     def __str__(self):
         return f"{self.order_status.name} - {self.shipment_vendor.name}"
 
 class ReturnType(models.Model):
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
     name = models.CharField(max_length=50, unique=True)
     status_code = models.CharField(max_length=20)
     class Meta:
         db_table = 'return_type'
-
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_unique_id(ReturnType, prefix='RTI')
+        super().save(*args, **kwargs)
     def __str__(self):
         return f"{self.name} ({self.status_code})"
 
@@ -403,13 +451,17 @@ class LableLayout(BaseModel):
     company = models.ForeignKey(Company, on_delete=models.CASCADE,null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
     class Meta:
         db_table = 'lable_layout'
-
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_unique_id(LableLayout, prefix='LLI')
+        super().save(*args, **kwargs)
 
 
 class invoice_layout(BaseModel):
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
     logo = models.ImageField(upload_to='logo_lable_invoice_images/', null=True, blank=True)
     signature = models.ImageField(upload_to='signature_lable_invoice_images/', null=True, blank=True)
     branch = models.ForeignKey(Branch, on_delete=models.CASCADE,null=True, blank=True)
@@ -422,6 +474,10 @@ class invoice_layout(BaseModel):
     
     class Meta:
         db_table = 'invoice_layout'
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_unique_id(invoice_layout, prefix='ILI')
+        super().save(*args, **kwargs)
 
 
 

@@ -12,6 +12,7 @@ class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Products
         fields = '__all__'  
+        read_only_fields = ['id']
         
 
 
@@ -37,6 +38,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrderDetail
         fields = '__all__'
+        read_only_fields = ['id']
 
     def get_customer_state_code(self, obj):
         return obj.order.customer_state.gst_state_code  
@@ -143,7 +145,8 @@ class OrderLogSerializer(serializers.ModelSerializer):
     order_status_name = serializers.SerializerMethodField()
     class Meta:
         model = OrderLogModel
-        fields = '__all__'  
+        fields = '__all__'
+        read_only_fields = ['id']  
 
     def get_action_by_username(self, auth):
         return auth.action_by.username if auth.action_by else None
@@ -171,6 +174,7 @@ class OrderTableSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order_Table
         fields = '__all__'  
+        read_only_fields = ['id']
 
     def get_order_created_by_username(self, auth):
         return auth.order_created_by.username if auth.order_created_by else None
@@ -216,11 +220,13 @@ class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = '__all__'  
+        read_only_fields = ['id']
 
 class OrderStatusSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrderStatus
         fields = '__all__'  
+        read_only_fields = ['id']
 
 class InvoiceSerializer(serializers.ModelSerializer):
     order_details = OrderDetailSerializer(many=True, read_only=True, source='orderdetail_set')
@@ -237,6 +243,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order_Table
         fields = '__all__'
+        read_only_fields = ['id']
 
     def get_order_created_by_username(self, auth):
         return auth.order_created_by.username if auth.order_created_by else None
@@ -290,6 +297,7 @@ class FilterOrdersSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order_Table
         fields = '__all__'
+        read_only_fields = ['id']
 
 
 class PincodeLocalitySerializer(serializers.ModelSerializer):
@@ -301,21 +309,25 @@ class PaymentStatusSerializer(serializers.ModelSerializer):
     class Meta:
         model = Payment_Status
         fields = '__all__' 
+        read_only_fields = ['id']
 
 class CustomerStateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Customer_State
         fields = '__all__'
+        read_only_fields = ['id']
 
 class PaymentTypeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Payment_Type
         fields = '__all__' 
+        read_only_fields = ['id']
 
 class OrderValueSettingSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrderValueSetting
         fields = '__all__'
+        read_only_fields = ['id']
 
 class ScanOrderSerializer(serializers.Serializer):
     order_id = serializers.CharField()
@@ -325,6 +337,7 @@ class AllowStatusSerializer(serializers.ModelSerializer):
     class Meta:
         model = AllowStatus
         fields = ['id', 'name', 'status_code',"shipment_vendor"]
+        read_only_fields = ['id']
 
 
 class OrderStatusWorkflowSerializer(serializers.ModelSerializer):
@@ -335,11 +348,13 @@ class OrderStatusWorkflowSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrderStatusWorkflow
         fields = ['id', 'order_status', 'shipment_vendor', 'allow_status']
+        read_only_fields = ['id']
 
 class ReturnTypeSerializer(serializers.ModelSerializer):
     class Meta:
         model = ReturnType
         fields = '__all__'
+        read_only_fields = ['id']
 
 
 
@@ -351,6 +366,7 @@ class LableLayoutSerializer(serializers.ModelSerializer):
     class Meta:
         model = LableLayout
         fields = '__all__'
+        read_only_fields = ['id']
     def get_logo_images_url(self, obj):
         request = self.context.get('request')
         if obj.logo_images:
@@ -366,6 +382,7 @@ class LableinvoiceSerializer(serializers.ModelSerializer):
     class Meta:
         model = invoice_layout
         fields = '__all__'
+        read_only_fields = ['id']
 
 
 class NotificationsConfigSerializer(serializers.ModelSerializer):
@@ -419,6 +436,7 @@ class OrderTableSerializer1(serializers.ModelSerializer):
     class Meta:
         model = Order_Table
         fields = '__all__'  
+        read_only_fields = ['id']
     def get_customer_phone(self, obj):
         return obj.customer_phone[-10:] if obj.customer_phone else None
     def get_order_created_by_username(self, auth):

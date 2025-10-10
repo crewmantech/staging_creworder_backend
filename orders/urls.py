@@ -23,21 +23,21 @@ urlpatterns = [
     path("get-OrderFilters/", views.OrderFiltersView.as_view(), name="OrderFiltersView"),
     path('order-statuss/', MainOrderStatusAPIView.as_view(), name='get-order-status'),
     path("orders/", views.OrderAPIView.as_view(), name="order-list-create"),
-    path("orders/<int:pk>/", views.OrderAPIView.as_view(), name="order-detail"),
+    path("orders/<str:pk>/", views.OrderAPIView.as_view(), name="order-detail"),
     path('filtered-orders/', FilteredOrderViewSet.as_view({'get': 'list'}), name='filtered-orders'),
     path("category/", views.CategoryView.as_view(), name="category-create"),
-    path("category/<int:pk>", views.CategoryView.as_view(), name="update-create"),
+    path("category/<str:pk>", views.CategoryView.as_view(), name="update-create"),
     path("product/", views.ProductView.as_view(), name="product-create"),
-    path("getproduct/<int:pk>", views.ProductView.as_view(), name="product-create"),
-    path("product/<int:pk>", views.ProductView.as_view(), name="product-update-delete"),
+    path("getproduct/<str:pk>", views.ProductView.as_view(), name="product-create"),
+    path("product/<str:pk>", views.ProductView.as_view(), name="product-update-delete"),
     path(
-        "products/<int:pk>/",
+        "products/<str:pk>/",
         views.ProductDetailAPIView.as_view(),
         name="product-detail",
     ),
     path("products/", views.ProductListCreateAPIView.as_view(), name="product-detail"),
     path(
-        "getCategory/<int:pk>",
+        "getCategory/<str:pk>",
         views.CategorytDetailAPIView.as_view(),
         name="category-detail",
     ),
@@ -58,8 +58,8 @@ urlpatterns = [
     ),
     path('bulk-upload/', BulkOrderUploadView.as_view(), name='bulk_order_upload'),
     path('order-aggregation-by-status/', OrderAggregationByStatusAPIView.as_view(), name='order-aggregation-by-status'),
-    path('status-update/<int:pk>', UpdateOrderStatusAndPaymentStatusView.as_view(), name='status-update'),
-    path('order-log/<int:order_id>/', OrderLogListView.as_view(), name='order-logs'),
+    path('status-update/<str:pk>', UpdateOrderStatusAndPaymentStatusView.as_view(), name='status-update'),
+    path('order-log/<str:order_id>/', OrderLogListView.as_view(), name='order-logs'),
     path('team-order-list/', OrderMetricsAPIView.as_view(), name='order-list-team'),
     path('products/order-summary/', ProductOrderSummaryView.as_view(), name='product-order-summary'),
     path('products/order-summary1/', ProductOrderSummaryView1.as_view(), name='product-order-summary1'),
@@ -68,16 +68,16 @@ urlpatterns = [
 
     path('lable-layout/', LableLayoutAPIView.as_view(), name='lable-layout'),
 
-    path('lable-layout/<int:id>/', LableLayoutAPIView.as_view(), name='lablelayout-detail'),
+    path('lable-layout/<str:id>/', LableLayoutAPIView.as_view(), name='lablelayout-detail'),
 
 
     path('invoice-layout/', LableInvoiceAPIView.as_view(), name='lable-invoice'),
 
-    path('invoice-layout/<int:id>/', LableInvoiceAPIView.as_view(), name='lableinvoice-detail'),
+    path('invoice-layout/<str:id>/', LableInvoiceAPIView.as_view(), name='lableinvoice-detail'),
     path('bulk-upload-product/', CSVProductUploadView.as_view(), name='bulk_product_upload'),
     path('orders-change-status/', ChangeOrderStatusAPIView.as_view(), name='change-order-status'),
     path('external-create-order/', ExternalOrderCreateView.as_view(), name='external-create-order'),
-    path('orders-repeat/<int:order_id>/', CreateRepeatOrderAPIView.as_view(), name='repeat-order'),
+    path('orders-repeat/<str:order_id>/', CreateRepeatOrderAPIView.as_view(), name='repeat-order'),
     path('recurring-orders/', RecurringOrdersAPIView.as_view(), name='recurring-orders'),
     path('orders-report/', AcceptedOrdersReportAPIView.as_view(), name='orders-report'),
     
