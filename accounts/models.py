@@ -415,48 +415,89 @@ class Department(BaseModel):
     # updated_by = models.ForeignKey(User, related_name="department_updated_by", on_delete=models.SET_NULL, null=True, blank=True)
     def __str__(self):
         return self.name
+
     def save(self, *args, **kwargs):
+        is_new = self._state.adding
+
+        # Generate unique ID if not set
         if not self.id:
             self.id = generate_unique_id(Department, prefix='DEP')
+
+        # Try to get company from logged-in user if not provided
+        if not self.company:
+            request = get_request()
+            if request and hasattr(request.user, "profile") and getattr(request.user.profile, "company", None):
+                self.company = request.user.profile.company
+
+        print("Before super().save():", self.company)
+
         super().save(*args, **kwargs)
 
-        content_type, _ = ContentType.objects.get_or_create(
-            app_label=self._meta.app_label,
-            model=self._meta.model_name
-        )
-
-        # 🔹 Create fixed permissions (only once per content type)
-        fixed_permissions = [
-            ("can_view_all_department", "Can view all departments"),
-            ("can_view_own_department", "Can view own department"),
-        ]
-        for codename, label in fixed_permissions:
-            Permission.objects.get_or_create(
-                codename=f"department_{codename}",
-                name=f"Department {label}",
-                content_type=content_type,
+        # Proceed only when department is newly created
+        if is_new:
+            content_type, _ = ContentType.objects.get_or_create(
+                app_label=self._meta.app_label,
+                model=self._meta.model_name
             )
 
-        # 🔹 Create department-specific permission (unique per department per company)
-        company_name = self.company.name if self.company else "SuperAdmin"
-        perm_name = "can_view_department"
-        readable_label = perm_name.replace('_', ' ').capitalize()
+            # ✅ Global permissions (fixed)
+            fixed_permissions = [
+                ("can_view_all", "Can view all departments"),
+                ("can_view_own", "Can view own department"),
+            ]
+            for codename, label in fixed_permissions:
+                Permission.objects.get_or_create(
+                    codename=f"department_{codename}",
+                    name=f"Department {label}",
+                    content_type=content_type,
+                )
 
-        # ✅ Human-readable name (no company code)
-        readable_name = f"Department {readable_label} {self.name}"
+            # ✅ Company-specific permission
+            company = self.company
+            if company:
+                company_id = company.id
+                company_name = company.name
+            else:
+                company_id = "superadmin"
+                company_name = "Superadmin"
 
-        # ✅ Unique codename (includes company + department ID to prevent duplicates)
-        unique_suffix = f"{self.company_id or 'superadmin'}_{self.id}"
-        codename = f"department_{perm_name}_{self.name.lower().replace(' ', '_')}_{unique_suffix}"
+    
+            perm_name = "can_view"
+            permission_name = f"Department {perm_name.replace('_', ' ').capitalize()} {self.name.replace('_', ' ')} - {company_name}"
+            permission_codename = f"department_{perm_name}_{self.name.lower().replace(' ', '_')}"
 
-        try:
-            Permission.objects.get_or_create(
-                codename=codename,
-                name=readable_name,
-                content_type=content_type,
-            )
-        except IntegrityError:
-            pass
+            print(permission_codename, permission_name, "-----------------466")
+
+            try:
+                Permission.objects.get_or_create(
+                    codename=permission_codename,
+                    name=permission_name,
+                    content_type=content_type,
+                )
+            except IntegrityError:
+                pass
+            # codename = f"department_can_view_{self.name.lower().replace(' ', '_')}_{company_id}_{self.id}"
+            # readable_name = f"Can view Department '{self.name}' ({company_name})"
+            # print(codename,readable_name,"-----------------466")
+            # try:
+            #     Permission.objects.get_or_create(
+            #         codename=readable_name,
+            #         name=codename,
+            #         content_type=content_type,
+            #     )
+            # except IntegrityError:
+            #     pass
+
+    def __str__(self):
+        return f"{self.name} - {self.company.name if self.company else 'Superadmin'}"
+
+    def delete(self, *args, **kwargs):
+        content_type = ContentType.objects.get_for_model(self)
+        Permission.objects.filter(
+            content_type=content_type,
+            name__icontains=self.name
+        ).delete()
+        super().delete(*args, **kwargs)
 class Designation(BaseModel):
     id = models.CharField(max_length=50, primary_key=True, unique=True)
     name = models.CharField(max_length=200, null=False, blank=False)

@@ -1959,6 +1959,15 @@ class FetchPermissionView(APIView):
         for permission in permissions:
             if "Products Can work on this" in permission.name and str(company_name) not in permission.name:
                 continue
+            if (
+                    "Department Can view" in permission.name
+                    and str(company_name) not in permission.name
+                    and permission.name not in [
+                        "Department Can view all departments",
+                        "Department Can view own department"
+                    ]
+                ):
+                    continue
             if request.user.profile.user_type != "superadmin" and permission.name.lower().startswith("show_settingsmenu") and not request.user.has_perm(f"{permission.content_type.app_label}.{permission.codename}"):
                 continue
             permissions_dict[permission.codename] = permission.id
