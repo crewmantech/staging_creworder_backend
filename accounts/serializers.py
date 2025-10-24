@@ -12,7 +12,7 @@ from staging_creworder_backend import settings
 from lead_management.models import Lead, LeadSourceModel
 from orders.models import  Products
 from services.email.email_service import send_email
-from .models import  Agreement, CompanyInquiry, CompanyUserAPIKey, Enquiry, QcScore, ReminderNotes, StickyNote, User, Company, Package,Employees, Notice, Branch, FormEnquiry, SupportTicket, Module, \
+from .models import  Agreement, AttendanceSession, CompanyInquiry, CompanyUserAPIKey, Enquiry, QcScore, ReminderNotes, StickyNote, User, Company, Package,Employees, Notice, Branch, FormEnquiry, SupportTicket, Module, \
     Department, Designation, Leaves, Holiday, Award, Appreciation, ShiftTiming, Attendance,Shift_Roster,PackageDetailsModel,CustomAuthGroup,\
     PickUpPoint,UserTargetsDelails,AdminBankDetails,AllowedIP,QcTable
 import string
@@ -444,26 +444,37 @@ class ShiftRosterSerializer(serializers.ModelSerializer):
 
         return data
 
+class AttendanceSessionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AttendanceSession
+        fields = ["id", "clock_in", "clock_out", "duration"]
+
+
 class AttendanceSerializer(serializers.ModelSerializer):
-    user_status = serializers.SerializerMethodField()
+    sessions = AttendanceSessionSerializer(many=True, read_only=True)
     user_name = serializers.SerializerMethodField()
+    clock_in_active = serializers.SerializerMethodField()
+    clock_out_active = serializers.SerializerMethodField()
+    shift_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Attendance
-        fields = '__all__'
-        read_only_fields = ['user', 'company', 'branch','id']
-
-    def get_user_status(self, obj):
-        # Only return for real Attendance instances (GET)
-        if isinstance(obj, Attendance) and hasattr(obj.user, "profile"):
-            return obj.user.profile.get_status_display()
-        return None
+        fields = "__all__"
+        read_only_fields = ["id", "user", "company", "branch", "total_active_hours",
+                            "first_clock_in", "last_clock_out"]
 
     def get_user_name(self, obj):
-        # Only return for real Attendance instances (GET)
-        if isinstance(obj, Attendance) and hasattr(obj.user, "username"):
-            return obj.user.username
-        return None
+        return getattr(obj.user, "username", None)
+
+    def get_shift_name(self, obj):
+        return obj.shift.name if obj.shift else None
+
+    def get_clock_in_active(self, obj):
+        return obj.sessions.filter(clock_out__isnull=True).exists()
+
+    def get_clock_out_active(self, obj):
+        last_session = obj.sessions.order_by("-clock_in").first()
+        return bool(last_session and last_session.clock_out)
     
 class AuthGroupSerializers(serializers.ModelSerializer):
     class Meta:

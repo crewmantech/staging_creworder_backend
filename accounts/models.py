@@ -14,7 +14,7 @@ from phonenumber_field.modelfields import PhoneNumberField
 # from superadmin_assets.models import SubMenusModel,MenuModel
 from django.core.validators import RegexValidator
 from django.utils.translation import gettext_lazy as _
-from datetime import date
+from datetime import datetime, timedelta, date
 from django.core.exceptions import ValidationError
 from django.utils.timezone import now
 
@@ -625,36 +625,60 @@ class Shift_Roster(BaseModel):
 
 
 
+from django.utils import timezone
 
 class Attendance(BaseModel):
-    working_choices = [
-        ('home', 'Home'),
-        ('office', 'Office'),
-        ('other', 'Other')
-    ]
-    attendance = [
-        ('A', 'A'),
-        ('P', 'P'),
-    ]
+    ATTENDANCE_CHOICES = [('A', 'A'), ('P', 'P')]
+    WORKING_CHOICES = [('home', 'Home'), ('office', 'Office'), ('other', 'Other')]
+
     id = models.CharField(max_length=50, primary_key=True, unique=True)
-    date = models.DateField(null=False, blank=False)
-    ShiftTiming = models.ForeignKey(ShiftTiming, on_delete=models.PROTECT, related_name="shift_wise_attendances", null=True)
-    user = models.ForeignKey(User, related_name="attendances", null=False, blank=False, on_delete=models.CASCADE)
-    branch = models.ForeignKey(Branch, related_name="Attendance_branch", on_delete=models.CASCADE , null=True, blank=True)
-    company = models.ForeignKey(Company, blank=True, null=True, on_delete=models.CASCADE, related_name="Attendance_company")
-    clock_in = models.TimeField(null=False, blank=False)
+    user = models.ForeignKey(User, related_name="attendances", on_delete=models.CASCADE)
+    branch = models.ForeignKey(Branch, related_name="attendance_branch", on_delete=models.CASCADE, null=True, blank=True)
+    company = models.ForeignKey(Company, related_name="attendance_company", on_delete=models.CASCADE, null=True, blank=True)
+    shift = models.ForeignKey(ShiftTiming, on_delete=models.PROTECT, related_name="shift_wise_attendances", null=True)
+    date = models.DateField(default=timezone.now)
+    working_from = models.CharField(max_length=80, choices=WORKING_CHOICES, default="office")
+    attendance = models.CharField(max_length=2, choices=ATTENDANCE_CHOICES, default="P")
+
+    clock_in = models.TimeField(null=True, blank=True)
     clock_out = models.TimeField(null=True, blank=True)
-    working_from = models.CharField(max_length=80, null=False, blank=False, choices=working_choices, default="office")
-    attendance = models.CharField(choices=attendance, max_length=80, default="A", null=False, blank=False, )
-    
+    total_active_hours = models.DurationField(default=timedelta)
+
     def save(self, *args, **kwargs):
         if not self.id:
             self.id = generate_unique_id(Attendance, prefix='ATE')
         super().save(*args, **kwargs)
 
-    def __str__(self):
-        return f'{self.user.username} - {self.date}'
+    def update_summary(self):
+        """Recalculate first clock-in, last clock-out and total active hours"""
+        sessions = self.sessions.all().order_by("clock_in")
+        if sessions.exists():
+            self.clock_in = sessions.first().clock_in
+            self.clock_out = sessions.last().clock_out or self.clock_out
 
+            total = timedelta()
+            for s in sessions:
+                if s.clock_in and s.clock_out:
+                    total += (datetime.combine(self.date, s.clock_out) -
+                              datetime.combine(self.date, s.clock_in))
+            self.total_active_hours = total
+        self.save()
+
+
+class AttendanceSession(models.Model):
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
+    attendance = models.ForeignKey(Attendance, related_name="sessions", on_delete=models.CASCADE)
+    clock_in = models.TimeField()
+    clock_out = models.TimeField(null=True, blank=True)
+    duration = models.DurationField(default=timedelta)
+
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_unique_id(AttendanceSession, prefix='ATS')
+        if self.clock_in and self.clock_out:
+            self.duration = (datetime.combine(date.today(), self.clock_out) -
+                             datetime.combine(date.today(), self.clock_in))
+        super().save(*args, **kwargs)
 
 class AllowedIP(BaseModel):
     id = models.CharField(max_length=50, primary_key=True, unique=True)

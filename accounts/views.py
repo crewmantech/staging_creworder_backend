@@ -29,7 +29,7 @@ from services.email.email_service import send_email
 from services.shipment.schedule_orders import ShiprocketScheduleOrder,TekipostService
 from shipment.models import ShipmentModel, ShipmentVendor
 from shipment.serializers import ShipmentSerializer
-from .models import  Agreement, CompanyInquiry, CompanyUserAPIKey, Enquiry, QcScore, ReminderNotes, StickyNote, User, Company, Package, Employees, Notice, Branch, FormEnquiry, SupportTicket, Module, \
+from .models import  Agreement, AttendanceSession, CompanyInquiry, CompanyUserAPIKey, Enquiry, QcScore, ReminderNotes, StickyNote, User, Company, Package, Employees, Notice, Branch, FormEnquiry, SupportTicket, Module, \
     Department, Designation, Leaves, Holiday, Award, Appreciation, ShiftTiming, Attendance, AllowedIP,Shift_Roster,CustomAuthGroup,PickUpPoint, UserStatus,\
     UserTargetsDelails,AdminBankDetails,QcTable
 from .serializers import  AgreementSerializer, CompanyInquirySerializer, CompanyUserAPIKeySerializer, CustomPasswordResetSerializer, EnquirySerializer, NewPasswordSerializer,  QcScoreSerializer, ReminderNotesSerializer, StickyNoteSerializer, UpdateTeamLeadManagerSerializer, UserSerializer, CompanySerializer, PackageSerializer, \
@@ -1186,7 +1186,6 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         today = date.today()
         filters = Q()
 
-        # --- Base filters according to role ---
         try:
             if user.profile.user_type == 'superadmin':
                 filters = Q(company=None, branch=None)
@@ -1203,115 +1202,49 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             # fallback: return nothing if profile is broken
             return Attendance.objects.none()
 
-        # --- Date filtering ---
-        try:
-            # 1. Exact date filter
-            exact_date = self.request.query_params.get("date")
-            if exact_date:
-                filters &= Q(date=exact_date)
+        exact_date = self.request.query_params.get("date")
+        if exact_date:
+            filters &= Q(date=exact_date)
+        else:
+            month = self.request.query_params.get("date__month")
+            year = self.request.query_params.get("date__year")
+
+            if month and year:
+                filters &= Q(date__year=int(year), date__month=int(month))
             else:
-                # 2. Month + Year filter
-                month = self.request.query_params.get("date__month")
-                year = self.request.query_params.get("date__year")
+                # Default to current month
+                filters &= Q(date__year=today.year, date__month=today.month)
 
-                if month and year:
-                    filters &= Q(date__year=int(year), date__month=int(month))
-                else:
-                    # Default to current month
-                    filters &= Q(date__year=today.year, date__month=today.month)
-
-            # 3. Date range filter
-            date_range = self.request.query_params.get("date_range")
-            if date_range:
-                try:
-                    start_date, end_date = date_range.split(" - ")
-                    filters &= Q(date__range=(start_date.strip(), end_date.strip()))
-                except ValueError:
-                    print(f"[Date Range Format Error] {date_range}")
-        except Exception as e:
-            print(f"[Date Filter Error] {e}")
-            filters &= Q(date__year=today.year, date__month=today.month)
-
-        # --- Status filter ---
-        try:
-            status_param = self.request.query_params.get("status")
-            if status_param is not None:
-                if status_param.lower() == "true":
-                    filters &= Q(user__profile__status=1)  # active
-                elif status_param.lower() == "false":
-                    filters &= ~Q(user__profile__status=1)  # inactive
-        except Exception as e:
-            print(f"[Status Filter Error] {e}")
-
-        # --- User filter (single or multiple IDs) ---
-        try:
-            user_ids = self.request.query_params.get("user")
-            if user_ids:
-                user_id_list = [int(uid) for uid in str(user_ids).split(",") if uid.isdigit()]
-                if user_id_list:
-                    filters &= Q(user__id__in=user_id_list)
-        except Exception as e:
-            print(f"[User Filter Error] {e}")
-
-        # --- Final queryset ---
-        try:
-            return Attendance.objects.filter(filters)
-        except Exception as e:
-            print(f"[Queryset Error] {e}")
-            return Attendance.objects.none()
+        return Attendance.objects.filter(filters)
 
     def perform_create(self, serializer):
-        """
-        Override the perform_create method to handle optional fields for branch and company
-        """
         user = self.request.user
-        branch = self.request.user.profile.branch if hasattr(self.request.user, 'profile') and self.request.user.profile.branch else None
-        company = self.request.user.profile.company if hasattr(self.request.user, 'profile') and self.request.user.profile.company else None
+        profile = getattr(user, "profile", None)
+        branch = getattr(profile, "branch", None)
+        company = getattr(profile, "company", None)
+        today = date.today()
 
-        # Get the date from the serializer's validated data
-        date = serializer.validated_data.get('date')
+        # Find or create attendance record for today
+        attendance, created = Attendance.objects.get_or_create(
+            user=user, date=today,
+            defaults={'branch': branch, 'company': company}
+        )
 
-        # Check for an existing record with the same user and date
-        existing_record = Attendance.objects.filter(user=user, date=date).first()
+        # Find active session
+        active_session = attendance.sessions.filter(clock_out__isnull=True).first()
+        current_time = datetime.now().time()
 
-        if existing_record:
-            old_clock_in = existing_record.clock_in  # current DB value
-            new_clock_in = serializer.validated_data.get('clock_in')
-            print(new_clock_in,old_clock_in,"-------------1225")
-            # ✅ If clock_in is being updated & changed, reset clock_out
-            if new_clock_in and old_clock_in != new_clock_in:
-                serializer.validated_data['clock_out'] = None
-            # If a record exists, update it with the new data
-            serializer.update(existing_record, serializer.validated_data)
+        if active_session:
+            # Perform clock-out
+            active_session.clock_out = current_time
+            active_session.save()
         else:
-            # If no record exists, create a new one
-            serializer.save(user=user, company=company, branch=branch)
+            # Perform clock-in
+            AttendanceSession.objects.create(attendance=attendance, clock_in=current_time)
 
-    def perform_update(self, serializer):
-        """
-        Override update to reset clock_out when clock_in changes
-        """
-        print("----------in update")
-        instance = self.get_object()
-        old_clock_in = instance.clock_in  # current DB value
-        new_clock_in = serializer.validated_data.get('clock_in')
-        print(new_clock_in,old_clock_in,"-------------1225")
-        # ✅ If clock_in is being updated & changed, reset clock_out
-        if new_clock_in and old_clock_in != new_clock_in:
-            serializer.validated_data['clock_out'] = None
-
-        serializer.save()
-    
-
-
-
-    def has_permission_to_view(self, user, branch):
-        """
-        Check if the user has permission to view data for the given branch.
-        """
-        if user.profile.user_type == 'admin' or user.profile.user_type == 'superadmin':
-            return True
-        return branch.id in [b.id for b in user.permissions.viewable_branches.all()]
+        # Update summary
+        attendance.update_summary()
+        serializer.instance = attendance
 
 
 
