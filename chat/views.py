@@ -221,56 +221,40 @@ class getUserListChat(APIView):
 class GetGroups(APIView):
     permission_classes = [IsAuthenticated]
 
-    # =======================================================================
-    #                Retrieve Groups for User
-    # =======================================================================
-
-    """
-    Fetches groups associated with a specific user and includes details
-    about the group and its members.
-
-    This function retrieves groups where the specified user is a member,
-    along with details about each group and its members. It serializes this
-    information and returns it in the response. If no groups are found for
-    the user, an error response is returned.
-
-    @method get
-    @param {Request} request - The HTTP request containing the user ID.
-    @return {Response} - The HTTP response with the groups and their details or an error message.
-    """
-
     def get(self, request):
         user_id = request.query_params.get("user_id")
         if not user_id:
             return Response(
-                {"Success": False, "Errors": "user_id is required "},
+                {"Success": False, "Errors": "user_id is required"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
         group_details = (
-            GroupDetails.objects.filter(Group_member_id=user_id)
-            .select_related("Group")
-            .prefetch_related("Group_member")
+            GroupDetails.objects.filter(member_id=user_id)
+            .select_related("group")
+            .prefetch_related("member")
         )
+
         if group_details.exists():
             data = []
-            unique_groups = group_details.values("Group_id").distinct()
+            unique_groups = group_details.values("group_id").distinct()
             for group in unique_groups:
-                group_id = group["Group_id"]
+                group_id = group["group_id"]
                 group_info = Group.objects.get(id=group_id)
-                member_count = GroupDetails.objects.filter(Group_id=group_id).count()
-                members_details = GroupDetails.objects.filter(
-                    Group_id=group_id
-                ).select_related("Group_member")
+                member_count = GroupDetails.objects.filter(group_id=group_id).count()
+                members_details = GroupDetails.objects.filter(group_id=group_id).select_related("member")
+
                 members = []
                 for detail in members_details:
                     members.append(
                         {
-                            "member_id": detail.Group_member.id,
-                            "member_name": detail.Group_member.username,
-                            "group_id": detail.Group_id,
-                            "member_status": detail.Group_member_status,
+                            "member_id": detail.member.id,
+                            "member_name": detail.member.username,
+                            "group_id": detail.group_id,
+                            "member_status": detail.member_status,
                         }
                     )
+
                 data.append(
                     {
                         "group_id": group_info.id,
@@ -279,14 +263,13 @@ class GetGroups(APIView):
                         "members": members,
                     }
                 )
-            return Response(
-                {"Success": True, "Groups": data}, status=status.HTTP_200_OK
-            )
-        else:
-            return Response(
-                {"Success": False, "Errors": f"No groups found for user_id {user_id}"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+
+            return Response({"Success": True, "Groups": data}, status=status.HTTP_200_OK)
+
+        return Response(
+            {"Success": False, "Errors": f"No groups found for user_id {user_id}"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
 
 
 class CreateGroup(APIView):
