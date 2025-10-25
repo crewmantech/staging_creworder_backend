@@ -24,6 +24,8 @@ from accounts.models import ExpiringToken as Token
 
 class getChatDetail(APIView):
     serializer_class = ChatSerializer
+    permission_classes = [IsAuthenticated]
+
     # =======================================================================
     #                Retrieve Chat Details
     # =======================================================================
@@ -76,6 +78,8 @@ import json
 from asgiref.sync import async_to_sync
 class createChat(APIView):
     serializer_class = ChatSerializer
+    permission_classes = [IsAuthenticated]
+
     # =======================================================================
     #                Create New Chat Message
     # =======================================================================
@@ -153,6 +157,8 @@ class createChat(APIView):
             )
 
 class chat_count(APIView):
+    permission_classes = [IsAuthenticated]
+
     # =======================================================================
     #                Count Unread Messages
     # =======================================================================
@@ -183,6 +189,8 @@ class chat_count(APIView):
 
 
 class getUserListChat(APIView):
+    permission_classes = [IsAuthenticated]
+
     # =======================================================================
     #                Retrieve User List for Chat
     # =======================================================================
@@ -211,6 +219,8 @@ class getUserListChat(APIView):
 
 
 class GetGroups(APIView):
+    permission_classes = [IsAuthenticated]
+
     # =======================================================================
     #                Retrieve Groups for User
     # =======================================================================
