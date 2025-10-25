@@ -274,18 +274,19 @@ class GetGroups(APIView):
 
 class CreateGroup(APIView):
     permission_classes = [IsAuthenticated]
-    # =======================================================================
-    #                Create a New Group
-    # =======================================================================
-
-   
 
     def post(self, request):
-        group_data = request.data.get("group_name")
+        group_name = request.data.get("group_name")
         members_data = request.data.get("members", [])
 
+        if not group_name:
+            return Response(
+                {"Success": False, "Errors": "group_name is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         # Create Group
-        group_serializer = GroupSerializer(data={"group_name": group_data})
+        group_serializer = GroupSerializer(data={"group_name": group_name})
         if group_serializer.is_valid():
             group = group_serializer.save()
         else:
@@ -294,13 +295,13 @@ class CreateGroup(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Create GroupDetails for each member
+        # Add members to GroupDetails
         for member_data in members_data:
             member_serializer = GroupDetailsSerializer(
                 data={
-                    "Group": group.id,
-                    "Group_member": member_data.get("group_member_id"),
-                    "Group_member_status": member_data.get(
+                    "group": group.id,
+                    "member": member_data.get("group_member_id"),
+                    "member_status": member_data.get(
                         "group_member_status", GroupDetails.GroupMemberType.USER
                     ),
                 }
