@@ -268,7 +268,7 @@ class GetGroups(APIView):
 
         return Response(
             {"Success": False, "Errors": f"No groups found for user_id {user_id}"},
-            status=status.HTTP_404_NOT_FOUND,
+            status=status.HTTP_200_OK,
         )
 
 
