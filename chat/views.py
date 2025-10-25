@@ -226,7 +226,7 @@ class GetGroups(APIView):
         if not user_id:
             return Response(
                 {"Success": False, "Errors": "user_id is required"},
-                status=status.HTTP_400_BAD_REQUEST,
+                status=status.HTTP_200_OK,
             )
 
         group_details = (
