@@ -20,7 +20,7 @@ from rest_framework import status
 from .models import Chat, ChatSession, Group, GroupDetails, User
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.generics import ListAPIView
-from accounts.models import ExpiringToken as Token
+from accounts.models import Department, ExpiringToken as Token
 
 class getChatDetail(APIView):
     serializer_class = ChatSerializer
@@ -428,6 +428,50 @@ class UserListView1(ListAPIView):
                 elif user.profile.user_type == "agent" and  user.has_perm("accounts.chat_user_permission_others"):
                     branch = user.profile.branch
                     queryset = User.objects.filter(profile__branch=branch,profile__status=1)
+                    company = getattr(user.profile, "company", None)
+                    branch = getattr(user.profile, "branch", None)
+                    department = getattr(user.profile, "department", None)
+
+                    base_queryset = User.objects.filter(
+                        profile__company=company,
+                        profile__status=1
+                    )
+
+                    # Check department-related permissions
+                    user_permissions = user.get_all_permissions()
+                    department_permissions = [
+                        perm for perm in user_permissions if perm.startswith("department")
+                    ]
+
+                    allowed_departments = []
+
+                    # If user can view all departments
+                    if any("can_view_all" in perm for perm in department_permissions):
+                        queryset = base_queryset
+
+                    # If user can view only their own department
+                    elif any("can_view_own" in perm for perm in department_permissions):
+                        queryset = base_queryset.filter(profile__department=department)
+
+                    # If user has specific department view permissions
+                    else:
+                          # adjust to your app name
+                        for perm in department_permissions:
+                            if "can_view" in perm and "can_view_all" not in perm and "can_view_own" not in perm:
+                                # Extract department name from permission (if stored like "Can view Sales Department")
+                                try:
+                                    department_name = perm.split("department_can_view_")[-1].replace("_", " ").strip()
+                                    dept = Department.objects.filter(name__iexact=department_name).first()
+                                    if dept:
+                                        allowed_departments.append(dept.id)
+                                except Exception:
+                                    continue
+
+                        queryset = base_queryset.filter(profile__department_id__in=allowed_departments)
+
+                    # # For agent with chat_user_permission_others
+                    # if user_type == "agent" and user.has_perm("accounts.chat_user_permission_others"):
+                    #     queryset = queryset.filter(profile__branch=branch)
 
         except Exception as e:
             print(f"Error in get_queryset: {e}")
