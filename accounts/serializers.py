@@ -469,14 +469,12 @@ class AttendanceSerializer(serializers.ModelSerializer):
     def get_shift_name(self, obj):
         return obj.shift.name if obj.shift else None
 
-    def get_clock_in_inactive(self, obj):
-    # Opposite of clock_in_active: True if no active session (all clocked out)
-        return not obj.sessions.filter(clock_out__isnull=True).exists()
+    def get_clock_in_active(self, obj):
+        return obj.sessions.filter(clock_out__isnull=True).exists()
 
-    def get_clock_out_inactive(self, obj):
-        # Opposite of clock_out_active: True if last session is not clocked out yet
+    def get_clock_out_active(self, obj):
         last_session = obj.sessions.order_by("-clock_in").first()
-        return not (last_session and last_session.clock_out)
+        return bool(last_session and last_session.clock_out)
     
 class AuthGroupSerializers(serializers.ModelSerializer):
     class Meta:
