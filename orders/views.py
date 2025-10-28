@@ -1477,7 +1477,7 @@ class OrderAggregationByStatusAPIView(APIView):
         if tl_id:
             employees_under_tl = Employees.objects.filter(teamlead_id=tl_id,status=1)
             tl_ids = employees_under_tl.values_list('user_id', flat=True)
-            q_filters &= Q(order_created_by_id__in=tl_ids) | Q(updated_by_id__in=tl_ids)
+            q_filters &= Q(order_created_by_id__in=tl_ids) | Q(updated_by_id__in=tl_ids) |Q(order_created_by_id=tl_id) | Q(updated_by_id=tl_id)
             # filter_conditions['updated_by_id__in'] = list(tl_ids)
 
 

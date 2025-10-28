@@ -56,7 +56,7 @@ class MaskNumberMiddleware(MiddlewareMixin):
         """Modifies the response before sending it to the user."""
         if not request.user.is_authenticated:
             return response
-        if request.user.profile.user_type != 'admin':
+        if request.user.profile.user_type == 'agent':
             if request.user.has_perm('accounts.view_number_masking_others'):
                 # Ensure the response is JSON
                 if response.has_header('Content-Type') and 'application/json' in response['Content-Type']:

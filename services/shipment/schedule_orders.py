@@ -1064,7 +1064,16 @@ class NimbuspostAPI:
                     "qty": _item["product_qty"],
                 }
                 _itemsList.append(_itemDict)
-        
+        if isinstance(order_data['customer_state'], dict):
+            state_name = order_data['customer_state'].get('name', 'Unknown')
+        elif isinstance(order_data['customer_state'], int):
+            try:
+                state_obj = Customer_State.objects.filter(id=order_data['customer_state']).first()
+                state_name = state_obj.name if state_obj else 'Unknown'
+            except Exception:
+                state_name = 'Unknown'
+        else:
+            state_name = 'Unknown'
         _RequestJson = {
                     "order_number": f"{order_data['order_id']}",
                     "payment_type": "prepaid" if order_data['payment_type_name'] == "Prepaid Payment" else "cod",
@@ -1078,7 +1087,7 @@ class NimbuspostAPI:
                         "address": f"{order_data['customer_address']}",
                         "address_2": f"{order_data['customer_address']}",
                         "city": f"{order_data['customer_city']}",
-                        "state": f"{order_data['customer_state']}",
+                        "state": f"{state_name}",
                         "pincode": f"{order_data['customer_postal']}",
                         "phone": f"{order_data['customer_phone'][-10:]}"
                     },
@@ -1116,15 +1125,10 @@ class NimbuspostAPI:
                 pickup = PickUpPoint.objects.get(id=pickup_point_id)
                 pickup_data = PickUpPointSerializer(pickup)
                 pickup = pickup_data.data
-                print(pickup,"---------------11095")
                 pickup_pincode = pickup.get("pincode")
-                print(pickup_pincode)
-                print("----------------10988") 
                 pickup_location = pickup.get("contact_person_name") # Adjust field name if different
-                print(pickup_location,"-----------------152")
             except PickUpPoint.DoesNotExist:
                 return {"status": "error", "message": f"Pickup point with ID {pickup_point_id} does not exist."}
-            print(order,"---------------155")
             _request_json = self.makeJsonForApi(order, channel_id,pickup)
             # api_endpoint = self.create_specific_order if channel_id else self.create_custom_order     
             # Extract other details from the order_data
@@ -1137,12 +1141,9 @@ class NimbuspostAPI:
             # weight=1.0,
             # cod=cod
             # )
-            print(_request_json,"------------------1116")
             try:
                 response = self.create_shipment(_request_json)
-                print(response,"-------------------1120")
                 # response = requests.post(api_endpoint, headers=self.headers, json=_request_json)
-                print(response.get('status'),"---------------------1119")
                 # Process response
                 if response.get('status'):
                     response_data1 = response

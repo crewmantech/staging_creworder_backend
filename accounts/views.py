@@ -62,8 +62,8 @@ from .models import Enquiry
 from rest_framework.views import exception_handler
 from io import TextIOWrapper
 from accounts import models
-from rest_framework.pagination import PageNumberPagination
-
+from rest_framework.pagination import 
+PageNumberPagination
 
 def custom_exception_handler(exc, context):
     response = exception_handler(exc, context)
