@@ -62,8 +62,8 @@ from .models import Enquiry
 from rest_framework.views import exception_handler
 from io import TextIOWrapper
 from accounts import models
-from rest_framework.pagination import 
-PageNumberPagination
+from rest_framework.pagination import PageNumberPagination
+
 
 def custom_exception_handler(exc, context):
     response = exception_handler(exc, context)
@@ -1181,6 +1181,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         """
         Customize queryset based on user role, permissions, and safe date filtering.
         Handles exact date, month/year, and date_range.
+        If admin provides ?user_id=, only that user’s data will be returned.
         """
         user = self.request.user
         today = date.today()
@@ -1193,15 +1194,20 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                 branch = getattr(user.profile.branch, "id", None)
                 company = getattr(user.profile.company, "id", None)
                 filters = Q(company=company)
+                user_id = self.request.query_params.get("user_id")
+                if user_id:
+                    filters &= Q(user__id=user_id)
                 if user.profile.user_type == 'admin':
                     filters &= Q(branch=branch)
+                    # ✅ Allow admin to fetch a specific user's attendance
+                    
                 elif not user.has_perm('accounts.view_attendance'):
                     filters &= Q(user=user)
         except Exception as e:
             print(f"[Role Filter Error] {e}")
-            # fallback: return nothing if profile is broken
             return Attendance.objects.none()
 
+        # ----- Date filters -----
         exact_date = self.request.query_params.get("date")
         if exact_date:
             filters &= Q(date=exact_date)
@@ -1212,7 +1218,6 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             if month and year:
                 filters &= Q(date__year=int(year), date__month=int(month))
             else:
-                # Default to current month
                 filters &= Q(date__year=today.year, date__month=today.month)
 
         return Attendance.objects.filter(filters)
