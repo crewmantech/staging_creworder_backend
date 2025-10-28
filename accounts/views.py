@@ -1194,7 +1194,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                 branch = getattr(user.profile.branch, "id", None)
                 company = getattr(user.profile.company, "id", None)
                 filters = Q(company=company)
-                user_id = self.request.query_params.get("user_id")
+                user_id = self.request.query_params.get("user")
                 if user_id:
                     filters &= Q(user__id=user_id)
                 if user.profile.user_type == 'admin':
