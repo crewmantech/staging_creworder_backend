@@ -108,7 +108,7 @@ class OrderAPIView(APIView):
     def post(self, request, *args, **kwargs):
         try:
             state = Customer_State.objects.get(name=request.data['customer_state'])
-            lead_id = request.data['lead_id']
+            lead_id = request.data.get('lead_id')
             if lead_id:
                 try:
                     lead = Lead.objects.get(lead_id=lead_id)
