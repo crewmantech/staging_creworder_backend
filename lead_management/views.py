@@ -275,12 +275,13 @@ class LeadViewSet(viewsets.ModelViewSet):
         user = self.request.user
         queryset = Lead.objects.all()
 
-        # 🔹 Filter by company (based on user profile)
+        # 🔹 Filter by company
         if hasattr(user, 'profile') and user.profile.company:
             queryset = queryset.filter(company=user.profile.company)
 
-        # 🔹 Admins can see all within their company
+        # 🔹 Admins can view all under their company
         if hasattr(user, 'profile') and user.profile.user_type == 'admin':
+            queryset = self.apply_common_filters(queryset)
             return self.apply_date_filter(queryset)
 
         # 🔹 Permission-based visibility
@@ -299,8 +300,33 @@ class LeadViewSet(viewsets.ModelViewSet):
         else:
             queryset = Lead.objects.none()
 
-        # 🔹 Apply date filter (universal for all cases)
-        return self.apply_date_filter(queryset)
+        # 🔹 Apply additional filters
+        queryset = self.apply_common_filters(queryset)
+        queryset = self.apply_date_filter(queryset)
+        return queryset
+
+
+    def apply_common_filters(self, queryset):
+        """Apply filters for phone, email, city, status, and lead_id."""
+        customer_phone = self.request.query_params.get('mobile')
+        customer_email = self.request.query_params.get('email')
+        customer_city = self.request.query_params.get('city')
+        status = self.request.query_params.get('status')
+        lead_id = self.request.query_params.get('lead_id')
+
+        if customer_phone:
+            queryset = queryset.filter(customer_phone__icontains=customer_phone)
+        if customer_email:
+            queryset = queryset.filter(customer_email__icontains=customer_email)
+        if customer_city:
+            queryset = queryset.filter(customer_city__icontains=customer_city)
+        if status:
+            queryset = queryset.filter(status__id=status)  # assuming status is a FK
+        if lead_id:
+            queryset = queryset.filter(lead_id__icontains=lead_id)  # allows partial matches like LEAD123
+
+        return queryset
+
 
     def apply_date_filter(self, queryset):
         """Helper method to apply date filter based on query params."""
