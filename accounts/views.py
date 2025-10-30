@@ -3383,18 +3383,20 @@ class UserPermissionStatusView(APIView):
                 "click-to-call":True,
                 "force_attendance" : user.has_perm('accounts.force_attendance_others'),
                 "number_mask":user.has_perm('accounts.view_number_masking_others'),
+                "create_group_chat":user.has_perm('accounts.create_group_chat_others'),
             }
         else:
             # Fallback to permission-based checks
             response_data = {
-                "order_status_button": user.has_perm('accounts.edit_order_status_others'),
+                "order_status_button": False if user.profile.user_type == 'superadmin' else user.has_perm('accounts.edit_order_status_others'),
                 "order_payment_status_button": user.has_perm('accounts.edit_order_payment_status_others'),
                 "order_edit_button": user.has_perm('accounts.edit_order_others'),
                 "force_attendance" : user.has_perm('accounts.force_attendance_others'),
                 "team_data" : sum(user.has_perm(p) for p in ['dashboard.view_manager_dashboard_team_order_list', 'dashboard.view_all_dashboard_team_order_list', 'dashboard.view_own_team_dashboard_team_order_list']) >= 1,
                 "search_data":user.has_perm('accounts.view_search_bar_others'),
                 "click-to-call":CloudTelephonyChannelAssign.objects.filter(user=user).exists(),
-                "number_mask":user.has_perm('accounts.view_number_masking_others'),
+                "number_mask":user.has_perm('accounts.view_number_masking_others'), 
+                "create_group_chat":user.has_perm('accounts.create_group_chat_others'),
             }   
 
         return Response(response_data)

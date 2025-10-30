@@ -1020,7 +1020,8 @@ class Others(models.Model):
             ('edit_order_status_others', 'Can edit order status others'),
             ('edit_order_payment_status_others', 'Can Order Payment Statusothers'),
             ('view_search_bar_others', 'view search bar others'),
-            ('force_attendance_others', 'Can force attendance others')
+            ('force_attendance_others', 'Can force attendance others'),
+            ('create_group_chat_others', 'create group chat others')
 
             )
     def __str__(self):
