@@ -10,7 +10,7 @@ from accounts.permissions import HasPermission
 from lead_management.permissions import CanUpdateStatusRemarkOrFullUpdate
 from rest_framework.parsers import MultiPartParser
 import csv, io
-
+from django.utils.dateparse import parse_date
 from orders.views import FilterOrdersPagination
 from .models import DealCategoryModel, lead_form, Lead, LeadModel, LeadSourceModel, LeadStatusModel, Pipeline, UserCategoryAssignment ,User,Company
 from .serializers import DealCategoryModelSerializer, DynamicRequestSerializer, LeadNewSerializer, LeadSerializer, LeadSourceModelSerializer, LeadStatusModelSerializer, PipelineSerializer, UserCategoryAssignmentSerializer
@@ -274,12 +274,16 @@ class LeadViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         queryset = Lead.objects.all()
+
+        # 🔹 Filter by company (based on user profile)
         if hasattr(user, 'profile') and user.profile.company:
             queryset = queryset.filter(company=user.profile.company)
 
+        # 🔹 Admins can see all within their company
         if hasattr(user, 'profile') and user.profile.user_type == 'admin':
-            return queryset
+            return self.apply_date_filter(queryset)
 
+        # 🔹 Permission-based visibility
         if user.has_perm("accounts.view_own_lead_others"):
             queryset = queryset.filter(assign_user=user)
         elif user.has_perm("accounts.view_teamlead_lead_others"):
@@ -294,6 +298,33 @@ class LeadViewSet(viewsets.ModelViewSet):
             pass
         else:
             queryset = Lead.objects.none()
+
+        # 🔹 Apply date filter (universal for all cases)
+        return self.apply_date_filter(queryset)
+
+    def apply_date_filter(self, queryset):
+        """Helper method to apply date filter based on query params."""
+        start_date = self.request.query_params.get('start_date')
+        end_date = self.request.query_params.get('end_date')
+
+        if start_date and end_date:
+            try:
+                start = parse_date(start_date)
+                end = parse_date(end_date)
+                if start and end:
+                    queryset = queryset.filter(created_at__date__range=[start, end])
+            except ValueError:
+                pass  # ignore invalid date format
+
+        elif start_date:  # Only start date provided
+            start = parse_date(start_date)
+            if start:
+                queryset = queryset.filter(created_at__date__gte=start)
+
+        elif end_date:  # Only end date provided
+            end = parse_date(end_date)
+            if end:
+                queryset = queryset.filter(created_at__date__lte=end)
 
         return queryset
 
