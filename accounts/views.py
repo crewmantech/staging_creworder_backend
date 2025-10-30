@@ -3382,6 +3382,7 @@ class UserPermissionStatusView(APIView):
                 "search_data":True,
                 "click-to-call":True,
                 "force_attendance" : user.has_perm('accounts.force_attendance_others'),
+                "number_mask":user.has_perm('accounts.view_number_masking_others'),
             }
         else:
             # Fallback to permission-based checks
@@ -3392,8 +3393,9 @@ class UserPermissionStatusView(APIView):
                 "force_attendance" : user.has_perm('accounts.force_attendance_others'),
                 "team_data" : sum(user.has_perm(p) for p in ['dashboard.view_manager_dashboard_team_order_list', 'dashboard.view_all_dashboard_team_order_list', 'dashboard.view_own_team_dashboard_team_order_list']) >= 1,
                 "search_data":user.has_perm('accounts.view_search_bar_others'),
-                "click-to-call":CloudTelephonyChannelAssign.objects.filter(user=user).exists()
-            }
+                "click-to-call":CloudTelephonyChannelAssign.objects.filter(user=user).exists(),
+                "number_mask":user.has_perm('accounts.view_number_masking_others'),
+            }   
 
         return Response(response_data)
 

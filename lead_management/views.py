@@ -338,19 +338,19 @@ class LeadViewSet(viewsets.ModelViewSet):
                 start = parse_date(start_date)
                 end = parse_date(end_date)
                 if start and end:
-                    queryset = queryset.filter(created_at__date__range=[start, end])
+                    queryset = queryset.filter(created_at__range=[start, end])
             except ValueError:
                 pass  # ignore invalid date format
 
         elif start_date:  # Only start date provided
             start = parse_date(start_date)
             if start:
-                queryset = queryset.filter(created_at__date__gte=start)
+                queryset = queryset.filter(created_at__gte=start)
 
         elif end_date:  # Only end date provided
             end = parse_date(end_date)
             if end:
-                queryset = queryset.filter(created_at__date__lte=end)
+                queryset = queryset.filter(created_at__lte=end)
 
         return queryset
 
