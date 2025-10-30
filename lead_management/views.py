@@ -10,7 +10,6 @@ from accounts.permissions import HasPermission
 from lead_management.permissions import CanUpdateStatusRemarkOrFullUpdate
 from rest_framework.parsers import MultiPartParser
 import csv, io
-from django.utils.dateparse import parse_date
 from orders.views import FilterOrdersPagination
 from .models import DealCategoryModel, lead_form, Lead, LeadModel, LeadSourceModel, LeadStatusModel, Pipeline, UserCategoryAssignment ,User,Company
 from .serializers import DealCategoryModelSerializer, DynamicRequestSerializer, LeadNewSerializer, LeadSerializer, LeadSourceModelSerializer, LeadStatusModelSerializer, PipelineSerializer, UserCategoryAssignmentSerializer
@@ -22,7 +21,8 @@ from io import TextIOWrapper
 from rest_framework.decorators import action
 from django.db import transaction
 from random import choice
-from datetime import datetime, timedelta
+from datetime import datetime, time
+from django.utils.dateparse import parse_date
 from rest_framework.pagination import PageNumberPagination
 class LeadPagination(PageNumberPagination):
     page_size = 100  # default records per page
@@ -333,23 +333,28 @@ class LeadViewSet(viewsets.ModelViewSet):
         start_date = self.request.query_params.get('start_date')
         end_date = self.request.query_params.get('end_date')
 
+        # both start and end date
         if start_date and end_date:
             start = parse_date(start_date)
             end = parse_date(end_date)
             if start and end:
-                # Include full end date (till 23:59:59)
-                end = datetime.combine(end, datetime.max.time())
-                start = datetime.combine(start, datetime.min.time())
+                start = datetime.combine(start, time.min)
+                end = datetime.combine(end, time.max)
                 queryset = queryset.filter(created_at__range=[start, end])
+
+        # only start_date
         elif start_date:
             start = parse_date(start_date)
             if start:
-                start = datetime.combine(start, datetime.min.time())
+                start = datetime.combine(start, time.min)
                 queryset = queryset.filter(created_at__gte=start)
+
+        # ✅ only end_date (your case)
         elif end_date:
             end = parse_date(end_date)
             if end:
-                end = datetime.combine(end, datetime.max.time())
+                # include full end date till 23:59:59
+                end = datetime.combine(end, time.max)
                 queryset = queryset.filter(created_at__lte=end)
 
         return queryset
