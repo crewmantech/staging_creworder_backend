@@ -375,9 +375,9 @@ class LeadViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         user = self.request.user
-        if user.has_perm('lead_management.change_lead'):
+        if user.has_perm('superadmin_assets.change_submenusmodel'):
             serializer.save(updated_by=user)
-        elif user.has_perm('lead_management.update_lead_status_remark'):
+        elif user.has_perm('superadmin_assets.change_submenusmodel'):
             restricted_fields = {'status', 'remark'}
             if set(self.request.data.keys()).issubset(restricted_fields):
                 serializer.save(updated_by=user)
