@@ -216,6 +216,10 @@ def updateOrders(id, data, user_id):
     try:
         # Get existing order
         order = Order_Table.objects.get(id=id)
+        user = User.objects.get(id=user_id)
+        if user.has_perm('accounts.view_number_masking_others') and user.profile.user_type != 'admin':
+            if 'customer_phone' in data:
+                data['customer_phone'] = order['customer_phone']
         
         # Process product details if provided
         if 'product_details' in data:

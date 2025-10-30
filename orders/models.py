@@ -236,6 +236,7 @@ class Order_Table(BaseModel):
     is_scheduled = models.IntegerField(choices=[(0, 'Not Schedule'), (1, 'Scheduled')], default=0)
     service_provider = models.CharField(max_length=50, null=True, blank=True)
     call_id = models.CharField(max_length=50, null=True, blank=True)
+    lead_id = models.CharField(max_length=50, null=True, blank=True)
     course_order = models.IntegerField(default=0)
     product_qty = models.IntegerField(default=0)
     shipping_charges = models.IntegerField(default=0)

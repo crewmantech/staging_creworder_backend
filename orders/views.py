@@ -13,6 +13,7 @@ from django.db.models import Sum, Count
 from accounts.models import Attendance, Branch, CompanyUserAPIKey, Employees, UserTargetsDelails
 from accounts.permissions import CanCreateAndDeleteCustomerState, CanCreateOrDeletePaymentStatus, IsSuperAdmin
 from cloud_telephony.models import CloudTelephonyChannel, CloudTelephonyChannelAssign
+from lead_management.models import Lead
 from orders.perrmissions import CategoryPermissions, OrderPermissions
 from services.cloud_telephoney.cloud_telephoney_service import CloudConnectService
 from shipment.models import ShipmentVendor
@@ -107,6 +108,13 @@ class OrderAPIView(APIView):
     def post(self, request, *args, **kwargs):
         try:
             state = Customer_State.objects.get(name=request.data['customer_state'])
+            lead_id = request.data['lead_id']
+            if lead_id:
+                try:
+                    lead = Lead.objects.get(lead_id=lead_id)
+                    request.data['customer_phone'] =  lead.customer_phone
+                except Lead.DoesNotExist:
+                    return f"No number found for lead ID: {lead_id}"
             state_id = state.id
             # for payment purposes
             payment_type = request.data['payment_type']
