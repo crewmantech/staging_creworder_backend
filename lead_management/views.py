@@ -22,6 +22,7 @@ from io import TextIOWrapper
 from rest_framework.decorators import action
 from django.db import transaction
 from random import choice
+from datetime import datetime, timedelta
 from rest_framework.pagination import PageNumberPagination
 class LeadPagination(PageNumberPagination):
     page_size = 100  # default records per page
@@ -329,27 +330,26 @@ class LeadViewSet(viewsets.ModelViewSet):
 
 
     def apply_date_filter(self, queryset):
-        """Helper method to apply date filter based on query params."""
         start_date = self.request.query_params.get('start_date')
         end_date = self.request.query_params.get('end_date')
 
         if start_date and end_date:
-            try:
-                start = parse_date(start_date)
-                end = parse_date(end_date)
-                if start and end:
-                    queryset = queryset.filter(created_at__range=[start, end])
-            except ValueError:
-                pass  # ignore invalid date format
-
-        elif start_date:  # Only start date provided
+            start = parse_date(start_date)
+            end = parse_date(end_date)
+            if start and end:
+                # Include full end date (till 23:59:59)
+                end = datetime.combine(end, datetime.max.time())
+                start = datetime.combine(start, datetime.min.time())
+                queryset = queryset.filter(created_at__range=[start, end])
+        elif start_date:
             start = parse_date(start_date)
             if start:
+                start = datetime.combine(start, datetime.min.time())
                 queryset = queryset.filter(created_at__gte=start)
-
-        elif end_date:  # Only end date provided
+        elif end_date:
             end = parse_date(end_date)
             if end:
+                end = datetime.combine(end, datetime.max.time())
                 queryset = queryset.filter(created_at__lte=end)
 
         return queryset
