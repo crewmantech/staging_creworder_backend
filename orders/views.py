@@ -117,6 +117,7 @@ class OrderAPIView(APIView):
                     return f"No number found for lead ID: {lead_id}"
             else:
                 request.data['lead_id'] = None
+            print(request.data,"---------------------120")
             state_id = state.id
             # for payment purposes
             payment_type = request.data['payment_type']
