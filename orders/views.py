@@ -115,6 +115,8 @@ class OrderAPIView(APIView):
                     request.data['customer_phone'] =  lead.customer_phone
                 except Lead.DoesNotExist:
                     return f"No number found for lead ID: {lead_id}"
+            else:
+                request.data['lead_id'] = None
             state_id = state.id
             # for payment purposes
             payment_type = request.data['payment_type']
