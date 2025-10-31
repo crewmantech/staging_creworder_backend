@@ -119,17 +119,18 @@ class OrderAPIView(APIView):
                 request.data['lead_id'] = None
             repeat_order = request.data.get("repeat_order")
             if repeat_order=='1':
-                reference_order = request.data.get('reference_order')
-                if reference_order:
-                    try:
-                        order = Order_Table.objects.get(id=reference_order)
-                        print(order.customer_phone)
-                        request.data['customer_phone'] =  order.customer_phone
-                    except Order_Table.DoesNotExist:
-                        print("No mobile number found using this order ID.")
+                if user.has_perm('accounts.view_number_masking_others') and user.profile.user_type != 'admin':
+                    reference_order = request.data.get('reference_order')
+                    if reference_order:
+                        try:
+                            order = Order_Table.objects.get(id=reference_order)
+                            print(order.customer_phone)
+                            request.data['customer_phone'] =  order.customer_phone
+                        except Order_Table.DoesNotExist:
+                            print("No mobile number found using this order ID.")
+                            return f"No reference_order found for : {reference_order}"
+                    else:
                         return f"No reference_order found for : {reference_order}"
-                else:
-                    return f"No reference_order found for : {reference_order}"
             print(request.data,"---------------------120")
             state_id = state.id
             # for payment purposes
