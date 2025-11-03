@@ -123,7 +123,7 @@ class OrderAPIView(APIView):
                     reference_order = request.data.get('reference_order')
                     if reference_order:
                         try:
-                            order = Order_Table.objects.get(order_id=reference_order)
+                            order = Order_Table.objects.get(id=reference_order)
                             print(order.customer_phone)
                             request.data['customer_phone'] =  order.customer_phone
                         except Order_Table.DoesNotExist:
