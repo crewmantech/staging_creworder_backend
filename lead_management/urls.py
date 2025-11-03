@@ -17,5 +17,6 @@ urlpatterns = [
     path('lead/<str:pk>', views.LeadCreateAPIView.as_view(), name='lead-lists'),
     path('lead/create/', views.LeadCreateAPIView.as_view(), name='lead-create'),
      path('lead/bulk-upload/', LeadBulkUploadView.as_view(), name='upload_bulk_leads'),
+     path('lead-by-lead-id/', LeadDetailByLeadIDView.as_view(), name='lead-by-lead-id'),
     path('', include(router.urls)),
 ]

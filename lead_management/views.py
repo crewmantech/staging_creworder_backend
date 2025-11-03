@@ -1211,3 +1211,21 @@ class LeadsViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Lead.objects.all().order_by('-created_at')
     serializer_class = LeadNewSerializer
     pagination_class = LeadPagination
+
+class LeadDetailByLeadIDView(APIView):
+    """
+    Get Lead details by lead_id
+    Example: /api/leads/by-lead-id/?lead_id=LEAD12345
+    """
+    def get(self, request):
+        lead_id = request.query_params.get('lead_id', None)
+        if not lead_id:
+            return Response({"error": "lead_id parameter is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            lead = Lead.objects.get(lead_id=lead_id)
+        except Lead.DoesNotExist:
+            return Response({"error": "Lead not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = LeadNewSerializer(lead)
+        return Response(serializer.data, status=status.HTTP_200_OK)
