@@ -118,7 +118,7 @@ class OrderAPIView(APIView):
             else:
                 request.data['lead_id'] = None
             repeat_order = request.data.get("repeat_order")
-            if repeat_order=='1':
+            if repeat_order and str(repeat_order)=='1':
                 if user.has_perm('accounts.view_number_masking_others') and user.profile.user_type != 'admin':
                     reference_order = request.data.get('reference_order')
                     if reference_order:
