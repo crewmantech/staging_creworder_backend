@@ -3536,3 +3536,189 @@ class MainOrderStatusAPIView(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
 
         return Response({"message": "No matching order status found."}, status=status.HTTP_404_NOT_FOUND)
+
+
+STATE_CODE_MAP = {
+    'ANDAMAN AND NICOBAR ISLANDS': 'AN',
+    'ANDHRA PRADESH': 'AP',
+    'ARUNACHAL PRADESH': 'AR',
+    'ASSAM': 'AS',
+    'BIHAR': 'BR',
+    'CHANDIGARH': 'CH',
+    'CHHATTISGARH': 'CG',
+    'DADRA AND NAGAR HAVELI AND DAMAN AND DIU': 'DH',
+    'DELHI': 'DL',
+    'GOA': 'GA',
+    'GUJARAT': 'GJ',
+    'HARYANA': 'HR',
+    'HIMACHAL PRADESH': 'HP',
+    'JAMMU AND KASHMIR': 'JK',
+    'JHARKHAND': 'JH',
+    'KARNATAKA': 'KA',
+    'KERALA': 'KL',
+    'LADAKH': 'LA',
+    'LAKSHADWEEP': 'LD',
+    'MADHYA PRADESH': 'MP',
+    'MAHARASHTRA': 'MH',
+    'MANIPUR': 'MN',
+    'MEGHALAYA': 'ML',
+    'MIZORAM': 'MZ',
+    'NAGALAND': 'NL',
+    'ODISHA': 'OR',
+    'PUDUCHERRY': 'PY',
+    'PUNJAB': 'PB',
+    'RAJASTHAN': 'RJ',
+    'SIKKIM': 'SK',
+    'TAMIL NADU': 'TN',
+    'TELANGANA': 'TG',
+    'TRIPURA': 'TR',
+    'UTTAR PRADESH': 'UP',
+    'UTTARAKHAND': 'UK',
+    'WEST BENGAL': 'WB',
+}
+class OrderLocationReportView(APIView): 
+    """
+    API view to fetch and aggregate orders by state (with nested districts)
+    for a specific seller company from the Seller Order (Order_Table) source.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def success(self, message, data=None, status_code=status.HTTP_200_OK):
+        return Response({"success": True, "message": message, "data": data}, status=status_code)
+
+    def error(self, message, errors=None, status_code=status.HTTP_400_BAD_REQUEST):
+        return Response({"success": False, "message": message, "errors": errors}, status=status_code)
+
+    def get(self, request, *args, **kwargs):
+        try:
+            user = request.user
+            company = getattr(user, 'company', None)
+
+            if not company:
+                return self.error("User is not associated with a company.")
+
+            company_id = company.id
+
+            # Filter params
+            date_from_str = request.query_params.get('date_from')
+            date_to_str = request.query_params.get('date_to')
+            state_param = request.query_params.get('state')
+            district_param = request.query_params.get('district')
+
+            if district_param and not state_param:
+                return self.error("District cannot be passed without a state. Please provide a state.")
+
+            # Base Order Query
+            seller_orders_query = Order_Table.objects.filter(company_id=company_id
+            ).exclude(order_status__name__iexact="CANCELLED")
+
+            # Date filters
+            if date_from_str:
+                from_date = parse_date(date_from_str)
+                if not from_date:
+                    return self.error("Invalid date_from format. Use YYYY-MM-DD")
+                seller_orders_query = seller_orders_query.filter(created_at__gte=datetime.combine(from_date, datetime.min.time()))
+
+            if date_to_str:
+                to_date = parse_date(date_to_str)
+                if not to_date:
+                    return self.error("Invalid date_to format. Use YYYY-MM-DD")
+                seller_orders_query = seller_orders_query.filter(created_at__lte=datetime.combine(to_date, datetime.max.time()))
+
+            # Apply state/district filter
+            if state_param or district_param:
+                pincode_qs = PincodeLocality.objects.all()
+                if state_param:
+                    pincode_qs = pincode_qs.filter(state__iexact=state_param)
+                if district_param:
+                    pincode_qs = pincode_qs.filter(district__iexact=district_param)
+
+                pincodes = pincode_qs.values_list("pincode", flat=True).distinct()
+                if not pincodes.exists():
+                    return self.success("No orders found for the selected location.", {"total_orders_mapped": 0, "location_groups": []})
+
+                seller_orders_query = seller_orders_query.filter(customer_postal__in=pincodes)
+
+            seller_orders = list(
+                seller_orders_query
+                .annotate(pincode=F('customer_postal'))
+                .values('id', 'pincode')
+            )
+
+            pincodes = {o['pincode'] for o in seller_orders if o['pincode']}
+            if not pincodes:
+                return self.success("No orders found.", {"total_orders_mapped": 0, "location_groups": []})
+
+            location_data = PincodeLocality.objects.filter(
+                pincode__in=pincodes
+            ).values('pincode', 'state', 'district').distinct()
+
+            # Build mapping
+            pincode_map = {
+                loc['pincode']: {
+                    'state': (loc['state'] or 'Unknown').upper(),
+                    'district': loc['district'] or 'Unknown',
+                    'state_code': STATE_CODE_MAP.get((loc['state'] or 'Unknown').upper(), 'N/A')
+                }
+                for loc in location_data
+            }
+
+            # Aggregate
+            grouped_data = {}
+            total_orders_mapped = 0
+
+            for order in seller_orders:
+                pincode = order["pincode"]
+                if pincode not in pincode_map:
+                    continue
+
+                total_orders_mapped += 1
+                loc = pincode_map[pincode]
+                key = (loc['state'], loc['state_code'], loc['district'], "Seller Order")
+
+                grouped_data.setdefault(key, {}).setdefault(pincode, []).append(order['id'])
+
+            state_aggregator = {}
+
+            for (state, state_code, district, order_type), pincode_groups in grouped_data.items():
+                state_key = (state, state_code, order_type)
+                state_entry = state_aggregator.setdefault(state_key, {
+                    'total_state_order_count': 0,
+                    'district_details_list': []
+                })
+
+                district_order_count = sum(len(v) for v in pincode_groups.values())
+                pincode_details = [
+                    {
+                        "pincode": pin,
+                        "order_count": len(order_ids),
+                        "order_ids": sorted(order_ids)
+                    }
+                    for pin, order_ids in sorted(pincode_groups.items())
+                ]
+
+                state_entry['district_details_list'].append({
+                    "district": district,
+                    "order_count": district_order_count,
+                    "pincode_details": pincode_details
+                })
+                state_entry['total_state_order_count'] += district_order_count
+
+            final_location_groups = [
+                {
+                    "state": s,
+                    "state_code": sc,
+                    "order_type": ot,
+                    "total_state_order_count": d["total_state_order_count"],
+                    "district_details": sorted(d["district_details_list"], key=lambda x: x["district"])
+                }
+                for (s, sc, ot), d in sorted(state_aggregator.items())
+            ]
+
+            return self.success(
+                f"Found {len(final_location_groups)} location groups.",
+                {"total_orders_mapped": total_orders_mapped, "location_groups": final_location_groups}
+            )
+
+        except Exception as e:
+            return self.error("An unexpected error occurred.", str(e), status.HTTP_500_INTERNAL_SERVER_ERROR)
