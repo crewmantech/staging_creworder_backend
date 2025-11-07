@@ -1205,6 +1205,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                     filters &= Q(user=user)
         except Exception as e:
             print(f"[Role Filter Error] {e}")
+            # fallback: return nothing if profile is broken
             return Attendance.objects.none()
 
         # ----- Date filters -----
@@ -1218,6 +1219,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             if month and year:
                 filters &= Q(date__year=int(year), date__month=int(month))
             else:
+                # Default to current month
                 filters &= Q(date__year=today.year, date__month=today.month)
 
         return Attendance.objects.filter(filters)
@@ -3384,6 +3386,7 @@ class UserPermissionStatusView(APIView):
                 "force_attendance" : user.has_perm('accounts.force_attendance_others'),
                 "number_mask":user.has_perm('accounts.view_number_masking_others'),
                 "create_group_chat":user.has_perm('accounts.create_group_chat_others'),
+                "team_order":user.has_perm('accounts.view_teamlead_order_others'),
             }
         else:
             # Fallback to permission-based checks
@@ -3391,12 +3394,13 @@ class UserPermissionStatusView(APIView):
                 "order_status_button": False if user.profile.user_type == 'superadmin' else user.has_perm('accounts.edit_order_status_others'),
                 "order_payment_status_button": user.has_perm('accounts.edit_order_payment_status_others'),
                 "order_edit_button": user.has_perm('accounts.edit_order_others'),
-                "force_attendance" : user.has_perm('accounts.force_attendance_others'),
+                "force_attendance" : False if user.profile.user_type == 'superadmin' else user.has_perm('accounts.force_attendance_others'),
                 "team_data" : sum(user.has_perm(p) for p in ['dashboard.view_manager_dashboard_team_order_list', 'dashboard.view_all_dashboard_team_order_list', 'dashboard.view_own_team_dashboard_team_order_list']) >= 1,
                 "search_data":user.has_perm('accounts.view_search_bar_others'),
                 "click-to-call":CloudTelephonyChannelAssign.objects.filter(user=user).exists(),
                 "number_mask":user.has_perm('accounts.view_number_masking_others'), 
                 "create_group_chat":user.has_perm('accounts.create_group_chat_others'),
+                "team_order":user.has_perm('accounts.view_teamlead_order_others'),
             }   
 
         return Response(response_data)
