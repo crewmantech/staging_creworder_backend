@@ -21,6 +21,7 @@ from .models import Chat, ChatSession, Group, GroupDetails, User
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.generics import ListAPIView
 from accounts.models import Department, ExpiringToken as Token
+from django.db.models import Q
 
 class getChatDetail(APIView):
     serializer_class = ChatSerializer
@@ -36,18 +37,17 @@ class getChatDetail(APIView):
         from_user = request.query_params.get("from_user")
         to_user = request.query_params.get("to_user")
         group_id = request.query_params.get("group_id")
-        if group_id is None:
-            if from_user is None:
-                return Response(
-                    {"Success": False, "Message": "Please pass from_user"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            if to_user is None:
-                return Response(
-                    {"Success": False, "Message": "Please pass to_user"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
 
+        # Validate required params
+        if group_id is None:
+            if not from_user:
+                return Response({"Success": False, "Message": "Please pass from_user"},
+                                status=status.HTTP_400_BAD_REQUEST)
+            if not to_user:
+                return Response({"Success": False, "Message": "Please pass to_user"},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+        # Get Chat Session
         if group_id:
             chatSessionId = ChatSession.objects.filter(name=f"{group_id}").first()
         else:
@@ -57,22 +57,25 @@ class getChatDetail(APIView):
             )
 
         if chatSessionId is None:
-            return Response(
-                {"Success": False, "Message": f"Data not exist.!"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"Success": False, "Message": "Data not exist.!"},
+                            status=status.HTTP_400_BAD_REQUEST)
 
-        filters = {}
-        if chatSessionId is not None:
-            filters["chat_session_id"] = chatSessionId
+        # Filter chats of only last 24 hours
         time_threshold = timezone.now() - timedelta(hours=24)
-        filters["created_at__gte"] = time_threshold
-        Chat.objects.filter(from_user=to_user, chat_session_id=chatSessionId).update(
-            chat_status=0
-        )
-        chatData = Chat.objects.filter(**filters).order_by("-created_at")
+
+        # Mark messages from other person as read
+        Chat.objects.filter(from_user=to_user, chat_session=chatSessionId).update(chat_status=Chat.ChatStatus.READ)
+
+        # Fetch chat data & ONLY SHOW users where profile.status = 1
+        chatData = Chat.objects.filter(
+            chat_session=chatSessionId,
+            created_at__gte=time_threshold
+        ).filter(
+            Q(from_user__profile__status=1) | Q(to_user__profile__status=1)
+        ).order_by("-created_at")
+
         serializer = ChatSerializer(chatData, many=True)
-        return Response({"Success": True, "data": serializer.data})
+        return Response({"Success": True, "data": serializer.data}, status=status.HTTP_200_OK)
 
 import json
 from asgiref.sync import async_to_sync
@@ -199,19 +202,28 @@ class getUserListChat(APIView):
 
     def get(self, request):
         user_id = request.query_params.get("user_id")
+
         if not user_id:
             return Response(
                 {"Success": False, "Errors": "User ID is required"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Get unique users the requester has chatted with
         unique_to_users = (
             Chat.objects.filter(from_user=user_id)
             .values_list("to_user", flat=True)
             .distinct()
         )
-        users = User.objects.filter(id__in=unique_to_users)
+
+        # ✅ Only show users whose profile.status = 1
+        users = User.objects.filter(
+            id__in=unique_to_users,
+            profile__status=1
+        )
+
         user_serializer = UserSerializer(users, many=True)
+
         return Response(
             {"Success": True, "results": user_serializer.data},
             status=status.HTTP_200_OK,
@@ -434,7 +446,7 @@ class UserListView1(ListAPIView):
 
                     base_queryset = User.objects.filter(
                         profile__company=company,
-                        profile__status=1
+                        profile__status=1,
                     )
 
                     # Check department-related permissions
