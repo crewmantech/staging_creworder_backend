@@ -2721,7 +2721,8 @@ class FilteredOrderViewSet(viewsets.ViewSet):
         from_date = request.query_params.get('from_date')      # YYYY-MM-DD
         to_date = request.query_params.get('to_date')          # YYYY-MM-DD
 
-        queryset = Order_Table.objects.filter(is_deleted=False)
+        queryset = Order_Table.objects.filter(is_deleted=False).order_by('-created_at')
+
 
         if status_name:
             queryset = queryset.filter(order_status__name__icontains=status_name)
@@ -3592,7 +3593,7 @@ class OrderLocationReportView(APIView):
     def get(self, request, *args, **kwargs):
         try:
             user = request.user
-            company = getattr(user, 'company', None)
+            company = getattr(user.profile, 'company', None)
 
             if not company:
                 return self.error("User is not associated with a company.")
