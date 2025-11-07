@@ -125,7 +125,7 @@ class createChat(APIView):
             notification_data = {
                 'user': chat_message.to_user.id,
                 'message': notification_message,
-                "url":"/chat",
+                "url":"/chat/?user_id"+str(from_user),
                 'notification_type': 'chat_message'
             }
             notification_serializer = NotificationSerializer(data=notification_data)
