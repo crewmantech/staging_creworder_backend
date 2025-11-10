@@ -1501,21 +1501,22 @@ class OrderAggregationByStatusAPIView(APIView):
 
         if tl_id:
             try:
-                # Convert TL Employee ID → TL User ID
+                # Get team lead Employee record to access their user ID
                 tl_employee = Employees.objects.get(id=tl_id, status=1)
-                tl_user_id = tl_employee.user_id
+                tl_user_id = tl_employee.user.id  # Convert Employee → User ID
             except Employees.DoesNotExist:
-                # If already a user ID (just in case)
-                tl_user_id = int(tl_id)
+                return Response({"error": "Invalid teamlead_id"}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Get all users (agents) under this team lead
+            # ✅ Get all agents reporting to this TL (their teamlead field = TL’s user_id)
             employees_under_tl = Employees.objects.filter(teamlead_id=tl_user_id, status=1)
+
+            # ✅ Collect their User IDs
             tl_team_user_ids = list(employees_under_tl.values_list('user_id', flat=True))
 
-            # Include TL's own user_id
+            # ✅ Include TL’s own User ID
             tl_team_user_ids.append(tl_user_id)
 
-            # Orders created or updated by TL or team agents
+            # ✅ Include all their orders (created or updated)
             q_filters &= (
                 Q(order_created_by_id__in=tl_team_user_ids) |
                 Q(updated_by_id__in=tl_team_user_ids)
@@ -1616,7 +1617,17 @@ class OrderAggregationByStatusAPIView(APIView):
         if manager_id:
             agents = Employees.objects.filter(manager_id=manager_id,status=1)
         if tl_id:
-            agents = Employees.objects.filter(teamlead_id=tl_id,status=1)
+            try:
+                tl_employee = Employees.objects.get(id=tl_id, status=1)
+                tl_user_id = tl_employee.user.id
+            except Employees.DoesNotExist:
+                return Response({"error": "Invalid teamlead_id"}, status=status.HTTP_400_BAD_REQUEST)
+
+            # ✅ Agents under this team lead (teamlead_id matches TL’s User ID)
+            agents = Employees.objects.filter(teamlead_id=tl_user_id, status=1)
+
+            # ✅ Include TL themselves
+            agents = agents.union(Employees.objects.filter(user_id=tl_user_id, status=1))
         if agent_id:
             agents = Employees.objects.filter(
                 company_id=company_id,
