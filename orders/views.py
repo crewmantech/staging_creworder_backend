@@ -1502,12 +1502,12 @@ class OrderAggregationByStatusAPIView(APIView):
         if tl_id:
             try:
                 # Get team lead Employee record to access their user ID
-                tl_employee = Employees.objects.get(user_id=tl_id, status=1)  # ✅ Changed from id=tl_id
-                tl_user_id = tl_employee.user.id  # This is the actual User ID
+                tl_employee = Employees.objects.get(id=tl_id, status=1)
+                tl_user_id = tl_employee.user.id  # Convert Employee → User ID
             except Employees.DoesNotExist:
-                return Response({"error": "Invalid tl_id"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({"error": "Invalid teamlead_id"}, status=status.HTTP_400_BAD_REQUEST)
 
-            # ✅ Get all agents reporting to this TL (their teamlead field = TL's user_id)
+            # ✅ Get all agents reporting to this TL (their teamlead field = TL’s user_id)
             employees_under_tl = Employees.objects.filter(teamlead_id=tl_user_id, status=1)
 
             # ✅ Collect their User IDs
@@ -1585,22 +1585,16 @@ class OrderAggregationByStatusAPIView(APIView):
                 
 
         if tl_id:
-            try:
-                tl_employee = Employees.objects.get(user_id=tl_id, status=1)  # ✅ Changed
-                tl_user_id = tl_employee.user.id
-                tl_targets = UserTargetsDelails.objects.filter(user__id=tl_user_id)  # ✅ Use tl_user_id
-                if tl_targets.exists():
-                    target = tl_targets.first()
-                    target_data['tl_target'] = {
-                        'daily_amount_target': target.daily_amount_target,
-                        'daily_orders_target': target.daily_orders_target,
-                        'monthly_amount_target': target.monthly_amount_target,
-                        'monthly_orders_target': target.monthly_orders_target,
-                        'achieve_target': target.achieve_target
-                    }
-            except Employees.DoesNotExist:
-                pass
-
+            tl_targets = UserTargetsDelails.objects.filter(user__id=tl_id)
+            if tl_targets.exists():
+                target = tl_targets.first()
+                target_data['tl_target'] = {
+                    'daily_amount_target': target.daily_amount_target,
+                    'daily_orders_target':target.daily_orders_target,
+                    'monthly_amount_target': target.monthly_amount_target,
+                    'monthly_orders_target': target.monthly_orders_target,
+                    'achieve_target': target.achieve_target
+                }
 
         if agent_id:
             agent_targets = UserTargetsDelails.objects.filter(user__id=agent_id)
@@ -1624,15 +1618,7 @@ class OrderAggregationByStatusAPIView(APIView):
         if manager_id:
             agents = Employees.objects.filter(manager_id=manager_id,status=1)
         if tl_id:
-            try:
-                tl_employee = Employees.objects.get(user_id=tl_id, status=1)  # ✅ Changed
-                tl_user_id = tl_employee.user.id
-                # Get agents under this TL
-                agents = Employees.objects.filter(teamlead_id=tl_user_id, status=1)
-                # Also include the TL themselves
-                agents = agents | Employees.objects.filter(user_id=tl_user_id, status=1)
-            except Employees.DoesNotExist:
-                return Response({"error": "Invalid tl_id"}, status=status.HTTP_400_BAD_REQUEST)
+            agents = Employees.objects.filter(teamlead_id=tl_id,status=1)
         if agent_id:
             agents = Employees.objects.filter(
                 company_id=company_id,
