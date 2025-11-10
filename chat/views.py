@@ -337,12 +337,30 @@ class GetNotifications(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        user = request.user
-        notifications = Notification.objects.filter(user=user, is_read=False).order_by("-created_at")
-        serializer_data = [{"id": n.id, "message": n.message, "notification_type": n.notification_type,"url":n.url} for n in notifications]
-        
-        return Response({"Success": True, "notifications": serializer_data}, status=status.HTTP_200_OK)
+        user = request.user  # ✅ Logged-in user (no user_id input)
 
+        # ✅ Fetch unread notifications for the current user
+        notifications = Notification.objects.filter(user=user, is_read=False).order_by("-created_at")
+
+        notifications_data = []
+        for n in notifications:
+            # ✅ Clean the URL — remove '?user_id=...' if present
+            clean_url = n.url
+            if clean_url and "?user_id=" in clean_url:
+                clean_url = clean_url.split("?user_id=")[0]
+
+            notifications_data.append({
+                "id": n.id,
+                "user_id": n.user.id,  # ✅ from DB
+                "message": n.message,
+                "notification_type": n.notification_type,
+                "url": clean_url,  # ✅ cleaned URL
+            })
+
+        return Response(
+            {"Success": True, "notifications": notifications_data},
+            status=status.HTTP_200_OK
+        )
 
 class MarkNotificationRead(APIView):
     permission_classes = [IsAuthenticated]
