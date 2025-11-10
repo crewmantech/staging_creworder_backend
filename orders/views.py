@@ -1582,6 +1582,7 @@ class OrderAggregationByStatusAPIView(APIView):
                     'monthly_orders_target': target.monthly_orders_target,
                     'achieve_target': target.achieve_target
                 }
+                
 
         if tl_id:
             try:
