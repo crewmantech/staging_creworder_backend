@@ -2402,22 +2402,18 @@ class TeamleadViewSet(APIView):
 
         if branch_id:
             filters["branch_id"] = branch_id
-
-        # Permission-based filters
         if user.profile.user_type == "admin" or user.has_perm("dashboard.view_all_dashboard_team_order_list"):
-            pass
+            pass  # No changes to manager/teamlead filters
         elif user.has_perm("dashboard.view_manager_dashboard_team_order_list"):
             filters["manager_id"] = user.id
         elif user.has_perm("dashboard.view_own_team_dashboard_team_order_list"):
-            # For team lead view, fetch users reporting to this team lead
-            filters["teamlead_id"] = user.id
+            filters["user_id"] = user.id
         else:
             return Response(
                 {"success": False, "message": "You do not have permission to view this data."},
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        # Handle manager filter if passed
         if manager_id:
             try:
                 manager_id = int(manager_id)
@@ -2429,19 +2425,16 @@ class TeamleadViewSet(APIView):
                 )
         else:
             filters["manager__isnull"] = False
-
-        filters["status"] = 1
-
-        # Get all employees reporting to this teamlead
+        filters['teamlead__isnull'] = True
+        filters['status'] = 1
         teamleads = Employees.objects.filter(**filters)
-
-        # ✅ Include teamlead's own record
-        try:
-            self_profile = Employees.objects.get(user=user, status=1)
-            # Combine QuerySets without duplication
-            teamleads = (teamleads | Employees.objects.filter(pk=self_profile.pk)).distinct()
-        except Employees.DoesNotExist:
-            pass  # If teamlead has no employee profile, skip
+        # print(teamleads,"-----------------------2266")
+        # teamlead_set = set()
+        # for emp in teamleads:
+        #     teamlead_set.add(emp.teamlead.id)
+        # teamleads = Employees.objects.filter(user_id__in=teamlead_set)
+        # Debugging
+       
 
         if not teamleads.exists():
             return Response(
@@ -2500,27 +2493,34 @@ class ManagerViewSet(APIView):
 
 
 class AgentListByTeamleadAPIView(APIView):
+    permission_classes = [IsAuthenticated]
 
-    permission_classes = [IsAuthenticated] 
     """
-    Returns the list of agents for a specific teamlead.
+    Returns the list of agents for a specific team lead, including the team lead themselves.
     Accepts 'teamlead_id' as a query parameter.
     """
+
     def get(self, request, *args, **kwargs):
         teamlead_id = request.query_params.get('teamlead_id', None)
-        
+
         # Ensure that teamlead_id is provided
         if not teamlead_id:
             return Response(
                 {"Success": False, "Error": "teamlead_id must be provided."},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
-        # Filter agents based on teamlead_id
-        agents = Employees.objects.filter(teamlead_id=teamlead_id,status=1)
-        
-        # Serialize the result and return the response
-        serializer = TeamUserProfile(agents, many=True)
+
+        # Get agents reporting to this team lead
+        agents = Employees.objects.filter(teamlead_id=teamlead_id, status=1)
+
+        # Include the team lead themselves
+        teamlead = Employees.objects.filter(id=teamlead_id, status=1)
+
+        # Combine both QuerySets
+        all_users = agents | teamlead
+
+        # Serialize the result
+        serializer = TeamUserProfile(all_users, many=True)
         return Response(
             {"Success": True, "Data": {"Agents": serializer.data}},
             status=status.HTTP_200_OK
