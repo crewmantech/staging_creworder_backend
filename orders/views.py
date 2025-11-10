@@ -1617,17 +1617,7 @@ class OrderAggregationByStatusAPIView(APIView):
         if manager_id:
             agents = Employees.objects.filter(manager_id=manager_id,status=1)
         if tl_id:
-            try:
-                tl_employee = Employees.objects.get(id=tl_id, status=1)
-                tl_user_id = tl_employee.user.id
-            except Employees.DoesNotExist:
-                return Response({"error": "Invalid teamlead_id"}, status=status.HTTP_400_BAD_REQUEST)
-
-            # ✅ Agents under this team lead (teamlead_id matches TL’s User ID)
-            agents = Employees.objects.filter(teamlead_id=tl_user_id, status=1)
-
-            # ✅ Include TL themselves
-            agents = agents.union(Employees.objects.filter(user_id=tl_user_id, status=1))
+            agents = Employees.objects.filter(teamlead_id=tl_id,status=1)
         if agent_id:
             agents = Employees.objects.filter(
                 company_id=company_id,
