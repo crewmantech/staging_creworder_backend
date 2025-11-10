@@ -344,38 +344,41 @@ class GetNotifications(APIView):
             .order_by("-created_at")
         )
 
-        serializer_data = []
         from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 
+        serializer_data = []
         for n in notifications:
             url = n.url or ""
-            user_id = n.user.id if n.user else None
+            extracted_user_id = None
 
-            # ✅ Remove 'user_id' from URL safely
+            # ✅ Extract and remove 'user_id' from URL safely
             if "user_id=" in url:
                 parsed_url = urlparse(url)
                 query_params = parse_qs(parsed_url.query)
 
-                # Remove only 'user_id' if exists
-                query_params.pop("user_id", None)
+                # Extract user_id if present
+                user_id_list = query_params.pop("user_id", None)
+                if user_id_list:
+                    extracted_user_id = user_id_list[0]
 
-                # Rebuild query string without user_id
+                # Rebuild the URL without user_id
                 new_query = urlencode(query_params, doseq=True)
                 url = urlunparse(parsed_url._replace(query=new_query))
+            else:
+                extracted_user_id = None
 
             serializer_data.append({
                 "id": n.id,
                 "message": n.message,
                 "notification_type": n.notification_type,
-                "url": url,          # ✅ cleaned URL (no user_id)
-                "user_id": user_id,  # ✅ taken from DB (Notification.user)
+                "url": url,                     # ✅ cleaned URL
+                "user_id": extracted_user_id,   # ✅ from URL, not DB
             })
 
         return Response(
             {"Success": True, "notifications": serializer_data},
             status=status.HTTP_200_OK,
         )
-
 class MarkNotificationRead(APIView):
     permission_classes = [IsAuthenticated]
 
