@@ -337,29 +337,43 @@ class GetNotifications(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        user = request.user  # ✅ Logged-in user (no user_id input)
+        user = request.user
+        notifications = (
+            Notification.objects
+            .filter(user=user, is_read=False)
+            .order_by("-created_at")
+        )
 
-        # ✅ Fetch unread notifications for the current user
-        notifications = Notification.objects.filter(user=user, is_read=False).order_by("-created_at")
+        serializer_data = []
+        from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 
-        notifications_data = []
         for n in notifications:
-            # ✅ Clean the URL — remove '?user_id=...' if present
-            clean_url = n.url
-            if clean_url and "?user_id=" in clean_url:
-                clean_url = clean_url.split("?user_id=")[0]
+            url = n.url or ""
+            user_id = n.user.id if n.user else None
 
-            notifications_data.append({
+            # ✅ Remove 'user_id' from URL safely
+            if "user_id=" in url:
+                parsed_url = urlparse(url)
+                query_params = parse_qs(parsed_url.query)
+
+                # Remove only 'user_id' if exists
+                query_params.pop("user_id", None)
+
+                # Rebuild query string without user_id
+                new_query = urlencode(query_params, doseq=True)
+                url = urlunparse(parsed_url._replace(query=new_query))
+
+            serializer_data.append({
                 "id": n.id,
-                "user_id": n.user.id,  # ✅ from DB
                 "message": n.message,
                 "notification_type": n.notification_type,
-                "url": clean_url,  # ✅ cleaned URL
+                "url": url,          # ✅ cleaned URL (no user_id)
+                "user_id": user_id,  # ✅ taken from DB (Notification.user)
             })
 
         return Response(
-            {"Success": True, "notifications": notifications_data},
-            status=status.HTTP_200_OK
+            {"Success": True, "notifications": serializer_data},
+            status=status.HTTP_200_OK,
         )
 
 class MarkNotificationRead(APIView):
