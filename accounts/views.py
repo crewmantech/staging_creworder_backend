@@ -2402,18 +2402,22 @@ class TeamleadViewSet(APIView):
 
         if branch_id:
             filters["branch_id"] = branch_id
+
+        # Permission-based filters
         if user.profile.user_type == "admin" or user.has_perm("dashboard.view_all_dashboard_team_order_list"):
-            pass  # No changes to manager/teamlead filters
+            pass
         elif user.has_perm("dashboard.view_manager_dashboard_team_order_list"):
             filters["manager_id"] = user.id
         elif user.has_perm("dashboard.view_own_team_dashboard_team_order_list"):
-            filters["user_id"] = user.id
+            # For team lead view, fetch users reporting to this team lead
+            filters["teamlead_id"] = user.id
         else:
             return Response(
                 {"success": False, "message": "You do not have permission to view this data."},
                 status=status.HTTP_403_FORBIDDEN
             )
 
+        # Handle manager filter if passed
         if manager_id:
             try:
                 manager_id = int(manager_id)
@@ -2425,16 +2429,19 @@ class TeamleadViewSet(APIView):
                 )
         else:
             filters["manager__isnull"] = False
-        filters['teamlead__isnull'] = True
-        filters['status'] = 1
+
+        filters["status"] = 1
+
+        # Get all employees reporting to this teamlead
         teamleads = Employees.objects.filter(**filters)
-        # print(teamleads,"-----------------------2266")
-        # teamlead_set = set()
-        # for emp in teamleads:
-        #     teamlead_set.add(emp.teamlead.id)
-        # teamleads = Employees.objects.filter(user_id__in=teamlead_set)
-        # Debugging
-       
+
+        # ✅ Include teamlead's own record
+        try:
+            self_profile = Employees.objects.get(user=user, status=1)
+            # Combine QuerySets without duplication
+            teamleads = (teamleads | Employees.objects.filter(pk=self_profile.pk)).distinct()
+        except Employees.DoesNotExist:
+            pass  # If teamlead has no employee profile, skip
 
         if not teamleads.exists():
             return Response(

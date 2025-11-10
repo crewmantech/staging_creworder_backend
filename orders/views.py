@@ -1500,10 +1500,17 @@ class OrderAggregationByStatusAPIView(APIView):
             q_filters &= Q(order_created_by_id__in=manager_ids) | Q(updated_by_id__in=manager_ids)
 
         if tl_id:
-            employees_under_tl = Employees.objects.filter(teamlead_id=tl_id,status=1)
-            tl_ids = employees_under_tl.values_list('user_id', flat=True)
-            q_filters &= Q(order_created_by_id__in=tl_ids) | Q(updated_by_id__in=tl_ids) |Q(order_created_by_id=tl_id) | Q(updated_by_id=tl_id)
-            # filter_conditions['updated_by_id__in'] = list(tl_ids)
+            employees_under_tl = Employees.objects.filter(teamlead_id=tl_id, status=1)
+            tl_team_user_ids = list(employees_under_tl.values_list('user_id', flat=True))
+
+            # ✅ Include the team lead's own user_id
+            tl_team_user_ids.append(int(tl_id))
+
+            # Filter orders created or updated by TL or their team members
+            q_filters &= (
+                Q(order_created_by_id__in=tl_team_user_ids) |
+                Q(updated_by_id__in=tl_team_user_ids)
+            )
 
 
         if agent_id:
