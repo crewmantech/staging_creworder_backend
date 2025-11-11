@@ -3667,7 +3667,7 @@ class CompanyUserAPIKeyViewSet(viewsets.ModelViewSet):
 
 
 class DeleteUserListView(ListAPIView):
-    """API to list users based on role-based filtering"""
+    """API to list users based on role-based filtering and status code"""
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
     pagination_class = StandardResultsSetPagination  # ✅ Enable pagination
@@ -3677,29 +3677,47 @@ class DeleteUserListView(ListAPIView):
         queryset = User.objects.none()  # Default empty queryset
 
         try:
-            if hasattr(user, 'profile'):  # Ensure user has a profile
-                if user.profile.user_type == "superadmin":
-                    company_id = self.request.query_params.get("company_id")
-                    if company_id:
-                        queryset = User.objects.filter(
-                            profile__company_id=company_id
-                        ).exclude(profile__status=1)
-                    else:
-                        queryset = User.objects.filter(
-                            profile__company=None
-                        ).exclude(profile__status=1)
+            if not hasattr(user, 'profile'):
+                return queryset  # No profile, no access
 
-                elif user.profile.user_type == "admin":
-                    company = user.profile.company
-                    queryset = User.objects.filter(
-                        profile__company=company
-                    ).exclude(profile__status=1)
+            # ✅ Get optional query params
+            company_id = self.request.query_params.get("company_id")
+            status_code = self.request.query_params.get("status_code", None)
 
-                elif user.profile.user_type == "agent":
-                    branch = user.profile.branch
+            # ✅ Prepare filter logic
+            status_filter = {}
+            if status_code is not None:
+                # Validate it's a valid integer
+                try:
+                    status_code = int(status_code)
+                    # Only include specific status
+                    status_filter = {"profile__status": status_code}
+                except ValueError:
+                    pass  # ignore invalid input → fallback to exclude active
+            else:
+                # No status_code param → exclude active users
+                status_filter = ~Q(profile__status=1)
+
+            # ✅ Role-based filtering
+            if user.profile.user_type == "superadmin":
+                if company_id:
                     queryset = User.objects.filter(
-                        profile__branch=branch
-                    ).exclude(profile__status=1)
+                        profile__company_id=company_id
+                    ).filter(status_filter)
+                else:
+                    queryset = User.objects.filter(
+                        profile__company=None
+                    ).filter(status_filter)
+
+            elif user.profile.user_type == "admin":
+                queryset = User.objects.filter(
+                    profile__company=user.profile.company
+                ).filter(status_filter)
+
+            elif user.profile.user_type == "agent":
+                queryset = User.objects.filter(
+                    profile__branch=user.profile.branch
+                ).filter(status_filter)
 
         except Exception as e:
             print(f"Error in get_queryset: {e}")
@@ -3726,7 +3744,7 @@ class DeleteUserListView(ListAPIView):
         for user in data:
             user['online'] = user['id'] in tokens
 
-        # ✅ Build final response with status
+        # ✅ Build final response
         if page is not None:
             paginated = self.get_paginated_response(data)
             return Response({
