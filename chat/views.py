@@ -383,14 +383,38 @@ class MarkNotificationRead(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        notification_id = request.data.get("notification_id")
-        try:
-            notification = Notification.objects.get(id=notification_id, user=request.user)
-            notification.is_read = True
-            notification.save()
-            return Response({"Success": True, "Message": "Notification marked as read"}, status=status.HTTP_200_OK)
-        except Notification.DoesNotExist:
-            return Response({"Success": False, "Message": "Notification not found"}, status=status.HTTP_400_BAD_REQUEST)
+        notification_ids = request.data.get("notification_id")
+
+        # Normalize: allow both single ID and list of IDs
+        if not notification_ids:
+            return Response(
+                {"Success": False, "Message": "Please provide notification_id(s)"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not isinstance(notification_ids, list):
+            notification_ids = [notification_ids]
+
+        # Fetch notifications belonging to user
+        notifications = Notification.objects.filter(id__in=notification_ids, user=request.user)
+
+        if not notifications.exists():
+            return Response(
+                {"Success": False, "Message": "No notifications found for given ID(s)"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Bulk update all matched notifications
+        updated_count = notifications.update(is_read=True)
+
+        return Response(
+            {
+                "Success": True,
+                "Message": f"{updated_count} notification(s) marked as read",
+                "UpdatedIDs": list(notifications.values_list('id', flat=True))
+            },
+            status=status.HTTP_200_OK
+        )
 
 class CreateNotification(APIView):
     permission_classes = [IsAuthenticated]
