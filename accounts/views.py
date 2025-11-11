@@ -63,6 +63,13 @@ from rest_framework.views import exception_handler
 from io import TextIOWrapper
 from accounts import models
 from rest_framework.pagination import PageNumberPagination
+from django.shortcuts import redirect
+import uuid
+
+class StandardResultsSetPagination(PageNumberPagination):
+    page_size = 10000                     # default page size = 20
+    page_size_query_param = "page_size"  # allow client to override
+    max_page_size = 10000
 
 
 def custom_exception_handler(exc, context):
@@ -106,6 +113,8 @@ class IPRestrictedLoginView(LoginView):
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
+    pagination_class = StandardResultsSetPagination  # ✅ Pagination enabled
+
     def get_permissions(self):
         permission_map = {
             'create': ['superadmin_assets.show_submenusmodel_employee', 'superadmin_assets.add_submenusmodel'],
@@ -1153,10 +1162,6 @@ class ShiftRosterViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(queryset, many=True)
         return Response({"results": serializer.data}, status=status.HTTP_200_OK)
         
-class StandardResultsSetPagination(PageNumberPagination):
-    page_size = 10000                     # default page size = 20
-    page_size_query_param = "page_size"  # allow client to override
-    max_page_size = 10000
 
 class AttendanceViewSet(viewsets.ModelViewSet):
     """
@@ -3665,6 +3670,7 @@ class DeleteUserListView(ListAPIView):
     """API to list users based on role-based filtering"""
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = StandardResultsSetPagination  # ✅ Enable pagination
 
     def get_queryset(self):
         user = self.request.user
@@ -3675,17 +3681,25 @@ class DeleteUserListView(ListAPIView):
                 if user.profile.user_type == "superadmin":
                     company_id = self.request.query_params.get("company_id")
                     if company_id:
-                        queryset = User.objects.filter(profile__company_id=company_id).exclude(profile__status=1)
+                        queryset = User.objects.filter(
+                            profile__company_id=company_id
+                        ).exclude(profile__status=1)
                     else:
-                        queryset = User.objects.filter(profile__company=None).exclude(profile__status=1)
+                        queryset = User.objects.filter(
+                            profile__company=None
+                        ).exclude(profile__status=1)
 
                 elif user.profile.user_type == "admin":
                     company = user.profile.company
-                    queryset = User.objects.filter(profile__company=company).exclude(profile__status=1)
+                    queryset = User.objects.filter(
+                        profile__company=company
+                    ).exclude(profile__status=1)
 
                 elif user.profile.user_type == "agent":
                     branch = user.profile.branch
-                    queryset = User.objects.filter(profile__branch=branch).exclude(profile__status=1)
+                    queryset = User.objects.filter(
+                        profile__branch=branch
+                    ).exclude(profile__status=1)
 
         except Exception as e:
             print(f"Error in get_queryset: {e}")
@@ -3693,19 +3707,37 @@ class DeleteUserListView(ListAPIView):
         return queryset
 
     def list(self, request, *args, **kwargs):
-        """Custom response handling"""
-        queryset = self.get_queryset()  # Exclude the requesting user
-        serializer = self.get_serializer(queryset, many=True)
-        data = serializer.data
+        """Custom response handling with pagination and status key"""
+        queryset = self.get_queryset()
 
+        # ✅ Apply pagination
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            data = serializer.data
+        else:
+            serializer = self.get_serializer(queryset, many=True)
+            data = serializer.data
+
+        # ✅ Add online status
         user_ids = [user['id'] for user in data]
         tokens = Token.objects.filter(user_id__in=user_ids).values_list('user_id', flat=True)
 
         for user in data:
-            user['online'] = user['id'] in tokens  # Add online status
+            user['online'] = user['id'] in tokens
+
+        # ✅ Build final response with status
+        if page is not None:
+            paginated = self.get_paginated_response(data)
+            return Response({
+                "status": "success",
+                "count": paginated.data["count"],
+                "next": paginated.data["next"],
+                "previous": paginated.data["previous"],
+                "results": paginated.data["results"]
+            }, status=status.HTTP_200_OK)
 
         return Response({"status": "success", "results": data}, status=status.HTTP_200_OK)
-
 
 class CompanyMonthlySummaryView(APIView):
     """
