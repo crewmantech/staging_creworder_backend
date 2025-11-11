@@ -541,33 +541,6 @@ class LeadBulkUploadView(APIView):
 
         return super().get_permissions()
 
-    def is_valid_phone_number(self, number):
-        """
-        Validate phone number using defined rules.
-        """
-        if not number:
-            return False
-
-        str_number = str(number).strip()
-
-        # Rule 1: Reject scientific notation (e.g. 1.23E+10)
-        if "e" in str_number.lower():
-            return False
-
-        # Rule 2: Must be numeric only
-        if not str_number.isdigit():
-            return False
-
-        # Rule 3: Must be exactly 10 digits
-        if len(str_number) != 10:
-            return False
-
-        return True
-
-    def process_phone_number(self, number):
-        """Add +91 prefix to valid 10-digit numbers"""
-        return f"+91{number}"
-
     def post(self, request, *args, **kwargs):
         user = request.user
         if 'file' not in request.FILES:
@@ -585,91 +558,84 @@ class LeadBulkUploadView(APIView):
             leads_data = []
             errors = []
 
-            for index, row in enumerate(reader, start=1):
-                try:
-                    phone_value = str(row.get('customer_phone', '')).strip()
+            with transaction.atomic():
+                for index, row in enumerate(reader, start=1):
+                    try:
+                        # Resolve foreign keys
+                        product = Products.objects.get(id=row['product'])
+                        # lead_source = LeadSourceModel.objects.get(id=row['lead_source'])
+                        pipeline = Pipeline.objects.get(id=row['pipeline'])
+                        
+                        status_obj = LeadStatusModel.objects.get(id=row['status']) if row.get('status') else None
+                        branch = Branch.objects.get(id=row['branch']) if row.get('branch') else None
 
-                    # Validation check
-                    if not self.is_valid_phone_number(phone_value):
+                        assign_user = None
+
+                        if pipeline.round_robin:
+                            assigned_users = list(pipeline.assigned_users.all().order_by("id"))
+                            if assigned_users:
+                                next_index = (pipeline.last_assigned_index + 1) % len(assigned_users)
+                                next_user = assigned_users[next_index]
+                                row['assign_user'] = next_user.id
+                                pipeline.last_assigned_index = next_index
+                                pipeline.save()
+                            else:
+                                row['assign_user'] = user.id
+                        else:
+                            row['assign_user'] = user.id
+
+                        profile = request.user.profile
+                        company = profile.company if profile else None
+
+                        lead_data = {
+                            'customer_name': row.get('customer_name', 'Null'),
+                            'customer_email': row.get('customer_email', 'null@test.com'),
+                            'customer_phone': row.get('customer_phone', ''),
+                            'customer_postalcode': row.get('customer_postalcode', 'Null'),
+                            'customer_city': row.get('customer_city', 'Null'),
+                            'customer_state': row.get('customer_state', 'Null'),
+                            'customer_address': row.get('customer_address', 'Null'),
+                            'customer_message': row.get('customer_message', 'Null'),
+                            'remark': row.get('remark', 'Null'),
+                            'product': product.id,
+                            'lead_source': pipeline.lead_source.id,
+                            'pipeline': pipeline.id,
+                            # 'status': status_obj.id if status_obj else None,
+                            'branch': branch.id if branch else None,
+                            'company': company.id if company else None,
+                            'assign_user': row['assign_user'],
+                        }
+
+                        leads_data.append(lead_data)
+
+                    except Exception as e:
                         errors.append({
                             "row": index,
-                            "error": f"Invalid phone number: {phone_value}",
+                            "error": str(e),
                             "data": row
                         })
-                        continue
 
-                    processed_phone = self.process_phone_number(phone_value)
-
-                    # Foreign key resolution
-                    product = Products.objects.get(id=row['product'])
-                    pipeline = Pipeline.objects.get(id=row['pipeline'])
-                    status_obj = LeadStatusModel.objects.get(id=row['status']) if row.get('status') else None
-                    branch = Branch.objects.get(id=row['branch']) if row.get('branch') else None
-
-                    if pipeline.round_robin:
-                        assigned_users = list(pipeline.assigned_users.all().order_by("id"))
-                        if assigned_users:
-                            next_index = (pipeline.last_assigned_index + 1) % len(assigned_users)
-                            next_user = assigned_users[next_index]
-                            assign_user = next_user.id
-                            pipeline.last_assigned_index = next_index
-                            pipeline.save()
-                        else:
-                            assign_user = user.id
-                    else:
-                        assign_user = user.id
-
-                    profile = request.user.profile
-                    company = profile.company if profile else None
-
-                    lead_data = {
-                        'customer_name': row.get('customer_name', 'Null'),
-                        'customer_email': row.get('customer_email', 'null@test.com'),
-                        'customer_phone': processed_phone,
-                        'customer_postalcode': row.get('customer_postalcode', 'Null'),
-                        'customer_city': row.get('customer_city', 'Null'),
-                        'customer_state': row.get('customer_state', 'Null'),
-                        'customer_address': row.get('customer_address', 'Null'),
-                        'customer_message': row.get('customer_message', 'Null'),
-                        'remark': row.get('remark', 'Null'),
-                        'product': product.id,
-                        'lead_source': pipeline.lead_source.id,
-                        'pipeline': pipeline.id,
-                        'branch': branch.id if branch else None,
-                        'company': company.id if company else None,
-                        'assign_user': assign_user,
-                    }
-
-                    # Save each valid record independently
-                    with transaction.atomic():
-                        serializer = LeadNewSerializer(data=lead_data)
-                        if serializer.is_valid(raise_exception=False):
-                            serializer.save(created_by=request.user, updated_by=request.user)
-                            leads_data.append(serializer.data)
-                        else:
-                            errors.append({
-                                "row": index,
-                                "error": serializer.errors,
-                                "data": row
-                            })
-
-                except Exception as e:
-                    errors.append({
-                        "row": index,
-                        "error": str(e),
-                        "data": row
-                    })
-
-            # Build partial success response
-            response_data = {
-                "Success": True if leads_data else False,
-                "Message": f"{len(leads_data)} leads uploaded successfully. {len(errors)} failed.",
-                "Saved_Count": len(leads_data),
-                "Failed_Count": len(errors),
-                "Errors": errors
-            }
-
-            return Response(response_data, status=status.HTTP_207_MULTI_STATUS if errors else status.HTTP_201_CREATED)
+                if errors:
+                    return Response({
+                        "Success": False,
+                        "Message": "Some rows failed to process.",
+                        "Errors": errors
+                    }, status=status.HTTP_207_MULTI_STATUS)
+                # Bulk create using serializer
+                serializer = LeadNewSerializer(data=leads_data, many=True)
+                if serializer.is_valid():
+                    serializer.save(created_by=request.user, updated_by=request.user)
+                    return Response({
+                        "Success": True,
+                        "Message": "Leads uploaded successfully.",
+                        "Data": serializer.data
+                    }, status=status.HTTP_201_CREATED)
+                else:
+                    return Response({
+                        "Success": False,
+                        "Message": "Validation failed.",
+                        "Errors": serializer.errors
+                    }, status=status.HTTP_400_BAD_REQUEST)
 
         except Exception as e:
             print(str(e))
