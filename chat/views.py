@@ -178,7 +178,7 @@ class chat_count(APIView):
         if session:
             session_id = session.chat_session_id
             chat_count = Chat.objects.filter(
-                to_user=to_user, chat_session_id=session_id, chat_status=1
+                to_user=to_user, chat_session_id=session_id, chat_status=0
             ).count()
             return Response(
                 {"Success": True, "chat_count": chat_count, "SessionID": session_id},
