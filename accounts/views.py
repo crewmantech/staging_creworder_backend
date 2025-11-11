@@ -3667,57 +3667,49 @@ class CompanyUserAPIKeyViewSet(viewsets.ModelViewSet):
 
 
 class DeleteUserListView(ListAPIView):
-    """API to list users based on role-based filtering and status code"""
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
-    pagination_class = StandardResultsSetPagination  # ✅ Enable pagination
+    pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
         user = self.request.user
-        queryset = User.objects.none()  # Default empty queryset
+        queryset = User.objects.none()
 
         try:
             if not hasattr(user, 'profile'):
-                return queryset  # No profile, no access
+                return queryset
 
-            # ✅ Get optional query params
             company_id = self.request.query_params.get("company_id")
             status_code = self.request.query_params.get("status_code", None)
 
-            # ✅ Prepare filter logic
-            status_filter = {}
+            # ✅ Always use Q object
             if status_code is not None:
-                # Validate it's a valid integer
                 try:
                     status_code = int(status_code)
-                    # Only include specific status
-                    status_filter = {"profile__status": status_code}
+                    status_filter = Q(profile__status=status_code)
                 except ValueError:
-                    pass  # ignore invalid input → fallback to exclude active
+                    status_filter = ~Q(profile__status=1)
             else:
-                # No status_code param → exclude active users
                 status_filter = ~Q(profile__status=1)
 
             # ✅ Role-based filtering
             if user.profile.user_type == "superadmin":
                 if company_id:
                     queryset = User.objects.filter(
-                        profile__company_id=company_id
-                    ).filter(status_filter)
+                        Q(profile__company_id=company_id) & status_filter
+                    )
                 else:
-                    queryset = User.objects.filter(
-                        profile__company=None
-                    ).filter(status_filter)
+                    queryset = User.objects.filter(status_filter)
 
             elif user.profile.user_type == "admin":
                 queryset = User.objects.filter(
-                    profile__company=user.profile.company
-                ).filter(status_filter)
+                    Q(profile__company=user.profile.company) & status_filter
+                )
 
             elif user.profile.user_type == "agent":
                 queryset = User.objects.filter(
-                    profile__branch=user.profile.branch
-                ).filter(status_filter)
+                    Q(profile__branch=user.profile.branch) & status_filter
+                )
 
         except Exception as e:
             print(f"Error in get_queryset: {e}")
