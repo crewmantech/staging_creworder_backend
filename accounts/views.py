@@ -3687,16 +3687,14 @@ class DeleteUserListView(ListAPIView):
             # ✅ Prepare filter logic
             status_filter = {}
             if status_code is not None:
-                # Validate it's a valid integer
                 try:
                     status_code = int(status_code)
-                    # Only include specific status
                     status_filter = {"profile__status": status_code}
                 except ValueError:
-                    pass  # ignore invalid input → fallback to exclude active
+                    status_filter = {}  # fallback to no filter
             else:
-                # No status_code param → exclude active users
-                status_filter = ~Q(profile__status=1)
+                # For excluding, still use Q object
+                status_filter = None
 
             # ✅ Role-based filtering
             if user.profile.user_type == "superadmin":
@@ -3705,9 +3703,13 @@ class DeleteUserListView(ListAPIView):
                         profile__company_id=company_id
                     ).filter(status_filter)
                 else:
-                    queryset = User.objects.filter(
-                        profile__company=None
-                    ).filter(status_filter)
+                    queryset = User.objects.filter(profile__company=None)
+                
+                # Apply status filter
+                if status_filter:
+                    queryset = queryset.filter(**status_filter)  # ✅ Unpack dict
+                else:
+                    queryset = queryset.exclude(profile__status=1)  # ✅ Exclude active
 
             elif user.profile.user_type == "admin":
                 queryset = User.objects.filter(
