@@ -3288,6 +3288,9 @@ class OrderListView(APIView):
                 else:    
                     qs = qs.filter(created_at__range=(start_dt, end_dt))
         qs = self._scope_queryset(qs, request.user, status_name)
+        
+         # Add ordering: newest first (reverse chronological order by date and time)
+        qs = qs.order_by('-created_at', '-id')
         # print(qs,"0---------------------3178")
         if pk:
             qs = qs.filter(id=pk)
