@@ -27,12 +27,6 @@ class getChatDetail(APIView):
     serializer_class = ChatSerializer
     permission_classes = [IsAuthenticated]
 
-    # =======================================================================
-    #                Retrieve Chat Details
-    # =======================================================================
-
-    
-
     def get(self, request):
         from_user = request.query_params.get("from_user")
         to_user = request.query_params.get("to_user")
@@ -67,9 +61,14 @@ class getChatDetail(APIView):
         Chat.objects.filter(from_user=to_user, chat_session=chatSessionId).update(chat_status=Chat.ChatStatus.READ)
 
         # Fetch chat data & ONLY SHOW users where profile.status = 1
+        # ✅ Fetch chat data:
+        # 1️⃣ Chats from last 24 hours (any status)
+        # 2️⃣ OR Unread chats older than 24 hours
         chatData = Chat.objects.filter(
-            chat_session=chatSessionId,
-            created_at__gte=time_threshold
+            chat_session=chatSessionId
+        ).filter(
+            Q(created_at__gte=time_threshold) |
+            Q(Q(chat_status=Chat.ChatStatus.UNREAD) & Q(created_at__lt=time_threshold))
         ).filter(
             Q(from_user__profile__status=1) | Q(to_user__profile__status=1)
         ).order_by("-created_at")
