@@ -3561,43 +3561,17 @@ class MainOrderStatusAPIView(APIView):
 
 
 STATE_CODE_MAP = {
-    'ANDAMAN AND NICOBAR ISLANDS': 'AN',
-    'ANDHRA PRADESH': 'AP',
-    'ARUNACHAL PRADESH': 'AR',
-    'ASSAM': 'AS',
-    'BIHAR': 'BR',
-    'CHANDIGARH': 'CH',
-    'CHHATTISGARH': 'CG',
-    'DADRA AND NAGAR HAVELI AND DAMAN AND DIU': 'DH',
-    'DELHI': 'DL',
-    'GOA': 'GA',
-    'GUJARAT': 'GJ',
-    'HARYANA': 'HR',
-    'HIMACHAL PRADESH': 'HP',
-    'JAMMU AND KASHMIR': 'JK',
-    'JHARKHAND': 'JH',
-    'KARNATAKA': 'KA',
-    'KERALA': 'KL',
-    'LADAKH': 'LA',
-    'LAKSHADWEEP': 'LD',
-    'MADHYA PRADESH': 'MP',
-    'MAHARASHTRA': 'MH',
-    'MANIPUR': 'MN',
-    'MEGHALAYA': 'ML',
-    'MIZORAM': 'MZ',
-    'NAGALAND': 'NL',
-    'ODISHA': 'OR',
-    'PUDUCHERRY': 'PY',
-    'PUNJAB': 'PB',
-    'RAJASTHAN': 'RJ',
-    'SIKKIM': 'SK',
-    'TAMIL NADU': 'TN',
-    'TELANGANA': 'TG',
-    'TRIPURA': 'TR',
-    'UTTAR PRADESH': 'UP',
-    'UTTARAKHAND': 'UK',
-    'WEST BENGAL': 'WB',
+    'ANDAMAN AND NICOBAR ISLANDS': 'AN', 'ANDHRA PRADESH': 'AP', 'ARUNACHAL PRADESH': 'AR', 'ASSAM': 'AS',
+    'BIHAR': 'BR', 'CHANDIGARH': 'CH', 'CHHATTISGARH': 'CG', 'DADRA AND NAGAR HAVELI AND DAMAN AND DIU': 'DH',
+    'DELHI': 'DL', 'GOA': 'GA', 'GUJARAT': 'GJ', 'HARYANA': 'HR', 'HIMACHAL PRADESH': 'HP',
+    'JAMMU AND KASHMIR': 'JK', 'JHARKHAND': 'JH', 'KARNATAKA': 'KA', 'KERALA': 'KL', 'LADAKH': 'LA',
+    'LAKSHADWEEP': 'LD', 'MADHYA PRADESH': 'MP', 'MAHARASHTRA': 'MH', 'MANIPUR': 'MN', 'MEGHALAYA': 'ML',
+    'MIZORAM': 'MZ', 'NAGALAND': 'NL', 'ODISHA': 'OR', 'PUDUCHERRY': 'PY', 'PUNJAB': 'PB', 'RAJASTHAN': 'RJ',
+    'SIKKIM': 'SK', 'TAMIL NADU': 'TN', 'TELANGANA': 'TG', 'TRIPURA': 'TR', 'UTTAR PRADESH': 'UP',
+    'UTTARAKHAND': 'UK', 'WEST BENGAL': 'WB',
 }
+
+
 class OrderLocationReportView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -3621,102 +3595,87 @@ class OrderLocationReportView(APIView):
             date_from_str = request.query_params.get('date_from')
             date_to_str = request.query_params.get('date_to')
             state_param = request.query_params.get('state')
-            district_param = request.query_params.get('district')
+            city_param = request.query_params.get('district')  # renamed but compatible with your param name
 
-            if district_param and not state_param:
-                return self.error("District cannot be passed without a state. Please provide a state.")
+            if city_param and not state_param:
+                return self.error("City cannot be passed without a state. Please provide a state.")
 
-            # ✅ Base Query (Only this company's orders & not deleted)
+            # ✅ Base Query
             seller_orders_query = Order_Table.objects.filter(
                 company_id=company_id,
                 is_deleted=False
             ).exclude(order_status__name__iexact="CANCELLED")
 
-            # ✅ Date Range Filters
+            # ✅ Date Filters
             if date_from_str:
                 parsed_date = parse_date(date_from_str)
                 if not parsed_date:
                     return self.error("Invalid date_from format. Use YYYY-MM-DD")
-                seller_orders_query = seller_orders_query.filter(created_at__gte=datetime.combine(parsed_date, datetime.min.time()))
+                seller_orders_query = seller_orders_query.filter(
+                    created_at__gte=datetime.combine(parsed_date, datetime.min.time())
+                )
 
             if date_to_str:
                 parsed_date = parse_date(date_to_str)
                 if not parsed_date:
                     return self.error("Invalid date_to format. Use YYYY-MM-DD")
-                seller_orders_query = seller_orders_query.filter(created_at__lte=datetime.combine(parsed_date, datetime.max.time()))
+                seller_orders_query = seller_orders_query.filter(
+                    created_at__lte=datetime.combine(parsed_date, datetime.max.time())
+                )
 
-            # ✅ Location Filter
-            if state_param or district_param:
-                pincode_qs = PincodeLocality.objects.all()
+            # ✅ Location Filters
+            if state_param:
+                seller_orders_query = seller_orders_query.filter(
+                    customer_state__name__iexact=state_param
+                )
+            if city_param:
+                seller_orders_query = seller_orders_query.filter(
+                    customer_city__iexact=city_param
+                )
 
-                if state_param:
-                    pincode_qs = pincode_qs.filter(state__iexact=state_param)
-
-                if district_param:
-                    pincode_qs = pincode_qs.filter(district__iexact=district_param)
-
-                pincodes = pincode_qs.values_list("pincode", flat=True).distinct()
-
-                if not pincodes.exists():
-                    return self.success("No orders found for the selected location.", {"total_orders_mapped": 0, "location_groups": []})
-
-                seller_orders_query = seller_orders_query.filter(customer_postal__in=pincodes)
-
-            # ✅ Fetch reduced order dataset
+            # ✅ Fetch only necessary fields
             seller_orders = list(
-                seller_orders_query.annotate(pincode=F("customer_postal")).values("id", "pincode")
+                seller_orders_query.annotate(
+                    pincode=F("customer_postal"),
+                    state_name=F("customer_state__name"),
+                    city_name=F("customer_city")
+                ).values("id", "pincode", "state_name", "city_name")
             )
 
-            pincodes = {o['pincode'] for o in seller_orders if o['pincode']}
-            if not pincodes:
+            if not seller_orders:
                 return self.success("No orders found.", {"total_orders_mapped": 0, "location_groups": []})
 
-            # ✅ Load location data
-            location_data = PincodeLocality.objects.filter(pincode__in=pincodes).values("pincode", "state", "district")
-
-            # ✅ Map Pincode → State/District/Code
-            pincode_map = {
-                loc['pincode']: {
-                    'state': (loc['state'] or 'Unknown').upper(),
-                    'district': loc['district'] or 'Unknown',
-                    'state_code': STATE_CODE_MAP.get((loc['state'] or 'Unknown').upper(), 'N/A')
-                }
-                for loc in location_data
-            }
-
-            # ✅ Aggregate
+            # ✅ Group by State → City → Pincode
             grouped_data = {}
             total_orders_mapped = 0
 
             for order in seller_orders:
-                pincode = order['pincode']
-                if pincode not in pincode_map:
-                    continue
+                state = (order['state_name'] or 'Unknown').upper()
+                city = order['city_name'] or 'Unknown'
+                pincode = order['pincode'] or 'Unknown'
+                state_code = STATE_CODE_MAP.get(state, 'N/A')
 
-                loc = pincode_map[pincode]
-                total_orders_mapped += 1
-
-                key = (loc['state'], loc['state_code'], loc['district'])
+                key = (state, state_code, city)
                 grouped_data.setdefault(key, {}).setdefault(pincode, []).append(order['id'])
+                total_orders_mapped += 1
 
             # ✅ Final Format
             location_groups = []
-            for (state, state_code, district), pincode_groups in grouped_data.items():
-                district_order_count = sum(len(v) for v in pincode_groups.values())
+            for (state, state_code, city), pincode_groups in grouped_data.items():
+                city_order_count = sum(len(v) for v in pincode_groups.values())
                 pincode_details = [
                     {"pincode": pin, "order_count": len(order_ids), "order_ids": sorted(order_ids)}
                     for pin, order_ids in sorted(pincode_groups.items())
                 ]
-
                 location_groups.append({
                     "state": state,
                     "state_code": state_code,
-                    "district": district,
-                    "order_count": district_order_count,
+                    "city": city,
+                    "order_count": city_order_count,
                     "pincode_details": pincode_details,
                 })
 
-            # ✅ Sort and return response
+            # ✅ Sort alphabetically by state
             location_groups = sorted(location_groups, key=lambda x: x["state"])
 
             return self.success("Order location report generated successfully.", {
