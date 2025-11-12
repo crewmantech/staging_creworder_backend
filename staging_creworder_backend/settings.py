@@ -280,13 +280,3 @@ SMS_API_KEY = "dqWOcbPzrncSkgX9"
 SMS_SENDER_ID = "CrOrdr"
 
 
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'handlers': {
-        'console': {'class': 'logging.StreamHandler'},
-    },
-    'loggers': {
-        '': {'handlers': ['console'], 'level': 'INFO'},
-    },
-}
