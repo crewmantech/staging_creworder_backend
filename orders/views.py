@@ -1730,6 +1730,317 @@ class OrderAggregationByStatusAPIView(APIView):
         }
 
         return Response(response_data, status=status.HTTP_200_OK)
+    
+class OrderAggregationByStatusAPIViewPerformance(APIView):
+
+    def get(self, request, *args, **kwargs):
+        branch_id = request.query_params.get('branch', None)
+        start_date = request.query_params.get('start_date', None)
+        end_date = request.query_params.get('end_date', None)
+        tl_id = request.query_params.get('tl_id', None)
+        date_range = request.query_params.get('date_range',None)
+        manager_id = request.query_params.get('manager_id', None)
+        agent_id = request.query_params.get('agent_id', None)
+        company_id = self.request.user.profile.company
+        branch_id = self.request.user.profile.branch
+        filter_conditions = {}
+        q_filters = Q() 
+        if branch_id:
+            filter_conditions['branch_id'] = branch_id
+        if date_range:
+            date_range = date_range.split(' ')
+            if len(date_range) != 2:
+                raise ValueError("Date Range invalid")
+            start_date = datetime.fromisoformat(date_range[0]).date()
+            end_date = datetime.fromisoformat(date_range[1]).date()
+
+            # If the end date is the same as the start date, adjust the end time to the last moment of the day
+            if start_date == end_date:
+                end_date = start_date  # Keep the same day
+                end_datetime = datetime.combine(end_date, time.max)  # Set to 23:59:59.999999
+            else:
+                end_datetime = datetime.combine(end_date, time.max)  # Set to 23:59:59.999999
+
+            start_datetime = datetime.combine(start_date, time.min)
+        else:
+            today = date.today()
+            start_datetime = datetime.combine(today, time.min)  # 00:00:00
+            end_datetime = datetime.combine(today, time.max) 
+
+        def apply_date_filter(query, start_datetime, end_datetime,count=True):
+                if count:
+                    return query.filter(
+                        Q(created_at__range=(start_datetime, end_datetime)),
+                        is_deleted=False,
+                    ).count()
+                    # return query.filter(
+                    #     Q(created_at__range=(start_datetime, end_datetime)) |
+                    #     Q(updated_at__range=(start_datetime, end_datetime)),
+                    #     is_deleted=False,
+                    # ).count()
+                else:
+                    return query.filter(
+                        Q(created_at__range=(start_datetime, end_datetime)),
+                        is_deleted=False,
+                    )
+                    # return query.filter(
+                    #     Q(created_at__range=(start_datetime, end_datetime)) |
+                    #     Q(updated_at__range=(start_datetime, end_datetime)),
+                    #     is_deleted=False,
+                    # )
+        if not date_range and start_date and end_date:
+            try:
+                # Ensure string to date conversion
+                start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
+                end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
+
+                # Apply full-day range
+                start_datetime = datetime.combine(start_date_obj, time.min)  # 00:00:00
+                end_datetime = datetime.combine(end_date_obj, time.max)      # 23:59:59.999999
+
+            except ValueError:
+                return Response({"error": "Invalid date format. Use YYYY-MM-DD."}, status=status.HTTP_400_BAD_REQUEST)
+# Apply date filter 
+        all_employee_ids = set()
+
+        if manager_id:
+            employees_under_manager = Employees.objects.filter(manager_id=manager_id,status=1)
+            manager_ids = employees_under_manager.values_list('user_id', flat=True)
+            # filter_conditions['order_created_by_id__in'] = list(manager_ids)
+            q_filters &= Q(order_created_by_id__in=manager_ids) | Q(updated_by_id__in=manager_ids)
+
+        if tl_id:
+            try:
+                # ✅ Treat tl_id as USER ID
+                tl_employee = Employees.objects.get(user_id=tl_id, status=1)
+                tl_user_id = tl_employee.user.id  # same as tl_id
+            except Employees.DoesNotExist:
+                return Response({"error": "Invalid teamlead_id"}, status=status.HTTP_400_BAD_REQUEST)
+
+            employees_under_tl = Employees.objects.filter(teamlead_id=tl_user_id, status=1)
+            tl_team_user_ids = list(employees_under_tl.values_list('user_id', flat=True))
+            tl_team_user_ids.append(tl_user_id)
+
+            q_filters |= (
+                Q(order_created_by_id__in=tl_team_user_ids) |
+                Q(updated_by_id__in=tl_team_user_ids)
+            )
+
+
+        if agent_id:
+            # filter_conditions['order_created_by_id__in'] = [agent_id]
+            q_filters &= Q(order_created_by_id=agent_id) | Q(updated_by_id=agent_id)
+            # all_employee_ids.add(agent_id)
+
+        # if all_employee_ids:
+        #     filter_conditions['order_created_by_id__in'] = list(all_employee_ids)
+
+        filter_conditions['is_deleted'] = False
+
+        orders = Order_Table.objects.filter(**filter_conditions).filter(q_filters)
+
+        order_statuses = OrderStatus.objects.all()
+        orders = apply_date_filter(orders, start_datetime, end_datetime, False)
+        status_data = []
+        for status1 in order_statuses:
+            status_orders = orders.filter(order_status=status1)
+            order_summary = status_orders.aggregate(
+                order_count=Count('id'),
+                total_price=Sum('total_amount'),
+                total_discount=Sum('discount'),
+                total_gross_amount=Sum('gross_amount')
+            )
+
+            status_data.append({
+                'status': status1.name,
+                'order_count': order_summary['order_count'] or 0,
+                'total_price': order_summary['total_price'] or 0.0,
+                'total_discount': order_summary['total_discount'] or 0.0,
+                'total_gross_amount': order_summary['total_gross_amount'] or 0.0
+            })
+
+        total_orders = orders.aggregate(
+            total_order_count=Count('id'),
+            total_order_price=Sum('total_amount'),
+            total_order_discount=Sum('discount'),
+            total_order_gross_amount=Sum('gross_amount')
+        )
+
+        total_summary = {
+            'total_order_count': total_orders['total_order_count'] or 0,
+            'total_order_price': total_orders['total_order_price'] or 0.0,
+            'total_order_discount': total_orders['total_order_discount'] or 0.0,
+            'total_order_gross_amount': total_orders['total_order_gross_amount'] or 0.0
+        }
+
+        target_data = {}
+
+        if manager_id:
+            manager_targets = UserTargetsDelails.objects.filter(user__id=manager_id)
+            if manager_targets.exists():
+                target = manager_targets.first()
+                target_data['manager_target'] = {
+                    'daily_amount_target': target.daily_amount_target,
+                    'daily_orders_target':target.daily_orders_target,
+                    'monthly_amount_target': target.monthly_amount_target,
+                    'monthly_orders_target': target.monthly_orders_target,
+                    'achieve_target': target.achieve_target
+                }
+
+        if tl_id:
+            tl_targets = UserTargetsDelails.objects.filter(user__id=tl_id)
+            if tl_targets.exists():
+                target = tl_targets.first()
+                target_data['tl_target'] = {
+                    'daily_amount_target': target.daily_amount_target,
+                    'daily_orders_target':target.daily_orders_target,
+                    'monthly_amount_target': target.monthly_amount_target,
+                    'monthly_orders_target': target.monthly_orders_target,
+                    'achieve_target': target.achieve_target
+                }
+
+        if agent_id:
+            agent_targets = UserTargetsDelails.objects.filter(user__id=agent_id)
+            if agent_targets.exists():
+                target = agent_targets.first()
+                target_data['agent_target'] = {
+                    'daily_amount_target': target.daily_amount_target,
+                    'daily_orders_target':target.daily_orders_target,
+                    'monthly_amount_target': target.monthly_amount_target,
+                    'monthly_orders_target': target.monthly_orders_target,
+                    'achieve_target': target.achieve_target
+                }
+
+        # === Agent List Section === #
+        today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        today_end = timezone.now().replace(hour=23, minute=59, second=59, microsecond=999999)
+        agents = Employees.objects.filter(
+                company_id=company_id,
+                branch_id=branch_id,status=1
+            )
+        if manager_id:
+            agents = Employees.objects.filter(manager_id=manager_id,status=1)
+        if tl_id:
+            agents = Employees.objects.filter(teamlead_id=tl_id,status=1)
+        if agent_id:
+            agents = Employees.objects.filter(
+                company_id=company_id,
+                branch_id=branch_id,
+                user__id=agent_id,status=1
+            )
+            # agents = Employees.objects.all()
+        message = []
+        agent_list = []
+        extra_users = Employees.objects.filter(
+            Q(user__id=manager_id) | Q(user__id=tl_id),
+            status=1
+        )
+
+        # Combine agents + manager + team lead
+        agents = agents.union(extra_users)
+        
+        for agent in agents:
+            user = agent.user
+
+            # Orders created or updated today
+            today_orders = Order_Table.objects.filter(
+                Q(order_created_by=user) | Q(updated_by=user),
+                is_deleted=False,
+            ).filter(
+                Q(created_at__range=(start_datetime, end_datetime)) |
+                Q(updated_at__range=(start_datetime, end_datetime))
+            )
+
+            # Status-based filtering
+            today_accepted = apply_date_filter(today_orders.filter(order_status__name='Accepted'), start_datetime, end_datetime)
+            today_rejected = apply_date_filter(today_orders.filter(order_status__name='Rejected'), start_datetime, end_datetime)
+            no_response = apply_date_filter(today_orders.filter(order_status__name='No Response'), start_datetime, end_datetime)
+
+            # Daily target
+            target = UserTargetsDelails.objects.filter(user=user).first()
+            daily_target = target.daily_orders_target if target else 0
+            total_today = apply_date_filter(today_orders, start_datetime, end_datetime)
+
+            # Progress %
+            progress = (today_accepted / daily_target) * 100 if daily_target else 0
+
+            # Attendance
+            has_clocked_in = Attendance.objects.filter(
+                user=user, date=timezone.now().date(), clock_in__isnull=False
+            ).exists()
+            agent_status = "Active" if has_clocked_in else "Inactive"
+
+            # Token activity (online/offline)
+            token = Token.objects.filter(user=user).first()
+            if not token:
+                activity = "offline"
+            elif timezone.now() - token.last_used > timedelta(minutes=15):
+                activity = "offline"
+            else:
+                activity = "online"
+
+            # Cloudconnect Status
+            cloudconnect_status = None
+            channels = CloudTelephonyChannel.objects.filter(company=company_id, branch=branch_id, status=1)
+            for channel in channels:
+                if channel.cloudtelephony_vendor.name.lower() == 'cloudconnect':
+                    cloud_connect_service = CloudConnectService(channel.token, channel.tenent_id)
+                    response = cloud_connect_service.agent_current_status()
+                    if response.get("code") == 200:
+                        cloudconnect_response = response.get("result", {})
+                        try:
+                            channel_assign = CloudTelephonyChannelAssign.objects.get(user=user)
+                            agent_id = channel_assign.agent_id
+                            cloudconnect_status = next(
+                                (a["status"] for a in cloudconnect_response if a["agent_id"] == agent_id),
+                                None
+                            )
+                        except CloudTelephonyChannelAssign.DoesNotExist:
+                            pass
+
+            # ✅ Payment Type Aggregation (per agent)
+            payment_type_summary = today_orders.filter(
+                order_status__name="Accepted"
+            ).values("payment_type__name").annotate(
+                total=Count("id")
+            )
+
+            # ✅ Prepare list of orders with payment type
+            order_list = today_orders.values(
+                "id", "order_id", "customer_name", "total_amount", "payment_type__name", "order_status__name"
+            )
+
+            # Final Response
+            agent_list.append({
+                "agent_id": user.id,
+                "username": user.username,
+                "agent_name": user.get_full_name(),
+                "profile_image": user.profile.profile_image.url if hasattr(user, 'profile') and user.profile.profile_image else None,
+                "agent_status": agent_status,
+                "today_orders": total_today,
+                "today_accepted": today_accepted,
+                "today_rejected": today_rejected,
+                "no_response": no_response,
+                "cloudconnect_status": cloudconnect_status,
+                "activity": activity,
+                "daily_target": daily_target,
+                "progress": round(progress, 2),
+
+                # ✅ New Fields
+                "payment_type_summary": list(payment_type_summary),  # e.g. [{"payment_type__name": "COD", "total": 5}]
+                # "orders": list(order_list),  # every order with payment type and status
+            })
+
+        response_data = {
+            'total_summary': total_summary,
+            'status_data': status_data,
+            'target_data': target_data,
+            'agent_list': agent_list,
+            "message":message
+        }
+
+        return Response(response_data, status=status.HTTP_200_OK)
+
 
 
 

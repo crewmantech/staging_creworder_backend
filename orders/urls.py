@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
-from .views import AcceptedOrdersReportAPIView, AllowStatusViewSet, ChangeOrderStatusAPIView, CreateRepeatOrderAPIView, CustomerStateViewSet, ExternalOrderCreateView, FilterOrdersCreatedView, FilterOrdersView1, FilteredOrderViewSet, MainOrderStatusAPIView, NotificationsConfigViewSet, OrderAggregationByStatusAPIView, OrderLocationReportView, OrderLogListView, OrderStatusAPIView,FilterOrdersView, OrderStatusWorkflowViewSet, OrderValueSettingViewSet, PaymentStatusViewSet, PaymentTypeViewSet,PincodeLocalityViewSet,BulkOrderUploadView, ProductOrderSummaryView1, RecurringOrdersAPIView, ReturnTypeViewSet, ScanOrderAPIView, UpdateOrderStatusAndPaymentStatusView,OrderMetricsAPIView,ProductOrderSummaryView,LableLayoutAPIView,LableInvoiceAPIView,CSVProductUploadView
+from .views import AcceptedOrdersReportAPIView, AllowStatusViewSet, ChangeOrderStatusAPIView, CreateRepeatOrderAPIView, CustomerStateViewSet, ExternalOrderCreateView, FilterOrdersCreatedView, FilterOrdersView1, FilteredOrderViewSet, MainOrderStatusAPIView, NotificationsConfigViewSet, OrderAggregationByStatusAPIView,OrderAggregationByStatusAPIViewPerformance, OrderLocationReportView, OrderLogListView, OrderStatusAPIView,FilterOrdersView, OrderStatusWorkflowViewSet, OrderValueSettingViewSet, PaymentStatusViewSet, PaymentTypeViewSet,PincodeLocalityViewSet,BulkOrderUploadView, ProductOrderSummaryView1, RecurringOrdersAPIView, ReturnTypeViewSet, ScanOrderAPIView, UpdateOrderStatusAndPaymentStatusView,OrderMetricsAPIView,ProductOrderSummaryView,LableLayoutAPIView,LableInvoiceAPIView,CSVProductUploadView,OrderChannelViewSet
 
 router = DefaultRouter()
 router.register(r'order_status',OrderStatusAPIView)
@@ -58,6 +58,7 @@ urlpatterns = [
     ),
     path('bulk-upload/', BulkOrderUploadView.as_view(), name='bulk_order_upload'),
     path('order-aggregation-by-status/', OrderAggregationByStatusAPIView.as_view(), name='order-aggregation-by-status'),
+    path('order-aggregation-by-status-performance/', OrderAggregationByStatusAPIViewPerformance.as_view(), name='order-aggregation-by-status-performance'),
     path('status-update/<str:pk>', UpdateOrderStatusAndPaymentStatusView.as_view(), name='status-update'),
     path('order-log/<str:order_id>/', OrderLogListView.as_view(), name='order-logs'),
     path('team-order-list/', OrderMetricsAPIView.as_view(), name='order-list-team'),
