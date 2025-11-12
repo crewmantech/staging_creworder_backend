@@ -2519,7 +2519,7 @@ class AgentListByTeamleadAPIView(APIView):
         agents = Employees.objects.filter(teamlead_id=teamlead_id, status=1)
 
         # Include the team lead themselves
-        teamlead = Employees.objects.filter(id=teamlead_id, status=1)
+        teamlead = Employees.objects.filter(user_id=teamlead_id, status=1)
 
         # Combine both QuerySets
         all_users = agents | teamlead
