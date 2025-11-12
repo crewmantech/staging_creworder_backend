@@ -267,7 +267,9 @@ class getUserListChatAdmin(APIView):
 
         # ✅ Get employee profile of current user
         try:
-            employee = Employees.objects.select_related('company', 'branch', 'user').get(user_id=user_id, status=1)
+            employee = Employees.objects.select_related(
+                'company', 'branch', 'user', 'department'
+            ).get(user_id=user_id, status=1)
         except Employees.DoesNotExist:
             print("❌ Employee not found or inactive")
             return Response(
@@ -295,34 +297,38 @@ class getUserListChatAdmin(APIView):
             final_users = list(set(final_users + list(admin_and_agents)))
 
         # ==========================
-        # 🔹 Agent same-group logic
+        # 🔹 Agent same-group + same-department logic
         # ==========================
         elif employee.user_type == "agent":
             agent_groups = employee.user.groups.all()
             print(f"🧩 Agent Groups: {[g.name for g in agent_groups]}")
 
+            # Step 1: get all users in same group(s)
             same_group_users = User.objects.filter(
                 groups__in=agent_groups,
                 profile__status=1
             ).distinct()
-
             print(f"🧍‍♂️ Users in same groups: {same_group_users.count()}")
 
-            # ✅ Merge all users in same group
-            final_users = list(set(final_users + list(same_group_users)))
-            print(f"✅ Final same-group users (including no chat yet): {len(final_users)}")
+            # Step 2: restrict to same department
+            same_group_same_dept_users = same_group_users.filter(
+                profile__department=employee.department
+            ).distinct()
+            print(f"🏢 Users in same group + same department: {same_group_same_dept_users.count()}")
+
+            # Step 3: merge both lists
+            final_users = list(set(final_users + list(same_group_same_dept_users)))
+            print(f"✅ Final same-group+department users: {len(final_users)}")
 
         else:
             print("ℹ️ Other role (no extra filter)")
 
-        # ✅ Exclude the logged-in user from result
+        # ✅ Step 4: Exclude current user (so they don’t see themselves)
         final_users = [u for u in final_users if u.id != int(user_id)]
-
         print(f"🚫 Removed current user, final count: {len(final_users)}")
 
-        # ✅ Serialize combined and filtered data
+        # ✅ Step 5: Serialize result
         final_serializer = UserSerializer(final_users, many=True)
-
         print(f"📦 Final serialized user count: {len(final_serializer.data)}")
         print("===== 🟥 END getUserListChatAdmin =====\n")
 
