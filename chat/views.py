@@ -22,9 +22,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.generics import ListAPIView
 from accounts.models import Department, ExpiringToken as Token, Employees, CustomAuthGroup
 from django.db.models import Q
+import re
 
-import logging
-logger = logging.getLogger(__name__)
 
 class getChatDetail(APIView):
     serializer_class = ChatSerializer
@@ -307,8 +306,12 @@ class getUserListChatAdmin(APIView):
             for perm in group_permissions:
                 perm_lower = perm.lower()
                 if "department can view" in perm_lower:
-                    # extract department name part
-                    dept_name = perm.replace("Department Can view", "").strip()
+                    # Extract department name portion only
+                    dept_name = perm.split("Department Can view", 1)[-1].strip()
+
+                    # Remove trailing " - Company" part if present
+                    dept_name = re.split(r"\s*-\s*", dept_name)[0].strip()
+
                     if dept_name:
                         allowed_department_names.add(dept_name.lower())
 
