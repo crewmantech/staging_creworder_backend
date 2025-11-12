@@ -247,17 +247,15 @@ class getUserListChatAdmin(APIView):
             .distinct()
         )
 
-        # ✅ Only show users whose profile.status = 1
+        # ✅ Only show active users
         users = User.objects.filter(
             id__in=unique_to_users,
             profile__status=1
         )
 
-        # ✅ Serialize initial chat user list (existing logic remains untouched)
-        user_serializer = UserSerializer(users, many=True)
         final_users = list(users)
 
-        # ✅ Now, extend logic only if current user is admin
+        # ✅ Get employee profile of current user
         try:
             employee = Employees.objects.select_related('company', 'branch', 'user').get(user_id=user_id, status=1)
         except Employees.DoesNotExist:
@@ -266,8 +264,10 @@ class getUserListChatAdmin(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+        # ==========================
+        # 🔹 Admin logic (existing)
+        # ==========================
         if employee.user_type == "admin":
-            # 🔹 Fetch agents + admins of same company + branch
             company = employee.company
             branch = employee.branch
 
@@ -277,11 +277,25 @@ class getUserListChatAdmin(APIView):
                 profile__user_type__in=["agent", "admin"],
                 profile__status=1,
             )
+            final_users = list(set(final_users + list(admin_and_agents)))
 
-            # 🔹 Combine both lists (chat contacts + company/branch team)
-            final_users = list(set(list(users) + list(admin_and_agents)))
+        # ==========================
+        # 🔹 Agent same-group logic
+        # ==========================
+        elif employee.user_type == "agent":
+            # Get the groups the current agent belongs to
+            agent_groups = employee.user.groups.all()
 
-        # ✅ Serialize combined data
+            # Get IDs of all users who belong to the same group(s)
+            same_group_users = User.objects.filter(
+                groups__in=agent_groups,
+                profile__status=1
+            ).distinct()
+
+            # Keep only those users who share the same group(s)
+            final_users = [u for u in final_users if u in same_group_users]
+
+        # ✅ Serialize combined and filtered data
         final_serializer = UserSerializer(final_users, many=True)
 
         return Response(
