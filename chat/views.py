@@ -308,12 +308,17 @@ class getUserListChatAdmin(APIView):
 
             print(f"🧍‍♂️ Users in same groups: {same_group_users.count()}")
 
-            # ✅ Merge instead of filtering (include all in same group)
+            # ✅ Merge all users in same group
             final_users = list(set(final_users + list(same_group_users)))
             print(f"✅ Final same-group users (including no chat yet): {len(final_users)}")
 
         else:
             print("ℹ️ Other role (no extra filter)")
+
+        # ✅ Exclude the logged-in user from result
+        final_users = [u for u in final_users if u.id != int(user_id)]
+
+        print(f"🚫 Removed current user, final count: {len(final_users)}")
 
         # ✅ Serialize combined and filtered data
         final_serializer = UserSerializer(final_users, many=True)
@@ -325,7 +330,7 @@ class getUserListChatAdmin(APIView):
             {"Success": True, "results": final_serializer.data},
             status=status.HTTP_200_OK,
         )
-
+        
 class GetGroups(APIView):
     permission_classes = [IsAuthenticated]
 
