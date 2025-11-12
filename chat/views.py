@@ -551,6 +551,7 @@ class GetNotifications(APIView):
         for n in notifications:
             url = n.url or ""
             extracted_user_id = None
+            extracted_group_id = None
 
             print(f"🔔 Processing notification_id={n.id}, type={n.notification_type}, url={url}")
 
@@ -574,33 +575,49 @@ class GetNotifications(APIView):
                 else:
                     extracted_user_id = None
 
+                serializer_data.append({
+                    "id": n.id,
+                    "message": n.message,
+                    "notification_type": n.notification_type,
+                    "url": url,                     # cleaned URL
+                    "user_id": extracted_user_id,   # ✅ only for chat_message
+                })
+
             # ========================================================
             # CASE 2: Group chat → extract group_id from /chat/group/<id>
             # ========================================================
             elif n.notification_type == "group_chat":
-                # Example: /chat/group/5
                 if "/chat/group/" in url:
                     try:
                         group_id = url.split("/chat/group/")[1].strip("/")
-                        extracted_user_id = group_id
+                        extracted_group_id = group_id
                         print(f"✅ Extracted group_id={group_id} from group chat URL")
 
                         # Remove the numeric part to clean the URL
                         url = "/chat/group/"
                     except Exception as e:
                         print(f"⚠️ Failed to extract group_id from URL: {e}")
-                        extracted_user_id = None
+                        extracted_group_id = None
 
+                serializer_data.append({
+                    "id": n.id,
+                    "message": n.message,
+                    "notification_type": n.notification_type,
+                    "url": url,                      # cleaned URL
+                    "group_id": extracted_group_id,  # ✅ for group_chat
+                })
+
+            # ========================================================
+            # CASE 3: Any other type (fallback)
+            # ========================================================
             else:
-                print(f"ℹ️ Notification type {n.notification_type} not handled specially.")
-
-            serializer_data.append({
-                "id": n.id,
-                "message": n.message,
-                "notification_type": n.notification_type,
-                "url": url,                     # ✅ cleaned URL
-                "user_id": extracted_user_id,   # ✅ user_id or group_id
-            })
+                print(f"ℹ️ Notification type '{n.notification_type}' not handled specially.")
+                serializer_data.append({
+                    "id": n.id,
+                    "message": n.message,
+                    "notification_type": n.notification_type,
+                    "url": url,
+                })
 
         print(f"✅ Returning {len(serializer_data)} unread notifications")
 
