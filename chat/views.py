@@ -245,18 +245,18 @@ class getUserListChatAdmin(APIView):
         print("\n===== 🟩 START getUserListChatAdmin =====")
         print(f"➡️ user_id from request: {user_id}")
 
-        # ✅ Get users the requester has chatted with
-        unique_to_users = (
-            Chat.objects.filter(from_user=user_id)
-            .values_list("to_user", flat=True)
-            .distinct()
-        )
+        # # ✅ Get users the requester has chatted with
+        # unique_to_users = (
+        #     Chat.objects.filter(from_user=user_id)
+        #     .values_list("to_user", flat=True)
+        #     .distinct()
+        # )
 
-        users = User.objects.filter(
-            id__in=unique_to_users,
-            profile__status=1
-        )
-        final_users = list(users)
+        # users = User.objects.filter(
+        #     id__in=unique_to_users,
+        #     profile__status=1
+        # )
+        # final_users = list(users)
 
         # ✅ Get employee profile
         try:
