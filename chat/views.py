@@ -240,6 +240,9 @@ class getUserListChatAdmin(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        print("\n===== 🟩 START getUserListChatAdmin =====")
+        print(f"➡️  user_id from request: {user_id}")
+
         # ✅ Get users the requester has chatted with
         unique_to_users = (
             Chat.objects.filter(from_user=user_id)
@@ -247,11 +250,15 @@ class getUserListChatAdmin(APIView):
             .distinct()
         )
 
+        print(f"🗂️  Chat contacts found: {list(unique_to_users)}")
+
         # ✅ Only show active users
         users = User.objects.filter(
             id__in=unique_to_users,
             profile__status=1
         )
+
+        print(f"✅ Active chat users count: {users.count()}")
 
         final_users = list(users)
 
@@ -259,10 +266,13 @@ class getUserListChatAdmin(APIView):
         try:
             employee = Employees.objects.select_related('company', 'branch', 'user').get(user_id=user_id, status=1)
         except Employees.DoesNotExist:
+            print("❌ Employee not found or inactive")
             return Response(
                 {"Success": False, "Errors": "Employee not found or inactive"},
                 status=status.HTTP_404_NOT_FOUND,
             )
+
+        print(f"👤 Employee found: {employee.user.username} | Type: {employee.user_type}")
 
         # ==========================
         # 🔹 Admin logic (existing)
@@ -270,6 +280,7 @@ class getUserListChatAdmin(APIView):
         if employee.user_type == "admin":
             company = employee.company
             branch = employee.branch
+            print(f"🏢 Admin Company: {company}, Branch: {branch}")
 
             admin_and_agents = User.objects.filter(
                 profile__company=company,
@@ -277,26 +288,34 @@ class getUserListChatAdmin(APIView):
                 profile__user_type__in=["agent", "admin"],
                 profile__status=1,
             )
+            print(f"👥 Admin+Agents added: {admin_and_agents.count()} users")
             final_users = list(set(final_users + list(admin_and_agents)))
 
         # ==========================
         # 🔹 Agent same-group logic
         # ==========================
         elif employee.user_type == "agent":
-            # Get the groups the current agent belongs to
             agent_groups = employee.user.groups.all()
+            print(f"🧩 Agent Groups: {[g.name for g in agent_groups]}")
 
-            # Get IDs of all users who belong to the same group(s)
             same_group_users = User.objects.filter(
                 groups__in=agent_groups,
                 profile__status=1
             ).distinct()
 
-            # Keep only those users who share the same group(s)
+            print(f"🧍‍♂️ Users in same groups: {same_group_users.count()}")
+
             final_users = [u for u in final_users if u in same_group_users]
+            print(f"✅ Final filtered same-group chat users: {len(final_users)}")
+
+        else:
+            print("ℹ️ Other role (no extra filter)")
 
         # ✅ Serialize combined and filtered data
         final_serializer = UserSerializer(final_users, many=True)
+
+        print(f"📦 Final serialized user count: {len(final_serializer.data)}")
+        print("===== 🟥 END getUserListChatAdmin =====\n")
 
         return Response(
             {"Success": True, "results": final_serializer.data},
