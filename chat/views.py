@@ -278,7 +278,7 @@ class getUserListChatAdmin(APIView):
         print(f"👤 Employee found: {employee.user.username} | Type: {employee.user_type}")
 
         # ==========================
-        # 🔹 Admin logic (existing)
+        # 🔹 Admin logic
         # ==========================
         if employee.user_type == "admin":
             company = employee.company
@@ -308,8 +308,9 @@ class getUserListChatAdmin(APIView):
 
             print(f"🧍‍♂️ Users in same groups: {same_group_users.count()}")
 
-            final_users = [u for u in final_users if u in same_group_users]
-            print(f"✅ Final filtered same-group chat users: {len(final_users)}")
+            # ✅ Merge instead of filtering (include all in same group)
+            final_users = list(set(final_users + list(same_group_users)))
+            print(f"✅ Final same-group users (including no chat yet): {len(final_users)}")
 
         else:
             print("ℹ️ Other role (no extra filter)")
@@ -324,7 +325,6 @@ class getUserListChatAdmin(APIView):
             {"Success": True, "results": final_serializer.data},
             status=status.HTTP_200_OK,
         )
-
 
 class GetGroups(APIView):
     permission_classes = [IsAuthenticated]
