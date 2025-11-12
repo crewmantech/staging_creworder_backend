@@ -598,6 +598,9 @@ class GetNotifications(APIView):
                     except Exception as e:
                         print(f"⚠️ Failed to extract group_id from URL: {e}")
                         extracted_group_id = None
+                
+                # ✅ Force URL to /chat/ (no /group/)
+                url = "/chat/"
 
                 serializer_data.append({
                     "id": n.id,
