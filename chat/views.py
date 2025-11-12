@@ -152,51 +152,58 @@ class createChat(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            # Get all members of this group except the sender
-            group_members = GroupDetails.objects.filter(group=group).exclude(member_id=from_user)
-            print(f"👤 Total group members (excluding sender): {group_members.count()}")
+            # ✅ Step 1: Create one Chat entry for the group
+            chat_data = {
+                **request.data,
+                "group": group.id,       # store group_id
+                "to_user": None,         # no direct recipient
+                "chat_session": session_id,
+                "type": "group"          # explicitly set type
+            }
 
-            sent_to = []
-            for member in group_members:
-                print(f"➡️ Sending message to member_id={member.member.id}")
+            serializer = ChatSerializer(data=chat_data)
+            if serializer.is_valid():
+                chat_message = serializer.save()
+                print(f"✅ Single group chat message saved → chat_id={chat_message.id}, group_id={group.id}")
 
-                serializer = ChatSerializer(
-                    data={**request.data, "to_user": member.member.id, "chat_session": session_id}
-                )
-                if serializer.is_valid():
-                    chat_message = serializer.save()
-                    sent_to.append(member.member.id)
-                    print(f"✅ Chat message saved for user_id={member.member.id}")
+                # ✅ Step 2: Notify each member (excluding sender)
+                group_members = GroupDetails.objects.filter(group=group).exclude(member_id=from_user)
+                sent_to = []
 
-                    # Create notification for each group member
+                for member in group_members:
                     notification_message = f'New group message from {chat_message.from_user.username}'
                     notification_data = {
                         'user': member.member.id,
                         'message': notification_message,
                         "url": f"/chat/group/{group.id}",
-                        'notification_type': 'group_chat'  # ✅ valid choice
+                        'notification_type': 'group_chat'
                     }
 
                     notification_serializer = NotificationSerializer(data=notification_data)
                     if notification_serializer.is_valid():
                         notification_serializer.save()
+                        sent_to.append(member.member.id)
                         print(f"🔔 Notification created for member_id={member.member.id}")
                     else:
                         print(f"⚠️ Notification validation failed for user_id={member.member.id}: {notification_serializer.errors}")
-                else:
-                    print(f"❌ ChatSerializer validation failed for member_id={member.member.id}: {serializer.errors}")
 
-            print(f"✅ Group message sent successfully → group_id={group.id}, sent_to={sent_to}")
-            return Response(
-                {
-                    "Success": True,
-                    "Message": "Group message sent successfully",
-                    "GroupID": group.id,
-                    "SentTo": sent_to,
-                    "SessionID": session_id
-                },
-                status=status.HTTP_201_CREATED,
-            )
+                print(f"✅ Group message processed successfully → group_id={group.id}, notified_members={sent_to}")
+                return Response(
+                    {
+                        "Success": True,
+                        "Message": "Group message sent successfully",
+                        "GroupID": group.id,
+                        "SentTo": sent_to,
+                        "SessionID": session_id
+                    },
+                    status=status.HTTP_201_CREATED,
+                )
+            else:
+                print(f"❌ ChatSerializer validation failed for group_id={to_user}: {serializer.errors}")
+                return Response(
+                    {"Success": False, "Errors": serializer.errors},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         # ============================================================
         #   Step 3: Normal (one-to-one) chat logic
