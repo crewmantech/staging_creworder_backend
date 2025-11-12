@@ -537,6 +537,8 @@ class GetNotifications(APIView):
 
     def get(self, request):
         user = request.user
+        print(f"➡️ Fetching notifications for user_id={user.id}")
+
         notifications = (
             Notification.objects
             .filter(user=user, is_read=False)
@@ -544,35 +546,63 @@ class GetNotifications(APIView):
         )
 
         from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
-
         serializer_data = []
+
         for n in notifications:
             url = n.url or ""
             extracted_user_id = None
 
-            # ✅ Extract and remove 'user_id' from URL safely
-            if "user_id=" in url:
-                parsed_url = urlparse(url)
-                query_params = parse_qs(parsed_url.query)
+            print(f"🔔 Processing notification_id={n.id}, type={n.notification_type}, url={url}")
 
-                # Extract user_id if present
-                user_id_list = query_params.pop("user_id", None)
-                if user_id_list:
-                    extracted_user_id = user_id_list[0]
+            # ========================================================
+            # CASE 1: Normal chat_message → extract ?user_id=
+            # ========================================================
+            if n.notification_type == "chat_message":
+                if "user_id=" in url:
+                    parsed_url = urlparse(url)
+                    query_params = parse_qs(parsed_url.query)
 
-                # Rebuild the URL without user_id
-                new_query = urlencode(query_params, doseq=True)
-                url = urlunparse(parsed_url._replace(query=new_query))
+                    # Extract user_id if present
+                    user_id_list = query_params.pop("user_id", None)
+                    if user_id_list:
+                        extracted_user_id = user_id_list[0]
+                        print(f"✅ Extracted user_id={extracted_user_id} from URL")
+
+                    # Rebuild the URL without user_id param
+                    new_query = urlencode(query_params, doseq=True)
+                    url = urlunparse(parsed_url._replace(query=new_query))
+                else:
+                    extracted_user_id = None
+
+            # ========================================================
+            # CASE 2: Group chat → extract group_id from /chat/group/<id>
+            # ========================================================
+            elif n.notification_type == "group_chat":
+                # Example: /chat/group/5
+                if "/chat/group/" in url:
+                    try:
+                        group_id = url.split("/chat/group/")[1].strip("/")
+                        extracted_user_id = group_id
+                        print(f"✅ Extracted group_id={group_id} from group chat URL")
+
+                        # Remove the numeric part to clean the URL
+                        url = "/chat/group/"
+                    except Exception as e:
+                        print(f"⚠️ Failed to extract group_id from URL: {e}")
+                        extracted_user_id = None
+
             else:
-                extracted_user_id = None
+                print(f"ℹ️ Notification type {n.notification_type} not handled specially.")
 
             serializer_data.append({
                 "id": n.id,
                 "message": n.message,
                 "notification_type": n.notification_type,
                 "url": url,                     # ✅ cleaned URL
-                "user_id": extracted_user_id,   # ✅ from URL, not DB
+                "user_id": extracted_user_id,   # ✅ user_id or group_id
             })
+
+        print(f"✅ Returning {len(serializer_data)} unread notifications")
 
         return Response(
             {"Success": True, "notifications": serializer_data},
