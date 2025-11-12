@@ -174,7 +174,7 @@ class createChat(APIView):
                         'user': member.member.id,
                         'message': notification_message,
                         "url": f"/chat/group/{group.id}",
-                        'notification_type': 'group_chat_message'
+                        'notification_type': 'group_chat'  # ✅ valid choice
                     }
 
                     notification_serializer = NotificationSerializer(data=notification_data)
