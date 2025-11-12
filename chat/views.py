@@ -244,16 +244,19 @@ class getUserListChatAdmin(APIView):
             )
 
         print("\n===== 🟩 START getUserListChatAdmin =====")
-        print(f"➡️  user_id from request: {user_id}")
+        print(f"➡️ user_id from request: {user_id}")
 
-        # ✅ Chat contacts
+        # ✅ Get users the requester has chatted with
         unique_to_users = (
             Chat.objects.filter(from_user=user_id)
             .values_list("to_user", flat=True)
             .distinct()
         )
 
-        users = User.objects.filter(id__in=unique_to_users, profile__status=1)
+        users = User.objects.filter(
+            id__in=unique_to_users,
+            profile__status=1
+        )
         final_users = list(users)
 
         # ✅ Get employee profile
@@ -267,7 +270,7 @@ class getUserListChatAdmin(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        print(f"👤 Employee: {employee.user.username} | Type: {employee.user_type}")
+        print(f"👤 Employee found: {employee.user.username} | Type: {employee.user_type}")
 
         # ==========================
         # 🔹 Admin logic
@@ -275,6 +278,7 @@ class getUserListChatAdmin(APIView):
         if employee.user_type == "admin":
             company = employee.company
             branch = employee.branch
+
             admin_and_agents = User.objects.filter(
                 profile__company=company,
                 profile__branch=branch,
@@ -284,37 +288,36 @@ class getUserListChatAdmin(APIView):
             final_users = list(set(final_users + list(admin_and_agents)))
 
         # ==========================
-        # 🔹 Agent logic (NEW)
+        # 🔹 Agent logic — same group + same company + same branch + same department
         # ==========================
         elif employee.user_type == "agent":
             agent_groups = employee.user.groups.all()
             print(f"🧩 Agent Groups: {[g.name for g in agent_groups]}")
 
-
-            linked_departments = CustomAuthGroup.objects.filter(
-                group__in=agent_groups
-            ).values_list("department", flat=True)
-
-            print(f"🏢 Departments linked to agent's group: {list(linked_departments)}")
-
-            # 🔹 Step 2: users in same group AND whose department is allowed
-            same_group_and_dept_users = User.objects.filter(
+            # 🔹 Get all users in same group(s)
+            same_group_users = User.objects.filter(
                 groups__in=agent_groups,
-                profile__department__in=linked_departments,
-                profile__status=1
+                profile__status=1,
+                profile__company=employee.company,
+                profile__branch=employee.branch,
+                profile__department=employee.department,  # 🔸 department constraint added here
             ).distinct()
 
-            print(f"👥 Users in same group & allowed departments: {same_group_and_dept_users.count()}")
+            print(f"👥 Same-group users (same dept/company/branch): {same_group_users.count()}")
 
-            # 🔹 Step 3: merge results and exclude self
-            final_users = list(set(final_users + list(same_group_and_dept_users)))
-            final_users = [u for u in final_users if u.id != int(user_id)]
+            # 🔹 Merge with any chat contacts (to preserve earlier logic)
+            final_users = list(set(final_users + list(same_group_users)))
 
-            print(f"✅ Final agent-visible users: {len(final_users)}")
+        else:
+            print("ℹ️ Other role (no extra filter)")
 
-        # ✅ Serialize
+        # ✅ Exclude the logged-in user (don’t show self)
+        final_users = [u for u in final_users if u.id != int(user_id)]
+
+        print(f"🚫 Removed current user, final count: {len(final_users)}")
+
+        # ✅ Serialize combined and filtered data
         final_serializer = UserSerializer(final_users, many=True)
-
         print(f"📦 Final serialized user count: {len(final_serializer.data)}")
         print("===== 🟥 END getUserListChatAdmin =====\n")
 
