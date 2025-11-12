@@ -1501,23 +1501,17 @@ class OrderAggregationByStatusAPIView(APIView):
 
         if tl_id:
             try:
-                # Get team lead Employee record to access their user ID
-                tl_employee = Employees.objects.get(id=tl_id, status=1)
-                tl_user_id = tl_employee.user.id  # Convert Employee → User ID
+                # ✅ Treat tl_id as USER ID
+                tl_employee = Employees.objects.get(user_id=tl_id, status=1)
+                tl_user_id = tl_employee.user.id  # same as tl_id
             except Employees.DoesNotExist:
                 return Response({"error": "Invalid teamlead_id"}, status=status.HTTP_400_BAD_REQUEST)
 
-            # ✅ Get all agents reporting to this TL (their teamlead field = TL’s user_id)
             employees_under_tl = Employees.objects.filter(teamlead_id=tl_user_id, status=1)
-
-            # ✅ Collect their User IDs
             tl_team_user_ids = list(employees_under_tl.values_list('user_id', flat=True))
-
-            # ✅ Include TL’s own User ID
             tl_team_user_ids.append(tl_user_id)
 
-            # ✅ Include all their orders (created or updated)
-            q_filters &= (
+            q_filters |= (
                 Q(order_created_by_id__in=tl_team_user_ids) |
                 Q(updated_by_id__in=tl_team_user_ids)
             )
@@ -1582,7 +1576,6 @@ class OrderAggregationByStatusAPIView(APIView):
                     'monthly_orders_target': target.monthly_orders_target,
                     'achieve_target': target.achieve_target
                 }
-                
 
         if tl_id:
             tl_targets = UserTargetsDelails.objects.filter(user__id=tl_id)
