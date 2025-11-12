@@ -89,72 +89,150 @@ class createChat(APIView):
     # =======================================================================
 
     def post(self, request):
+        print("➡️ Entered createChat.post()")
+
         from_user = request.data.get("from_user")
-        to_user = request.data.get("to_user")
+        to_user = request.data.get("to_user")  # group_id if group_chat
         chat_type = request.data.get("chat_type")
+        print(f"📥 Request Data → from_user={from_user}, to_user={to_user}, chat_type={chat_type}")
+
         session = None
+
+        # ============================================================
+        #   Step 1: Try to find session if chat_type is None
+        # ============================================================
         if chat_type is None:
+            print("🔍 Chat type is None → finding existing session between two users")
             session = (
                 Chat.objects.filter(from_user=from_user, to_user=to_user).first()
                 or Chat.objects.filter(from_user=to_user, to_user=from_user).first()
             )
+
         if session:
             session_id = session.chat_session_id
+            print(f"✅ Existing session found → session_id={session_id}")
         else:
+            print("⚠️ No existing session found → creating or fetching new session")
             if chat_type == "group_chat":
                 session = ChatSession.objects.filter(name=f"{to_user}").first()
+                print(f"🔸 Checking for existing group session → name={to_user}")
             else:
                 session = (
                     ChatSession.objects.filter(name=f"{from_user}_{to_user}").first()
                     or ChatSession.objects.filter(name=f"{to_user}_{from_user}").first()
                 )
+                print(f"🔸 Checking for existing personal chat session between {from_user} and {to_user}")
 
             if session:
                 session_id = session.id
+                print(f"✅ Session found → session_id={session_id}")
             else:
+                print("⚙️ No session found → creating new session")
                 if chat_type == "group_chat":
                     new_session = ChatSession.objects.create(name=f"{to_user}")
+                    print(f"🆕 Created new group chat session → name={to_user}")
                 else:
-                    new_session = ChatSession.objects.create(
-                        name=f"{from_user}_{to_user}"
-                    )
+                    new_session = ChatSession.objects.create(name=f"{from_user}_{to_user}")
+                    print(f"🆕 Created new personal chat session → name={from_user}_{to_user}")
                 session_id = new_session.id
 
+        # ============================================================
+        #   Step 2: Handle group chat
+        # ============================================================
+        if chat_type == "group_chat":
+            print("👥 Detected group_chat type → starting group message flow")
+
+            try:
+                group = Group.objects.get(id=to_user, group_status=1)
+                print(f"✅ Group found → group_id={group.id}, group_name={group.group_name}")
+            except Group.DoesNotExist:
+                print("❌ Invalid or inactive group_id")
+                return Response(
+                    {"Success": False, "Error": "Invalid or inactive group_id"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Get all members of this group except the sender
+            group_members = GroupDetails.objects.filter(group=group).exclude(member_id=from_user)
+            print(f"👤 Total group members (excluding sender): {group_members.count()}")
+
+            sent_to = []
+            for member in group_members:
+                print(f"➡️ Sending message to member_id={member.member.id}")
+
+                serializer = ChatSerializer(
+                    data={**request.data, "to_user": member.member.id, "chat_session": session_id}
+                )
+                if serializer.is_valid():
+                    chat_message = serializer.save()
+                    sent_to.append(member.member.id)
+                    print(f"✅ Chat message saved for user_id={member.member.id}")
+
+                    # Create notification for each group member
+                    notification_message = f'New group message from {chat_message.from_user.username}'
+                    notification_data = {
+                        'user': member.member.id,
+                        'message': notification_message,
+                        "url": f"/chat/group/{group.id}",
+                        'notification_type': 'group_chat_message'
+                    }
+
+                    notification_serializer = NotificationSerializer(data=notification_data)
+                    if notification_serializer.is_valid():
+                        notification_serializer.save()
+                        print(f"🔔 Notification created for member_id={member.member.id}")
+                    else:
+                        print(f"⚠️ Notification validation failed for user_id={member.member.id}: {notification_serializer.errors}")
+                else:
+                    print(f"❌ ChatSerializer validation failed for member_id={member.member.id}: {serializer.errors}")
+
+            print(f"✅ Group message sent successfully → group_id={group.id}, sent_to={sent_to}")
+            return Response(
+                {
+                    "Success": True,
+                    "Message": "Group message sent successfully",
+                    "GroupID": group.id,
+                    "SentTo": sent_to,
+                    "SessionID": session_id
+                },
+                status=status.HTTP_201_CREATED,
+            )
+
+        # ============================================================
+        #   Step 3: Normal (one-to-one) chat logic
+        # ============================================================
+        print("💬 Processing one-to-one chat flow")
         serializer = ChatSerializer(data={**request.data, "chat_session": session_id})
         if serializer.is_valid():
             chat_message = serializer.save()
+            print(f"✅ Chat message saved between {from_user} → {to_user}")
 
             # Create a notification for the recipient
             notification_message = f'New message from {chat_message.from_user.username}'
             notification_data = {
                 'user': chat_message.to_user.id,
                 'message': notification_message,
-                "url":"/chat/?user_id="+str(from_user),
+                "url": "/chat/?user_id=" + str(from_user),
                 'notification_type': 'chat_message'
             }
+
             notification_serializer = NotificationSerializer(data=notification_data)
             if notification_serializer.is_valid():
                 notification = notification_serializer.save()
+                print(f"🔔 Notification created for recipient user_id={chat_message.to_user.id}")
 
-                # Send WebSocket notification
-                # channel_layer = get_channel_layer()
-                # a= async_to_sync(channel_layer.group_send)(
-                #     f"notifications_{chat_message.to_user.id}",
-                #     {
-                #         "type": "send_notification",
-                #         "message": notification.message,
-                #     },
-                # )
                 return Response(
                     {"Success": True, "ChatData": serializer.data, "SessionID": session_id},
                     status=status.HTTP_201_CREATED,
                 )
             else:
+                print(f"⚠️ Notification serializer invalid: {notification_serializer.errors}")
                 return Response(
                     {"Success": False, "Errors": notification_serializer.errors},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
         else:
+            print(f"❌ ChatSerializer validation failed: {serializer.errors}")
             return Response(
                 {"Success": False, "Errors": serializer.errors},
                 status=status.HTTP_400_BAD_REQUEST,
