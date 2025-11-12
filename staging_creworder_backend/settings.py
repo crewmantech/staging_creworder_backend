@@ -278,3 +278,15 @@ SANDBOX_API_SECRET = 'secret_live_riAHC7MP2KQuSQsgirK0lKONJvXQ1KIg'
 SANDBOX_HOST = 'https://api.sandbox.co.in'
 SMS_API_KEY = "dqWOcbPzrncSkgX9"
 SMS_SENDER_ID = "CrOrdr"
+
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {'class': 'logging.StreamHandler'},
+    },
+    'loggers': {
+        '': {'handlers': ['console'], 'level': 'INFO'},
+    },
+}
