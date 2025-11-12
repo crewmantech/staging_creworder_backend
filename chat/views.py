@@ -284,48 +284,36 @@ class getUserListChatAdmin(APIView):
                 profile__user_type__in=["agent", "admin"],
                 profile__status=1,
             )
+            print(f"👥 Admin+Agents added: {admin_and_agents.count()} users")
             final_users = list(set(final_users + list(admin_and_agents)))
 
         # ==========================
-        # 🔹 Agent logic — same group + same company + same branch + same department
+        # 🔹 Agent logic — same group + allowed departments
         # ==========================
         elif employee.user_type == "agent":
+            from django.contrib.auth.models import Permission
+            import re
+
             agent_groups = employee.user.groups.all()
             print(f"🧩 Agent Groups: {[g.name for g in agent_groups]}")
-
-            # 🔹 Step 1: get all permissions for this group
-            from django.contrib.auth.models import Permission
 
             group_permissions = Permission.objects.filter(group__in=agent_groups).values_list("name", flat=True)
             print(f"🔑 Permissions for agent's groups: {list(group_permissions)}")
 
-            # 🔹 Step 2: extract department names from permission text
-            # Example: "Department Can view Adarsh Sales - Adarsh Company"
-            # or "Department Can view IT DEPARTMENT"
             allowed_department_names = set()
             for perm in group_permissions:
                 perm_lower = perm.lower()
                 if "department can view" in perm_lower:
-                    # Extract department name portion only
                     dept_name = perm.split("Department Can view", 1)[-1].strip()
-
-                    # Remove trailing " - Company" part if present
                     dept_name = re.split(r"\s*-\s*", dept_name)[0].strip()
-
-                    if dept_name:
+                    if dept_name and "own department" not in dept_name.lower():
                         allowed_department_names.add(dept_name.lower())
 
             print(f"🏢 Allowed departments (from permissions): {allowed_department_names}")
 
-            # 🔹 Step 3: match Employees who belong to those departments
-            allowed_departments = Employees.objects.filter(
-                department__name__iexact=employee.department.name  # start with own department
-            ).values_list("department__id", flat=True)
-
-            # Add any departments found in permissions
             allowed_departments = list(
                 Employees.objects.filter(
-                    department__name__in=allowed_department_names,
+                    department__name__in=[d.title() for d in allowed_department_names],
                     company=employee.company,
                     branch=employee.branch,
                     status=1
@@ -334,7 +322,6 @@ class getUserListChatAdmin(APIView):
 
             print(f"📊 Allowed department IDs: {allowed_departments}")
 
-            # 🔹 Step 4: get users in same group(s) & allowed departments
             same_group_and_dept_users = User.objects.filter(
                 groups__in=agent_groups,
                 profile__company=employee.company,
@@ -345,11 +332,11 @@ class getUserListChatAdmin(APIView):
 
             print(f"👥 Users in same group & allowed departments: {same_group_and_dept_users.count()}")
 
-            # 🔹 Step 5: merge & exclude current user
             final_users = list(set(final_users + list(same_group_and_dept_users)))
-            final_users = [u for u in final_users if u.id != int(user_id)]
 
-            print(f"✅ Final agent-visible users: {len(final_users)}")
+        # ✅ Exclude current user for both admin & agent
+        final_users = [u for u in final_users if u.id != int(user_id)]
+        print(f"🚫 Removed current user, final count: {len(final_users)}")
 
         # ✅ Serialize combined and filtered data
         final_serializer = UserSerializer(final_users, many=True)
