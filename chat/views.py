@@ -20,7 +20,7 @@ from rest_framework import status
 from .models import Chat, ChatSession, Group, GroupDetails, User
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.generics import ListAPIView
-from accounts.models import Department, ExpiringToken as Token
+from accounts.models import Department, ExpiringToken as Token, Employees
 from django.db.models import Q
 
 class getChatDetail(APIView):
@@ -225,6 +225,67 @@ class getUserListChat(APIView):
 
         return Response(
             {"Success": True, "results": user_serializer.data},
+            status=status.HTTP_200_OK,
+        )
+    
+class getUserListChatAdmin(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user_id = request.query_params.get("user_id")
+
+        if not user_id:
+            return Response(
+                {"Success": False, "Errors": "User ID is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # ✅ Get users the requester has chatted with
+        unique_to_users = (
+            Chat.objects.filter(from_user=user_id)
+            .values_list("to_user", flat=True)
+            .distinct()
+        )
+
+        # ✅ Only show users whose profile.status = 1
+        users = User.objects.filter(
+            id__in=unique_to_users,
+            profile__status=1
+        )
+
+        # ✅ Serialize initial chat user list (existing logic remains untouched)
+        user_serializer = UserSerializer(users, many=True)
+        final_users = list(users)
+
+        # ✅ Now, extend logic only if current user is admin
+        try:
+            employee = Employees.objects.select_related('company', 'branch', 'user').get(user_id=user_id, status=1)
+        except Employees.DoesNotExist:
+            return Response(
+                {"Success": False, "Errors": "Employee not found or inactive"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if employee.user_type == "admin":
+            # 🔹 Fetch agents + admins of same company + branch
+            company = employee.company
+            branch = employee.branch
+
+            admin_and_agents = User.objects.filter(
+                profile__company=company,
+                profile__branch=branch,
+                profile__user_type__in=["agent", "admin"],
+                profile__status=1,
+            )
+
+            # 🔹 Combine both lists (chat contacts + company/branch team)
+            final_users = list(set(list(users) + list(admin_and_agents)))
+
+        # ✅ Serialize combined data
+        final_serializer = UserSerializer(final_users, many=True)
+
+        return Response(
+            {"Success": True, "results": final_serializer.data},
             status=status.HTTP_200_OK,
         )
 

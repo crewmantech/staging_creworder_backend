@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import CreateNotification, GetNotifications, MarkNotificationRead, getChatDetail,createChat,chat_count,GetGroups,CreateGroup,getUserListChat,UserListView1
+from .views import CreateNotification, GetNotifications, MarkNotificationRead, getChatDetail,createChat,chat_count,GetGroups,CreateGroup,getUserListChat,UserListView1,getUserListChatAdmin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 router = DefaultRouter()
@@ -11,6 +11,7 @@ urlpatterns = [
     path('getChatgroups/', GetGroups.as_view(), name='chat_groups'),
     path('createGroup/', CreateGroup.as_view(), name='create_group'),
     path('getUserListChat/', getUserListChat.as_view(), name='get_user_list'),
+    path('getUserListChatAdmin/', getUserListChatAdmin.as_view(), name='get_user_list_admin'),
     path("notifications/", GetNotifications.as_view(), name="get_notifications"),
     path("mark-notification/", MarkNotificationRead.as_view(), name="send_notification"),
     path("create-notification/", CreateNotification.as_view(), name="create-notification"),
