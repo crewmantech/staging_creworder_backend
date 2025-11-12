@@ -270,6 +270,9 @@ class getUserListChatAdmin(APIView):
             )
 
         print(f"👤 Employee found: {employee.user.username} | Type: {employee.user_type}")
+        
+        final_users = []  # initialize empty list
+
 
         # ==========================
         # 🔹 Admin logic
