@@ -294,27 +294,32 @@ class getUserListChatAdmin(APIView):
             agent_groups = employee.user.groups.all()
             print(f"🧩 Agent Groups: {[g.name for g in agent_groups]}")
 
-            # 🔹 Get all users in same group(s)
-            same_group_users = User.objects.filter(
+            # 🔹 Step 1: find all departments that have users in same group (same company & branch)
+            allowed_departments = Employees.objects.filter(
+                user__groups__in=agent_groups,
+                company=employee.company,
+                branch=employee.branch,
+                status=1
+            ).values_list('department', flat=True).distinct()
+
+            print(f"🏢 Departments dynamically linked to this group: {list(allowed_departments)}")
+
+            # 🔹 Step 2: get users in same group(s) + allowed departments
+            same_group_and_dept_users = User.objects.filter(
                 groups__in=agent_groups,
-                profile__status=1,
                 profile__company=employee.company,
                 profile__branch=employee.branch,
-                profile__department=employee.department,  # 🔸 department constraint added here
+                profile__department__in=allowed_departments,
+                profile__status=1
             ).distinct()
 
-            print(f"👥 Same-group users (same dept/company/branch): {same_group_users.count()}")
+            print(f"👥 Users in same group & allowed departments: {same_group_and_dept_users.count()}")
 
-            # 🔹 Merge with any chat contacts (to preserve earlier logic)
-            final_users = list(set(final_users + list(same_group_users)))
+            # 🔹 Step 3: merge with chat list and exclude self
+            final_users = list(set(final_users + list(same_group_and_dept_users)))
+            final_users = [u for u in final_users if u.id != int(user_id)]
 
-        else:
-            print("ℹ️ Other role (no extra filter)")
-
-        # ✅ Exclude the logged-in user (don’t show self)
-        final_users = [u for u in final_users if u.id != int(user_id)]
-
-        print(f"🚫 Removed current user, final count: {len(final_users)}")
+            print(f"✅ Final agent-visible users: {len(final_users)}")
 
         # ✅ Serialize combined and filtered data
         final_serializer = UserSerializer(final_users, many=True)
