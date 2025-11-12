@@ -245,34 +245,120 @@ class createChat(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+# class chat_count(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     # =======================================================================
+#     #                Count Unread Messages
+#     # =======================================================================
+
+   
+
+#     def get(self, request):
+#         from_user = request.query_params.get("from_user")
+#         to_user = request.query_params.get("to_user")
+#         session = (
+#             Chat.objects.filter(from_user=from_user, to_user=to_user).first()
+#             or Chat.objects.filter(from_user=to_user, to_user=from_user).first()
+#         )
+#         if session:
+#             session_id = session.chat_session_id
+#             chat_count = Chat.objects.filter(
+#                 to_user=to_user, chat_session_id=session_id, chat_status=0
+#             ).count()
+#             return Response(
+#                 {"Success": True, "chat_count": chat_count, "SessionID": session_id},
+#                 status=status.HTTP_201_CREATED,
+#             )
+#         else:
+#             return Response(
+#                 {"Success": False, "Errors": "Session not able"},
+#                 status=status.HTTP_400_BAD_REQUEST,
+#             )
+
 class chat_count(APIView):
     permission_classes = [IsAuthenticated]
 
-    # =======================================================================
-    #                Count Unread Messages
-    # =======================================================================
-
-   
+    # ============================================================
+    #                Count Unread Messages (Auto-detect type)
+    # ============================================================
 
     def get(self, request):
         from_user = request.query_params.get("from_user")
         to_user = request.query_params.get("to_user")
+
+        print(f"➡️ Checking unread messages: from_user={from_user}, to_user={to_user}")
+
+        # ============================================================
+        # STEP 1: Try to find a chat session between users or group
+        # ============================================================
+
         session = (
             Chat.objects.filter(from_user=from_user, to_user=to_user).first()
             or Chat.objects.filter(from_user=to_user, to_user=from_user).first()
+            or Chat.objects.filter(group_id=to_user).first()  # fallback for group
         )
-        if session:
-            session_id = session.chat_session_id
-            chat_count = Chat.objects.filter(
-                to_user=to_user, chat_session_id=session_id, chat_status=0
-            ).count()
+
+        if not session:
+            print("⚠️ No session found between users or group.")
             return Response(
-                {"Success": True, "chat_count": chat_count, "SessionID": session_id},
-                status=status.HTTP_201_CREATED,
+                {"Success": False, "Errors": "Session not found"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
-        else:
+
+        session_id = session.chat_session_id
+        print(f"✅ Found session_id={session_id}")
+
+        # ============================================================
+        # STEP 2: Determine chat type based on session data
+        # ============================================================
+
+        if session.group_id is None and session.to_user_id is not None:
+            # This is a private chat
+            print("💬 Detected PRIVATE chat session")
+            chat_count = Chat.objects.filter(
+                to_user_id=to_user,
+                chat_session_id=session_id,
+                chat_status=0,
+                group__isnull=True
+            ).count()
+            print(f"📊 Unread private messages: {chat_count}")
+
             return Response(
-                {"Success": False, "Errors": "Session not able"},
+                {
+                    "Success": True,
+                    "chat_type": "private",
+                    "chat_count": chat_count,
+                    "SessionID": session_id,
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        elif session.group_id is not None:
+            # This is a group chat
+            print(f"👥 Detected GROUP chat session for group_id={session.group_id}")
+            chat_count = Chat.objects.filter(
+                group_id=session.group_id,
+                chat_session_id=session_id,
+                chat_status=0
+            ).exclude(from_user_id=from_user).count()
+            print(f"📊 Unread group messages: {chat_count}")
+
+            return Response(
+                {
+                    "Success": True,
+                    "chat_type": "group",
+                    "chat_count": chat_count,
+                    "SessionID": session_id,
+                    "GroupID": session.group_id,
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        else:
+            print("❌ Unable to determine chat type automatically.")
+            return Response(
+                {"Success": False, "Errors": "Unable to determine chat type"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
