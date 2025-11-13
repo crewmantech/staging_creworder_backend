@@ -497,7 +497,7 @@ class getUserListChatAdmin(APIView):
             print(f"📊 Allowed department IDs: {allowed_departments}")
 
             same_group_and_dept_users = User.objects.filter(
-                groups__in=agent_groups,
+                # groups__in=agent_groups,
                 profile__company=employee.company,
                 profile__branch=employee.branch,
                 profile__department__id__in=allowed_departments,
@@ -521,7 +521,7 @@ class getUserListChatAdmin(APIView):
             {"Success": True, "results": final_serializer.data},
             status=status.HTTP_200_OK,
         )
-        
+                
 class GetGroups(APIView):
     permission_classes = [IsAuthenticated]
 
