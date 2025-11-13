@@ -3895,22 +3895,31 @@ class OrderLocationReportView(APIView):
 
             company_id = company.id
 
-            # ✅ Filters
+            # ============================
+            # Filters
+            # ============================
+
             date_from_str = request.query_params.get('date_from')
             date_to_str = request.query_params.get('date_to')
             state_param = request.query_params.get('state')
-            city_param = request.query_params.get('district')  # renamed but compatible with your param name
+            city_param = request.query_params.get('district')
 
             if city_param and not state_param:
                 return self.error("City cannot be passed without a state. Please provide a state.")
 
-            # ✅ Base Query
+            # ============================
+            # Base Query + Only Accepted Orders
+            # ============================
             seller_orders_query = Order_Table.objects.filter(
                 company_id=company_id,
-                is_deleted=False
-            ).exclude(order_status__name__iexact="CANCELLED")
+                is_deleted=False,
+                order_status__name__iexact="ACCEPTED"   # <- ONLY ACCEPTED ORDERS
+            )
 
-            # ✅ Date Filters
+            # ============================
+            # Date Filters
+            # ============================
+
             if date_from_str:
                 parsed_date = parse_date(date_from_str)
                 if not parsed_date:
@@ -3927,7 +3936,10 @@ class OrderLocationReportView(APIView):
                     created_at__lte=datetime.combine(parsed_date, datetime.max.time())
                 )
 
-            # ✅ Location Filters
+            # ============================
+            # Location Filters
+            # ============================
+
             if state_param:
                 seller_orders_query = seller_orders_query.filter(
                     customer_state__name__iexact=state_param
@@ -3937,7 +3949,9 @@ class OrderLocationReportView(APIView):
                     customer_city__iexact=city_param
                 )
 
-            # ✅ Fetch only necessary fields
+            # ============================
+            # Fetch Only Required Fields
+            # ============================
             seller_orders = list(
                 seller_orders_query.annotate(
                     pincode=F("customer_postal"),
@@ -3949,7 +3963,10 @@ class OrderLocationReportView(APIView):
             if not seller_orders:
                 return self.success("No orders found.", {"total_orders_mapped": 0, "location_groups": []})
 
-            # ✅ Group by State → City → Pincode
+            # ============================
+            # Group by State → City → Pincode
+            # ============================
+
             grouped_data = {}
             total_orders_mapped = 0
 
@@ -3963,12 +3980,19 @@ class OrderLocationReportView(APIView):
                 grouped_data.setdefault(key, {}).setdefault(pincode, []).append(order['id'])
                 total_orders_mapped += 1
 
-            # ✅ Final Format
+            # ============================
+            # Build Final Output Format
+            # ============================
+
             location_groups = []
             for (state, state_code, city), pincode_groups in grouped_data.items():
                 city_order_count = sum(len(v) for v in pincode_groups.values())
                 pincode_details = [
-                    {"pincode": pin, "order_count": len(order_ids), "order_ids": sorted(order_ids)}
+                    {
+                        "pincode": pin,
+                        "order_count": len(order_ids),
+                        "order_ids": sorted(order_ids)
+                    }
                     for pin, order_ids in sorted(pincode_groups.items())
                 ]
                 location_groups.append({
@@ -3979,13 +4003,16 @@ class OrderLocationReportView(APIView):
                     "pincode_details": pincode_details,
                 })
 
-            # ✅ Sort alphabetically by state
+            # Sort alphabetically
             location_groups = sorted(location_groups, key=lambda x: x["state"])
 
-            return self.success("Order location report generated successfully.", {
-                "total_orders_mapped": total_orders_mapped,
-                "location_groups": location_groups
-            })
+            return self.success(
+                "Order location report generated successfully.",
+                {
+                    "total_orders_mapped": total_orders_mapped,
+                    "location_groups": location_groups
+                }
+            )
 
         except Exception as e:
             return self.error("An unexpected error occurred.", str(e), status.HTTP_500_INTERNAL_SERVER_ERROR)
