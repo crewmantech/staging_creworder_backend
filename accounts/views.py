@@ -3853,6 +3853,7 @@ class AgentAttendanceUserWiseAPIView(ListAPIView):
     """
     User-wise attendance summary (present/absent counts)
     with branch & company info + pagination.
+    Supports date filtering (same logic as AcceptedOrdersReportAPIView).
     Defaults to current month if no start_date & end_date given.
     """
     permission_classes = [IsAuthenticated]
@@ -3861,39 +3862,58 @@ class AgentAttendanceUserWiseAPIView(ListAPIView):
     def get_queryset(self):
         company_id = self.request.user.profile.company
         branch_id = self.request.user.profile.branch
-        start_date = self.request.query_params.get("start_date")
-        end_date = self.request.query_params.get("start_date")
 
-        qs = Attendance.objects.filter(user__profile__user_type="agent")
+        # -----------------------------
+        # 🔹 DATE FILTER LOGIC (SAME AS AcceptedOrdersReportAPIView)
+        # -----------------------------
+        start_date = self.request.query_params.get("start_date")
+        end_date = self.request.query_params.get("end_date")
+
+        # Base queryset
+        qs = Attendance.objects.filter(
+            user__profile__user_type="agent"
+        )
 
         if branch_id:
             qs = qs.filter(branch_id=branch_id)
         if company_id:
             qs = qs.filter(company_id=company_id)
 
-        # ✅ If no dates given → use current month
-        if not (start_date and end_date):
-            today = date.today()
-            start_date = today.replace(day=1)
-            # last_day = calendar.monthrange(today.year, today.month)[1]
-            end_date = today
-        else:
+        # -----------------------------
+        # A) If both start_date & end_date provided ➝ apply filter
+        # -----------------------------
+        if start_date and end_date:
             try:
-                start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
-                end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+                start_dt = datetime.strptime(start_date, "%Y-%m-%d").date()
+                end_dt = datetime.strptime(end_date, "%Y-%m-%d").date()
+
+                qs = qs.filter(date__range=[start_dt, end_dt])
             except ValueError:
-                return Attendance.objects.none()
-        
-        qs = qs.filter(date__range=[start_date, end_date])
+                return Attendance.objects.none(), [], 0
+
+        else:
+            # -----------------------------
+            # B) If NOT provided ➝ Use current month
+            # -----------------------------
+            today = date.today()
+            start_dt = today.replace(day=1)
+            end_dt = today
+
+            qs = qs.filter(date__range=[start_dt, end_dt])
+
+        # -----------------------------
+        # COUNT TOTAL EMPLOYEES
+        # -----------------------------
         total_employees_company = Employees.objects.filter(
             company=company_id,
             branch=branch_id,
             status=UserStatus.active,
             user_type="agent"
         ).count()
-        # total_employees_company = Employees.objects.filter(company=company_id,branch=branch_id).count()
-        # qs = {"qs":qs,"total_count":total_employees_company}
-        # Group by user with counts + branch + company
+
+        # -----------------------------
+        # GROUP USER SUMMARY
+        # -----------------------------
         user_summary = (
             qs.values(
                 "user__id",
@@ -3910,24 +3930,22 @@ class AgentAttendanceUserWiseAPIView(ListAPIView):
             .order_by("user__username")
         )
 
-        return qs, user_summary,total_employees_company
+        return qs, user_summary, total_employees_company
 
     def list(self, request, *args, **kwargs):
-        qs, user_summary, total_employees_company= self.get_queryset()
-        # qs = qs.get("qs")
-        # total_employees_company = qs.get("total_count")
-        # ✅ Paginate user summary
+        qs, user_summary, total_employees_company = self.get_queryset()
+
+        # PAGINATION
         page = self.paginate_queryset(user_summary)
         if page is not None:
             user_data = self.get_paginated_response(page).data
         else:
             user_data = user_summary
 
-        # ✅ Overall totals (all users, all days)
+        # OVERALL TOTALS
         total_present = qs.filter(attendance="P").count()
-        total_absent = qs.filter(attendance="A").count()
 
-        # ✅ Date-wise totals
+        # DATE-WISE SUMMARY
         date_wise_summary = (
             qs.values("date")
             .annotate(
@@ -3941,7 +3959,7 @@ class AgentAttendanceUserWiseAPIView(ListAPIView):
             "user_summary": user_data,
             "overall_totals": {
                 "total_present": total_present,
-                "total_absent": total_employees_company-int(total_present),
+                "total_absent": total_employees_company - int(total_present),
             },
             "date_wise_totals": date_wise_summary,
         })
