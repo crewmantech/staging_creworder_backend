@@ -3149,7 +3149,11 @@ class FilterOrdersView1(viewsets.ViewSet):
         branch = request.user.profile.branch
         company = request.user.profile.company
 
-        queryset = Order_Table.objects.filter(branch=branch, company=company)
+        queryset = Order_Table.objects.filter(
+        branch=branch,
+        company=company,
+        is_deleted=False
+    ).order_by("-created_at")
         filter_conditions = Q()
 
         # Filter by basic fields
@@ -3576,9 +3580,13 @@ class OrderListView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        qs = Order_Table.objects.filter(**filters).select_related(
-            "order_status", "company", "branch"
-        ).prefetch_related("orderdetail_set")
+        qs = (
+                Order_Table.objects
+                .filter(**filters)
+                .select_related("order_status", "company", "branch")
+                .prefetch_related("orderdetail_set")
+                .order_by("-created_at")
+            )
 
         if status_name and status_name.lower() == "running":
             if request.user.profile.user_type == "agent" and request.user.has_perm('accounts.edit_order_others'):
@@ -3594,7 +3602,7 @@ class OrderListView(APIView):
         qs = self._scope_queryset(qs, request.user, status_name)
         
          # Add ordering: newest first (reverse chronological order by date and time)
-        qs = qs.order_by('-created_at', '-id')
+        # qs = qs.order_by('-created_at', '-id')
         # print(qs,"0---------------------3178")
         if pk:
             qs = qs.filter(id=pk)
