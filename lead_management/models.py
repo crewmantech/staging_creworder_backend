@@ -162,7 +162,7 @@ class UserCategoryAssignment(BaseModel):
     id = models.CharField(max_length=50, primary_key=True, unique=True)
     def save(self, *args, **kwargs):
         if not self.id:
-            self.id = generate_unique_id(LeadSourceModel, prefix='KYI')
+            self.id = generate_unique_id(UserCategoryAssignment, prefix='UAI')
         super().save(*args, **kwargs)
     def __str__(self):
         return f"{self.user_profile.profile} - {self.deal_category.name}"
@@ -182,7 +182,7 @@ class Pipeline(BaseModel):
     id = models.CharField(max_length=50, primary_key=True, unique=True)
     def save(self, *args, **kwargs):
         if not self.id:
-            self.id = generate_unique_id(LeadSourceModel, prefix='KYI')
+            self.id = generate_unique_id(Pipeline, prefix='PLI')
         super().save(*args, **kwargs)  
     def __str__(self):
         return f"Pipeline {self.id} - {self.lead_source}"
@@ -228,7 +228,7 @@ class Lead(BaseModel):
                     self.lead_id = new_id
                     unique = True
         if not self.id:
-            self.id = generate_unique_id(LeadSourceModel, prefix='KYI')
+            self.id = generate_unique_id(Lead, prefix='LDI')
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -251,7 +251,7 @@ class lead_form(BaseModel):
 
     def save(self, *args, **kwargs):
         if not self.id:
-            self.id = generate_unique_id(LeadSourceModel, prefix='KYI')
+            self.id = generate_unique_id(lead_form, prefix='LFI')
         super().save(*args, **kwargs)     
     def __str__(self):
         return f"Request {self.id} - Pipeline {self.pipeline}"

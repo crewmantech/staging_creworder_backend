@@ -1012,10 +1012,15 @@ class UserCategoryAssignmentViewSet(viewsets.ModelViewSet):
         except Company.DoesNotExist:
             return Response({"detail": "Company not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        assignments = UserCategoryAssignment.objects.filter(
-            user_profile__profile__company=company_id
-        ).select_related('user_profile', 'deal_category')
+        assignments = (
+        UserCategoryAssignment.objects.filter(
+            user_profile__profile__company=company_id,
+            user_profile__profile__status=1
+        )
+        .select_related('user_profile', 'deal_category')
+    )
 
+        print(assignments,"--------------------1019")
         if not assignments.exists():
             return Response({"detail": "No users or categories found for this company."}, status=status.HTTP_404_NOT_FOUND)
 
@@ -1087,7 +1092,7 @@ class UserCategoryAssignmentViewSet(viewsets.ModelViewSet):
             return Response({"detail": "Company not found."}, status=status.HTTP_404_NOT_FOUND)
 
         assignments = UserCategoryAssignment.objects.filter(
-            user_profile__profile__company=company_id
+            user_profile__profile__company=company_id, user_profile__profile__status=1
         ).select_related('user_profile', 'deal_category')
 
         if not assignments.exists():
