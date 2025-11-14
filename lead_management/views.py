@@ -10,6 +10,7 @@ from accounts.permissions import HasPermission
 from lead_management.permissions import CanUpdateStatusRemarkOrFullUpdate
 from rest_framework.parsers import MultiPartParser
 import csv, io
+
 from orders.views import FilterOrdersPagination
 from .models import DealCategoryModel, lead_form, Lead, LeadModel, LeadSourceModel, LeadStatusModel, Pipeline, UserCategoryAssignment ,User,Company
 from .serializers import DealCategoryModelSerializer, DynamicRequestSerializer, LeadNewSerializer, LeadSerializer, LeadSourceModelSerializer, LeadStatusModelSerializer, PipelineSerializer, UserCategoryAssignmentSerializer
@@ -406,8 +407,8 @@ class LeadViewSet(viewsets.ModelViewSet):
                 request_data["deal_category"] = pipeline.deal_category.id
 
                 if pipeline.round_robin:
-                    assigned_users = list(pipeline.assigned_users.all().order_by("id"))
-
+                    # assigned_users = list(pipeline.assigned_users.all().order_by("id"))
+                    assigned_users = list(pipeline.assigned_users.filter(profile__status=1).order_by("id"))
                     if assigned_users:
                         next_index = (pipeline.last_assigned_index + 1) % len(assigned_users)
                         next_user = assigned_users[next_index]
@@ -479,7 +480,8 @@ class LeadViewSet(viewsets.ModelViewSet):
                     raise Exception(f"Pipeline ID {pipeline_id} not found.")
 
                 if pipeline.round_robin:
-                    assigned_users = list(pipeline.assigned_users.all().order_by("id"))
+                    # assigned_users = list(pipeline.assigned_users.all().order_by("id"))
+                    assigned_users = list(pipeline.assigned_users.filter(profile__status=1).order_by("id"))
                     if assigned_users:
                         next_index = (pipeline.last_assigned_index + 1) % len(assigned_users)
                         next_user = assigned_users[next_index]
@@ -611,13 +613,13 @@ class LeadBulkUploadView(APIView):
                         if assigned_users:
                             next_index = (pipeline.last_assigned_index + 1) % len(assigned_users)
                             next_user = assigned_users[next_index]
-                            assign_user = next_user.id
+                            row['assign_user'] = next_user.id
                             pipeline.last_assigned_index = next_index
                             pipeline.save()
                         else:
-                            assign_user = user.id
+                            row['assign_user'] = user.id
                     else:
-                        assign_user = user.id
+                        row['assign_user'] = user.id
 
                     profile = request.user.profile
                     company = profile.company if profile else None
@@ -1215,8 +1217,8 @@ class PipelineViewSet(viewsets.ModelViewSet):
             return Response({"detail": "Pipeline not found."}, status=status.HTTP_404_NOT_FOUND)
 
         # Get all users assigned to this pipeline
-        assigned_users = pipeline.assigned_users.all()
-
+        # assigned_users = pipeline.assigned_users.all()
+        assigned_users = pipeline.assigned_users.filter(profile__status=1)
         if not assigned_users:
             return Response({"detail": "No users assigned to this pipeline."}, status=status.HTTP_404_NOT_FOUND)
 

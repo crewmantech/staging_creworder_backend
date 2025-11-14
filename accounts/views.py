@@ -239,7 +239,9 @@ class UserViewSet(viewsets.ModelViewSet):
             # Only filter active for list/retrieve
             if self.action in ["list", "retrieve"]:
                 queryset = queryset.filter(profile__status=1)
-
+            username = self.request.query_params.get("username")
+            if username:
+                queryset = queryset.filter(username=username)
             if user.profile.user_type == "superadmin":
                 company_id = self.request.query_params.get("company_id")
                 if company_id:

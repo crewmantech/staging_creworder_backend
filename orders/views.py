@@ -1500,21 +1500,10 @@ class OrderAggregationByStatusAPIView(APIView):
             q_filters &= Q(order_created_by_id__in=manager_ids) | Q(updated_by_id__in=manager_ids)
 
         if tl_id:
-            try:
-                # ✅ Treat tl_id as USER ID
-                tl_employee = Employees.objects.get(user_id=tl_id, status=1)
-                tl_user_id = tl_employee.user.id  # same as tl_id
-            except Employees.DoesNotExist:
-                return Response({"error": "Invalid teamlead_id"}, status=status.HTTP_400_BAD_REQUEST)
-
-            employees_under_tl = Employees.objects.filter(teamlead_id=tl_user_id, status=1)
-            tl_team_user_ids = list(employees_under_tl.values_list('user_id', flat=True))
-            tl_team_user_ids.append(tl_user_id)
-
-            q_filters |= (
-                Q(order_created_by_id__in=tl_team_user_ids) |
-                Q(updated_by_id__in=tl_team_user_ids)
-            )
+            employees_under_tl = Employees.objects.filter(teamlead_id=tl_id,status=1)
+            tl_ids = employees_under_tl.values_list('user_id', flat=True)
+            q_filters &= Q(order_created_by_id__in=tl_ids) | Q(updated_by_id__in=tl_ids) |Q(order_created_by_id=tl_id) | Q(updated_by_id=tl_id)
+            # filter_conditions['updated_by_id__in'] = list(tl_ids)
 
 
         if agent_id:
@@ -2946,7 +2935,8 @@ class FilterOrdersCreatedView(viewsets.ViewSet):
         filters = request.data
         if not filters:
             raise ValueError("No filters provided")
-        queryset = Order_Table.objects.all()
+        queryset = Order_Table.objects.filter(is_deleted=False).order_by("-created_at")
+
         filter_conditions = Q()
 
         # Mapping API fields to model fields
