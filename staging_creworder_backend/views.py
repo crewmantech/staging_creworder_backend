@@ -1,11 +1,16 @@
+# correct imports
+from django.utils import timezone           # <-- use this
+from datetime import timedelta              # <-- only timedelta from stdlib
+
 from django.contrib.auth.backends import ModelBackend
 from django.contrib.auth import get_user_model
 from rest_framework.exceptions import AuthenticationFailed
 from dj_rest_auth.views import LoginView
 # from rest_framework.authtoken.models import Token
-from accounts.models import ExpiringToken as Token
+from accounts.models import ExpiringToken as Token, LoginAttempt, LoginLog, OTPAttempt
 from rest_framework.response import Response
 from accounts.models import AllowedIP, Branch, Company,User
+from accounts.utils import deactivate_user
 from kyc.models import OTPModel
 from emailsetup.models import AgentAuthentication
 from django.db.models import Q
@@ -33,19 +38,40 @@ class CustomLoginView(LoginView):
             }, status=status.HTTP_400_BAD_REQUEST)
             
         # Try to authenticate user first
+        user_obj = User.objects.filter(username=username).first()
+        if user_obj:
+            if user_obj.profile.user_type == "agent":
+                one_hour_ago = timezone.now() - timedelta(hours=1)
+                wrong_attempts = LoginAttempt.objects.filter(user=user_obj, timestamp__gte=one_hour_ago).count()
+
+                if wrong_attempts >= 3:
+                    deactivate_user(user_obj, "3 wrong passwords in 1 hour")
+                    return Response({"success": False, "message": "Your account is inactive due to multiple failed attempts."}, 
+                                    status=status.HTTP_403_FORBIDDEN)
         user = authenticate(username=username, password=password)
         
         if not user:
-            return Response({
-                "success": False,
-                "message": "Invalid credentials."
-            }, status=status.HTTP_401_UNAUTHORIZED)
+            if user_obj:
+                
+                LoginAttempt.objects.create(user=user_obj)
+
+                LoginLog.objects.create(
+                    user=user_obj,
+                    username_attempt=username,
+                    ip_address=client_ip,
+                    user_agent=request.headers.get("User-Agent"),
+                    status="failed",
+                    reason="Invalid password"
+                )
+
+            return Response({"success": False, "message": "Invalid credentials."},
+                            status=status.HTTP_401_UNAUTHORIZED)
             
         username = user.username
         
         # Check if the user's account is disabled
         if user.profile.status != 1:
-            raise AuthenticationFailed("Your account is disabled.")
+            raise AuthenticationFailed("Your account is disabled.Please contact to admin!")
         
         # Check if the company is disabled (if the user belongs to a company)
         if not hasattr(user.profile, 'company') or user.profile.company is None:
@@ -64,6 +90,8 @@ class CustomLoginView(LoginView):
                     ip_address=client_ip
                 ).exists()
                 if not allowed_ip:
+                    deactivate_user(user, "Login from unauthorized IP")
+        
                     return Response({
                         "success": False,
                         "message": f"Access denied: IP {client_ip} is not allowed.Please contact to admin!"
@@ -142,12 +170,20 @@ class CustomLoginView(LoginView):
             mobile = auth_data.phone
             email = auth_data.email
             mobile = str(mobile)[-10:]
+            OTPAttempt.objects.create(user=user, used=False)
+            otp_attempts = OTPAttempt.objects.filter(user=user, used=False).count()
+
+            if otp_attempts > 2:
+                deactivate_user(user, "Too many OTP attempts without verification")
+                return Response({"success": False, "message": "Account deactivated due to OTP misuse."},
+                                status=status.HTTP_403_FORBIDDEN)
+
             otp_instance = OTPModel.create_otp(mobile,username)
             # Send OTP
+            
             email_success = send_otp_to_email(email, otp_instance.otp,name=user.first_name if user else 'User') if email else False
             sms_success = send_otp_to_number(mobile, otp_instance.otp, name=user.first_name if user else 'User') if mobile else False
-
-
+            
             # Generate response message based on success/failure
             if email_success and sms_success:
                 message = "OTP sent successfully to both email and mobile."
@@ -171,7 +207,14 @@ class CustomLoginView(LoginView):
             
             # Create new token
             token = Token.objects.create(user=user)
-            
+            LoginLog.objects.create(
+                user=user,
+                ip_address=client_ip,
+                user_agent=request.headers.get("User-Agent"),
+                status="success",
+                reason="User logged in successfully"
+            )
+
             return Response({
                 "success": True,
                 "message": "Login successful!",
@@ -203,6 +246,8 @@ class VerifyOTPView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
 
         # Validate OTP
+        OTPAttempt.objects.filter(user=user, used=False).update(used=True)
+
         otp_instance = OTPModel.objects.filter(phone_number=phone, otp=otp,username=email).first()
         if not otp_instance:
             return Response({
@@ -224,7 +269,14 @@ class VerifyOTPView(APIView):
             otp_instance.delete()
             # Create new token
             token = Token.objects.create(user=user)
-            
+            LoginLog.objects.create(
+                    user=user,
+                    ip_address=" ",
+                    user_agent=request.headers.get("User-Agent"),
+                    status="success",
+                    reason="User logged in successfully"
+                )
+
             return Response({
                 "success": True,
                 "message": "OTP verified, login successful!",

@@ -610,17 +610,18 @@ class LeadBulkUploadView(APIView):
 
                     if pipeline.round_robin:
                         assigned_users = list(pipeline.assigned_users.all().order_by("id"))
+                        print(assigned_users,"assign_userassign_userassign_userassign_user----------------623")
                         if assigned_users:
                             next_index = (pipeline.last_assigned_index + 1) % len(assigned_users)
                             next_user = assigned_users[next_index]
-                            row['assign_user'] = next_user.id
+                            assign_user = next_user.id
                             pipeline.last_assigned_index = next_index
                             pipeline.save()
                         else:
-                            row['assign_user'] = user.id
+                            assign_user = user.id
                     else:
-                        row['assign_user'] = user.id
-
+                        assign_user = user.id
+                    print(assign_user,"assign_userassign_userassign_userassign_user----------------623")
                     profile = request.user.profile
                     company = profile.company if profile else None
 
@@ -676,7 +677,6 @@ class LeadBulkUploadView(APIView):
         except Exception as e:
             print(str(e))
             return Response({"Error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
 
 class LeadStatusModelViewSet(viewsets.ModelViewSet):
     queryset = LeadStatusModel.objects.all()

@@ -31,7 +31,7 @@ from shipment.models import ShipmentModel, ShipmentVendor
 from shipment.serializers import ShipmentSerializer
 from .models import  Agreement, AttendanceSession, CompanyInquiry, CompanyUserAPIKey, Enquiry, QcScore, ReminderNotes, StickyNote, User, Company, Package, Employees, Notice, Branch, FormEnquiry, SupportTicket, Module, \
     Department, Designation, Leaves, Holiday, Award, Appreciation, ShiftTiming, Attendance, AllowedIP,Shift_Roster,CustomAuthGroup,PickUpPoint, UserStatus,\
-    UserTargetsDelails,AdminBankDetails,QcTable
+    UserTargetsDelails,AdminBankDetails,QcTable,OTPAttempt
 from .serializers import  AgreementSerializer, CompanyInquirySerializer, CompanyUserAPIKeySerializer, CustomPasswordResetSerializer, EnquirySerializer, NewPasswordSerializer,  QcScoreSerializer, ReminderNotesSerializer, StickyNoteSerializer, UpdateTeamLeadManagerSerializer, UserSerializer, CompanySerializer, PackageSerializer, \
     UserProfileSerializer, NoticeSerializer, BranchSerializer, UserSignupSerializer, FormEnquirySerializer, \
     SupportTicketSerializer, ModuleSerializer, DepartmentSerializer, DesignationSerializer, LeaveSerializer, \
@@ -65,6 +65,7 @@ from accounts import models
 from rest_framework.pagination import PageNumberPagination
 from django.shortcuts import redirect
 import uuid
+from accounts.utils import deactivate_user
 
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 10000                     # default page size = 20
@@ -77,6 +78,7 @@ def custom_exception_handler(exc, context):
     if response is not None:
         response.data['status_code'] = response.status_code  # Include status code in JSON response
     return response
+
 
 class IPRestrictedLoginView(LoginView):
     def post(self, request, *args, **kwargs):
@@ -184,12 +186,25 @@ class UserViewSet(viewsets.ModelViewSet):
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
-        instance = self.get_object()
+        instance = self.get_object()  # existing user
+        old_status = instance.profile.status
+
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        status1 = request.data['profile']['status'] if 'profile' in request.data and 'status' in request.data['profile'] else None
-        if status1 == 2:
-            self._send_admin_notification(instance)
         serializer.is_valid(raise_exception=True)
+
+        # Get new status from request
+        new_status = request.data.get("profile", {}).get("status")
+        print(new_status,UserStatus.suspended,UserStatus.active,"------------------195")
+        # Send admin notification only for suspended
+        if new_status == UserStatus.suspended:
+            self._send_admin_notification(instance)
+            reassign_user_assets_on_suspension(self.user)
+            OTPAttempt.objects.filter(user=instance).delete()
+        # ---- CLEAR OTP ATTEMPTS WHEN STATUS CHANGES INACTIVE → ACTIVE ----
+        if old_status == UserStatus.inactive and new_status == UserStatus.active:
+            OTPAttempt.objects.filter(user=instance).delete()
+
+        # Update user now
         self.perform_update(serializer)
 
         return Response(serializer.data, status=status.HTTP_200_OK)

@@ -1103,3 +1103,27 @@ class ExpiringToken(models.Model):
 
 
 
+
+class LoginLog(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+    username_attempt = models.CharField(max_length=200, null=True, blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(null=True, blank=True)
+    status = models.CharField(max_length=20, choices=[("success", "Success"), ("failed", "Failed")])
+    reason = models.CharField(max_length=255, null=True, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user} - {self.status} - {self.timestamp}"
+
+# from django.utils.timezone import now, timedelta
+
+class LoginAttempt(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+
+class OTPAttempt(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    used = models.BooleanField(default=False)
+    timestamp = models.DateTimeField(auto_now_add=True)
