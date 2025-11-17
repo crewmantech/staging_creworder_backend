@@ -27,6 +27,7 @@ from .models import (
     OrderValueSetting,
     Payment_Status,
     Payment_Type,
+    Payment_method,
     PincodeLocality,
     Products,
     Customer_State,
@@ -58,7 +59,8 @@ from .serializers import (
     ReturnTypeSerializer,
     ScanOrderSerializer,
     LableLayoutSerializer,
-    LableinvoiceSerializer
+    LableinvoiceSerializer,
+    PaymentMethodSerializer
 
 )
 from rest_framework.views import APIView
@@ -4014,3 +4016,36 @@ class OrderLocationReportView(APIView):
 
         except Exception as e:
             return self.error("An unexpected error occurred.", str(e), status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+class PaymentMethodViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for Payment_Status
+    """
+    queryset = Payment_method.objects.all()
+    serializer_class = PaymentMethodSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """
+        Optionally filter payment statuses by branch or company via query parameters.
+        """
+        queryset = super().get_queryset()
+        branch_id = self.request.query_params.get('branch', None)
+        company_id = self.request.query_params.get('company', None)
+
+        if branch_id:
+            queryset = queryset.filter(branch_id=branch_id)
+        if company_id:
+            queryset = queryset.filter(company_id=company_id)
+
+        return queryset
+    
+    def perform_create(self, serializer):
+        """
+        Automatically set `company` and `branch` fields for the created Payment_Status instance.
+        """ 
+        user = self.request.user
+       
+        serializer.save()

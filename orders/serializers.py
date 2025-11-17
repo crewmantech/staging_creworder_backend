@@ -4,7 +4,7 @@ from accounts.models import AdminBankDetails, Company
 from staging_creworder_backend import settings
 from kyc.serializers import KYCSerializer
 from shipment.models import ShipmentModel
-from .models import Customer_State, SmsConfig, Order_Table, OrderDetail,Category, OrderStatusWorkflow, OrderValueSetting, Payment_Status, PincodeLocality,Products,OrderLogModel,Payment_Type,OrderStatus, AllowStatus, ReturnType,LableLayout,invoice_layout
+from .models import Customer_State, Payment_method, SmsConfig, Order_Table, OrderDetail,Category, OrderStatusWorkflow, OrderValueSetting, Payment_Status, PincodeLocality,Products,OrderLogModel,Payment_Type,OrderStatus, AllowStatus, ReturnType,LableLayout,invoice_layout
 from django.contrib.auth.models import User
 from accounts.serializers import AdminBankDetailsSerializers, CompanySerializer
 
@@ -170,7 +170,7 @@ class OrderTableSerializer(serializers.ModelSerializer):
     customer_state_name= serializers.SerializerMethodField()
     payment_type_name=serializers.SerializerMethodField()
     tracking_link = serializers.SerializerMethodField()
-    
+    payment_method_name=serializers.SerializerMethodField()
     class Meta:
         model = Order_Table
         fields = '__all__'  
@@ -184,6 +184,8 @@ class OrderTableSerializer(serializers.ModelSerializer):
         return data.customer_state.name if data.customer_state else None
     def get_payment_type_name(self,data):
         return data.payment_type.name if data.payment_type else None
+    def get_payment_method_name(self,data):
+        return data.payment_method.name if data.payment_method else None
     def get_last_action_by_name(self, obj):
         recent_log = OrderLogModel.objects.filter(order=obj).order_by('-updated_at').first()
         return OrderLogSerializer(recent_log).data['action_by_username'] if recent_log else None
@@ -486,3 +488,10 @@ class OrderSummarySerializer(serializers.Serializer):
     payment_type__name = serializers.CharField()
     total_orders = serializers.IntegerField()
     total_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+
+
+class PaymentMethodSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Payment_method
+        fields = '__all__' 
+        read_only_fields = ['id']

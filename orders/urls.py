@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
-from .views import AcceptedOrdersReportAPIView, AllowStatusViewSet, ChangeOrderStatusAPIView, CreateRepeatOrderAPIView, CustomerStateViewSet, ExternalOrderCreateView, FilterOrdersCreatedView, FilterOrdersView1, FilteredOrderViewSet, MainOrderStatusAPIView, NotificationsConfigViewSet, OrderAggregationByStatusAPIView,OrderAggregationByStatusAPIViewPerformance, OrderLocationReportView, OrderLogListView, OrderStatusAPIView,FilterOrdersView, OrderStatusWorkflowViewSet, OrderValueSettingViewSet, PaymentStatusViewSet, PaymentTypeViewSet,PincodeLocalityViewSet,BulkOrderUploadView, ProductOrderSummaryView1, RecurringOrdersAPIView, ReturnTypeViewSet, ScanOrderAPIView, UpdateOrderStatusAndPaymentStatusView,OrderMetricsAPIView,ProductOrderSummaryView,LableLayoutAPIView,LableInvoiceAPIView,CSVProductUploadView
+from .views import AcceptedOrdersReportAPIView, AllowStatusViewSet, ChangeOrderStatusAPIView, CreateRepeatOrderAPIView, CustomerStateViewSet, ExternalOrderCreateView, FilterOrdersCreatedView, FilterOrdersView1, FilteredOrderViewSet, MainOrderStatusAPIView, NotificationsConfigViewSet, OrderAggregationByStatusAPIView,OrderAggregationByStatusAPIViewPerformance, OrderLocationReportView, OrderLogListView, OrderStatusAPIView,FilterOrdersView, OrderStatusWorkflowViewSet, OrderValueSettingViewSet, PaymentStatusViewSet, PaymentTypeViewSet,PincodeLocalityViewSet,BulkOrderUploadView, ProductOrderSummaryView1, RecurringOrdersAPIView, ReturnTypeViewSet, ScanOrderAPIView, UpdateOrderStatusAndPaymentStatusView,OrderMetricsAPIView,ProductOrderSummaryView,LableLayoutAPIView,LableInvoiceAPIView,CSVProductUploadView,PaymentMethodViewSet
 
 router = DefaultRouter()
 router.register(r'order_status',OrderStatusAPIView)
@@ -12,6 +12,7 @@ router.register(r'pincode-locality', PincodeLocalityViewSet, basename='pincode-l
 router.register(r'payment-status', PaymentStatusViewSet, basename='payment-status')
 router.register(r'customer-states', CustomerStateViewSet, basename='customer-state')
 router.register(r'payment-type', PaymentTypeViewSet, basename='payment-type')
+router.register(r'payment-method', PaymentMethodViewSet, basename='payment-method')
 router.register(r'order-value-settings', OrderValueSettingViewSet)
 router.register(r'order-status-workflow', OrderStatusWorkflowViewSet, basename='order-status-workflow')
 router.register(r'allow-status', AllowStatusViewSet, basename='allow-status')

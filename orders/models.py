@@ -116,6 +116,22 @@ class Payment_Type(models.Model):
         super().save(*args, **kwargs)  
     def __str__(self):
         return self.name
+
+class Payment_method(models.Model):
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
+    name = models.CharField(max_length=50)
+    # branch = models.ForeignKey(Branch, on_delete=models.CASCADE, default=1)
+    # company = models.ForeignKey(Company, on_delete=models.CASCADE, default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    class Meta:
+        db_table = 'payment_method_table'
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_unique_id(Payment_method, prefix='PMI')
+        super().save(*args, **kwargs)  
+    def __str__(self):
+        return self.name
     
 class OrderStatus(models.Model):
     id = models.CharField(max_length=50, primary_key=True, unique=True)
@@ -266,7 +282,8 @@ class Order_Table(BaseModel):
     is_deleted = models.BooleanField(default=False, null=True)
     is_pickup = models.IntegerField(choices=[(0, 'Pickup Pending'), (1, 'Pickup Done'), (2, 'RTO Recieved')], default=0)
     is_pickups = models.ForeignKey('ReturnType', on_delete=models.PROTECT, null=True, blank=True)
-
+    payment_method =models.ForeignKey('Payment_method', on_delete=models.PROTECT, null=True, blank=True)
+    utr_number = models.CharField(max_length=255, null=True, blank=True)
     # ✅ NEW FIELDS
     course_order_count = models.IntegerField(default=1)   # 1st new column
     is_closed = models.BooleanField(default=False)        # 2nd new column
