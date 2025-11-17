@@ -65,7 +65,7 @@ from accounts import models
 from rest_framework.pagination import PageNumberPagination
 from django.shortcuts import redirect
 import uuid
-from accounts.utils import deactivate_user
+from accounts.utils import reassign_user_assets_on_suspension
 
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 10000                     # default page size = 20
