@@ -83,5 +83,5 @@ urlpatterns = [
     path('company-summary/', CompanyMonthlySummaryView.as_view(), name='company-monthly-summary'),
     path('ndr-users/', UsersNdrAPIView.as_view(), name='ndr-users'),
     path('attendance-summary/', AgentAttendanceUserWiseAPIView.as_view(), name='attendance-summary'),
-    path('user-performance/', UserMonthlyPerformanceAPIView.as_view(), name='user-monthly-performance'),
+    path('user-performance-dashboard/', UserMonthlyPerformanceAPIView.as_view(), name='user-monthly-performance'),
 ]
