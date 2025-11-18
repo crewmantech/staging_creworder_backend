@@ -121,7 +121,8 @@ class Payment_method(models.Model):
     id = models.CharField(max_length=50, primary_key=True, unique=True)
     name = models.CharField(max_length=50)
     # branch = models.ForeignKey(Branch, on_delete=models.CASCADE, default=1)
-    # company = models.ForeignKey(Company, on_delete=models.CASCADE, default=1)
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, default=1,blank=True, null=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     class Meta:

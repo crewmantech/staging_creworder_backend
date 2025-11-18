@@ -4034,8 +4034,10 @@ class PaymentMethodViewSet(viewsets.ModelViewSet):
         Optionally filter payment statuses by branch or company via query parameters.
         """
         queryset = super().get_queryset()
+        user = self.request.user
+        company = user.profile.company 
         branch_id = self.request.query_params.get('branch', None)
-        company_id = self.request.query_params.get('company', None)
+        company_id =company.id
 
         if branch_id:
             queryset = queryset.filter(branch_id=branch_id)
@@ -4045,9 +4047,7 @@ class PaymentMethodViewSet(viewsets.ModelViewSet):
         return queryset
     
     def perform_create(self, serializer):
-        """
-        Automatically set `company` and `branch` fields for the created Payment_Status instance.
-        """ 
         user = self.request.user
-       
-        serializer.save()
+        company = user.profile.company  # Adjust if your company relation is different
+
+        serializer.save(company=company)
