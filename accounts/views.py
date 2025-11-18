@@ -3416,6 +3416,7 @@ class UserPermissionStatusView(APIView):
                 "number_mask":user.has_perm('accounts.view_number_masking_others'),
                 "create_group_chat":user.has_perm('accounts.create_group_chat_others'),
                 "team_order":user.has_perm('accounts.view_click_team_order_others'),
+                "branch_switcher":user.has_perm('accounts.view_branch_switcher_others')
             }
         else:
             # Fallback to permission-based checks
@@ -3430,6 +3431,7 @@ class UserPermissionStatusView(APIView):
                 "number_mask":user.has_perm('accounts.view_number_masking_others'), 
                 "create_group_chat":user.has_perm('accounts.create_group_chat_others'),
                 "team_order":user.has_perm('accounts.view_click_team_order_others'),
+                "branch_switcher":user.has_perm('accounts.view_branch_switcher_others')
             }   
 
         return Response(response_data)
