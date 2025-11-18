@@ -202,6 +202,7 @@ class Company(BaseModel):
 class Branch(BaseModel):
     class Meta:
         verbose_name_plural = "Branches"
+
     name = models.CharField(max_length=80, blank=False, null=False)
     branch_id = models.CharField(max_length=255, blank=True)
     address = models.CharField(max_length=255, blank=False, null=False)
@@ -216,12 +217,46 @@ class Branch(BaseModel):
         return prefix + random_suffix
 
     def save(self, *args, **kwargs):
+        is_new = self._state.adding
+
         if not self.branch_id:
             self.branch_id = self.generate_branch_id()
+
         super().save(*args, **kwargs)
 
-    def __str__(self):
-        return f'{self.branch_id} ({self.company.name})'
+        if not is_new:
+            return
+
+        # ---------- AUTO CREATE PERMISSIONS ----------
+        content_type = ContentType.objects.get_for_model(Branch)
+
+        # Global permissions (optional)
+        # fixed_permissions = [
+        #     ("can_view_all", "Can view all branches"),
+        #     # ("can_view_own", "Can view own branch"),
+        # ]
+        # for codename, label in fixed_permissions:
+        #     Permission.objects.get_or_create(
+        #         codename=f"branch_{codename}",
+        #         name=f"Branch {label}",
+        #         content_type=content_type,
+        #     )
+
+        # ---------- Branch-specific permission ----------
+        company_name = self.company.name.replace(" ", "_").lower()
+        branch_name = self.name.replace(" ", "_").lower()
+
+        permission_codename = f"branch_view_{company_name}_{branch_name}"
+        permission_name = f"Branch View {self.name} - {self.company.name}"
+
+        try:
+            Permission.objects.get_or_create(
+                codename=permission_codename,
+                name=permission_name,
+                content_type=content_type,
+            )
+        except IntegrityError:
+            pass
 
 
 # class UserRole(models.Model):

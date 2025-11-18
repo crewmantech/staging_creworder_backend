@@ -466,16 +466,27 @@ class BranchViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
 
-        if not hasattr(user, 'profile'):
-            logger.warning(f"User {user.id} has no profile.")
+        if not hasattr(user, 'profile') or not user.profile.company:
             return Branch.objects.none()
 
-        if not user.profile.company:
-            logger.warning(f"User {user.id} has no associated company.")
-            return Branch.objects.none()
+        base_qs = Branch.objects.filter(company=user.profile.company)
 
-        if user.profile.user_type in ["admin", "agent"]:
-            return Branch.objects.filter(company=user.profile.company)
+        # If user is admin --> show all company's branches
+        if user.profile.user_type == "admin":
+            return base_qs
+
+        # If user is agent --> show only permitted branches
+        if user.profile.user_type == "agent":
+            allowed_branch_ids = []
+
+            for branch in base_qs:
+                perm_codename = f"branch_view_{branch.company.name.replace(' ', '_').lower()}_{branch.name.replace(' ', '_').lower()}"
+                perm_label = f"{branch._meta.app_label}.{perm_codename}"
+
+                if user.has_perm(perm_label):
+                    allowed_branch_ids.append(branch.id)
+
+            return base_qs.filter(id__in=allowed_branch_ids)
 
         return Branch.objects.none()
 
@@ -1930,6 +1941,9 @@ class FetchPermissionView(APIView):
                     ]
                 ):
                     continue
+            if (permission.name.startswith("Branch View") and str(company_name).lower() not in permission.name.lower() and permission.name not in ["Branch View all branches","Branch View own branch",]):
+                continue
+
             if request.user.profile.user_type != "superadmin" and permission.name.lower().startswith("show_settingsmenu") and not request.user.has_perm(f"{permission.content_type.app_label}.{permission.codename}"):
                 continue
             permissions_dict[permission.codename] = permission.id
