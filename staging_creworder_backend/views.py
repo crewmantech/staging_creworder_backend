@@ -246,6 +246,7 @@ class VerifyOTPView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
 
         # Validate OTP
+        user = User.objects.filter(username=email).first()
         OTPAttempt.objects.filter(user=user, used=False).update(used=True)
 
         otp_instance = OTPModel.objects.filter(phone_number=phone, otp=otp,username=email).first()
@@ -256,7 +257,7 @@ class VerifyOTPView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
 
         # Authenticate user
-        user = User.objects.filter(username=email).first()
+        
         if not user:
             return Response({
                 "success": False,
