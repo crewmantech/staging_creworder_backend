@@ -8,7 +8,7 @@ from .views import AgentAttendanceUserWiseAPIView, AgreementViewSet, AssignRole,
     AppreciationViewSet, ShiftViewSet, AttendanceViewSet, Testing, GetUsernameSuggestions, AttendanceView, \
     IPRestrictedLoginView,ShiftRosterViewSet,GetPackageModule,CustomAuthGroupViewSet,UserGroupViewSet,\
     GroupPermissionViewSet,PermmisionViewSet,FetchPermissionView,PickUpPointView,TargetView,AdminBankDetailsViewSet,\
-    AddAllowIpViewSet,QcViewSet,GetPackagesModule , UserTargetsDelailsFilterAPIView, UsersTeamAPIView, UsersWithTargetsAPIView,UsersNdrAPIView
+    AddAllowIpViewSet,QcViewSet,GetPackagesModule , UserTargetsDelailsFilterAPIView, UsersTeamAPIView, UsersWithTargetsAPIView,UsersNdrAPIView,UserMonthlyPerformanceAPIView
 
 router = DefaultRouter()
 router.register(r'users', UserViewSet)
@@ -83,4 +83,5 @@ urlpatterns = [
     path('company-summary/', CompanyMonthlySummaryView.as_view(), name='company-monthly-summary'),
     path('ndr-users/', UsersNdrAPIView.as_view(), name='ndr-users'),
     path('attendance-summary/', AgentAttendanceUserWiseAPIView.as_view(), name='attendance-summary'),
+    path('user-performance/', UserMonthlyPerformanceAPIView.as_view(), name='user-monthly-performance'),
 ]
