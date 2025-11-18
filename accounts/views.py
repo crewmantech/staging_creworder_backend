@@ -3879,7 +3879,7 @@ class ReminderNotesViewSet(viewsets.ModelViewSet):
 
 from orders.models import Order_Table
 class UserMonthlyPerformanceAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         user = request.user
