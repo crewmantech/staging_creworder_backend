@@ -2410,7 +2410,7 @@ class TeamleadViewSet(APIView):
 
     def get(self, request, *args, **kwargs):
         user = request.user
-        branch_id = request.GET.get("branch_id")
+        branch_id = user.profile.branch.id
         company_id = getattr(user.profile, "company_id", None)
         manager_id = request.GET.get("manager_id")
 
