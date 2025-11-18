@@ -3889,12 +3889,13 @@ class OrderLocationReportView(APIView):
         try:
             user = request.user
             company = getattr(user.profile, 'company', None)
-
+            branch = getattr(user.profile,'branch',None)
+            # user.profile.branch.id
             if not company:
                 return self.error("User is not associated with a company.")
 
             company_id = company.id
-
+            branch_id = branch.id
             # ============================
             # Filters
             # ============================
@@ -3912,6 +3913,7 @@ class OrderLocationReportView(APIView):
             # ============================
             seller_orders_query = Order_Table.objects.filter(
                 company_id=company_id,
+                branch_id = branch_id,
                 is_deleted=False,
                 order_status__name__iexact="ACCEPTED"   # <- ONLY ACCEPTED ORDERS
             )
