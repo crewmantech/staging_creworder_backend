@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Company, ExpiringToken
+from .models import Company, ExpiringToken, LoginAttempt, LoginLog, OTPAttempt
 from .models import Package
 from .models import PackageDetailsModel
 from .models import Employees
@@ -52,3 +52,6 @@ admin.site.register(QcTable)
 admin.site.register(StickyNote)
 admin.site.register(CustomAuthGroup)
 admin.site.register(ExpiringToken)
+admin.site.register(LoginLog)
+admin.site.register(LoginAttempt)
+admin.site.register(OTPAttempt)

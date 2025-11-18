@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Order_Table,Payment_Type,Payment_Status,OrderStatus,Customer_State,Category,Products,OrderLogModel,OrderDetail
+from .models import Order_Table,Payment_Type,Payment_Status,OrderStatus,Customer_State,Category, Payment_method,Products,OrderLogModel,OrderDetail, SmsConfig
 # Register your models here.
 admin.site.register(Order_Table)
 admin.site.register(Payment_Type)
@@ -10,3 +10,5 @@ admin.site.register(Category)
 admin.site.register(Products)
 admin.site.register(OrderLogModel)
 admin.site.register(OrderDetail)
+admin.site.register(SmsConfig)
+admin.site.register(Payment_method)

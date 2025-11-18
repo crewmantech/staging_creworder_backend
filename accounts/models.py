@@ -202,6 +202,7 @@ class Company(BaseModel):
 class Branch(BaseModel):
     class Meta:
         verbose_name_plural = "Branches"
+
     name = models.CharField(max_length=80, blank=False, null=False)
     branch_id = models.CharField(max_length=255, blank=True)
     address = models.CharField(max_length=255, blank=False, null=False)
@@ -216,12 +217,46 @@ class Branch(BaseModel):
         return prefix + random_suffix
 
     def save(self, *args, **kwargs):
+        is_new = self._state.adding
+
         if not self.branch_id:
             self.branch_id = self.generate_branch_id()
+
         super().save(*args, **kwargs)
 
-    def __str__(self):
-        return f'{self.branch_id} ({self.company.name})'
+        if not is_new:
+            return
+
+        # ---------- AUTO CREATE PERMISSIONS ----------
+        content_type = ContentType.objects.get_for_model(Branch)
+
+        # Global permissions (optional)
+        # fixed_permissions = [
+        #     ("can_view_all", "Can view all branches"),
+        #     # ("can_view_own", "Can view own branch"),
+        # ]
+        # for codename, label in fixed_permissions:
+        #     Permission.objects.get_or_create(
+        #         codename=f"branch_{codename}",
+        #         name=f"Branch {label}",
+        #         content_type=content_type,
+        #     )
+
+        # ---------- Branch-specific permission ----------
+        company_name = self.company.name.replace(" ", "_").lower()
+        branch_name = self.name.replace(" ", "_").lower()
+
+        permission_codename = f"branch_view_{company_name}_{branch_name}"
+        permission_name = f"Branch View {self.name} - {self.company.name}"
+
+        try:
+            Permission.objects.get_or_create(
+                codename=permission_codename,
+                name=permission_name,
+                content_type=content_type,
+            )
+        except IntegrityError:
+            pass
 
 
 # class UserRole(models.Model):
@@ -1022,7 +1057,8 @@ class Others(models.Model):
             ('view_search_bar_others', 'view search bar others'),
             ('force_attendance_others', 'Can force attendance others'),
             ('create_group_chat_others', 'create group chat others'),
-            ('view_click_team_order_others', 'Can click team order others')
+            ('view_click_team_order_others', 'Can click team order others'),
+            ('view_branch_switcher_others', 'view branch switcher others')
 
             )
     def __str__(self):
@@ -1103,3 +1139,27 @@ class ExpiringToken(models.Model):
 
 
 
+
+class LoginLog(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+    username_attempt = models.CharField(max_length=200, null=True, blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(null=True, blank=True)
+    status = models.CharField(max_length=20, choices=[("success", "Success"), ("failed", "Failed")])
+    reason = models.CharField(max_length=255, null=True, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user} - {self.status} - {self.timestamp}"
+
+# from django.utils.timezone import now, timedelta
+
+class LoginAttempt(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+
+class OTPAttempt(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    used = models.BooleanField(default=False)
+    timestamp = models.DateTimeField(auto_now_add=True)

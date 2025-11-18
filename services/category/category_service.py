@@ -56,12 +56,12 @@ def getCategory(user_id, pk):
             serializer = UserProfileSerializer(userData)
             serialized_data = serializer.data
             tableData = Category.objects.filter(
-                branch=serialized_data["branch"], company=serialized_data["company"]
+                 company=serialized_data["company"]
             )
 
             if pk is not None:
                 tableData = Category.objects.filter(
-                    branch=serialized_data["branch"], company=serialized_data["company"], id=pk
+                     company=serialized_data["company"], id=pk
                 )
 
         return tableData

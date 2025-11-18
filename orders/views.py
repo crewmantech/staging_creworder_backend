@@ -27,6 +27,7 @@ from .models import (
     OrderValueSetting,
     Payment_Status,
     Payment_Type,
+    Payment_method,
     PincodeLocality,
     Products,
     Customer_State,
@@ -58,7 +59,8 @@ from .serializers import (
     ReturnTypeSerializer,
     ScanOrderSerializer,
     LableLayoutSerializer,
-    LableinvoiceSerializer
+    LableinvoiceSerializer,
+    PaymentMethodSerializer
 
 )
 from rest_framework.views import APIView
@@ -560,7 +562,7 @@ class ProductListCreateAPIView(generics.ListCreateAPIView):
         branch = user.profile.branch
         company = user.profile.company
         # Get all products for the user's branch and company
-        queryset = Products.objects.filter(branch=branch, company=company)
+        queryset = Products.objects.filter(company=company)
         # Check if the user is an agent
         if user.profile.user_type == "agent":
             user_permissions = set(user.get_all_permissions())
@@ -3887,12 +3889,13 @@ class OrderLocationReportView(APIView):
         try:
             user = request.user
             company = getattr(user.profile, 'company', None)
-
+            branch = getattr(user.profile,'branch',None)
+            # user.profile.branch.id
             if not company:
                 return self.error("User is not associated with a company.")
 
             company_id = company.id
-
+            branch_id = branch.id
             # ============================
             # Filters
             # ============================
@@ -3910,6 +3913,7 @@ class OrderLocationReportView(APIView):
             # ============================
             seller_orders_query = Order_Table.objects.filter(
                 company_id=company_id,
+                branch_id = branch_id,
                 is_deleted=False,
                 order_status__name__iexact="ACCEPTED"   # <- ONLY ACCEPTED ORDERS
             )
@@ -4014,3 +4018,36 @@ class OrderLocationReportView(APIView):
 
         except Exception as e:
             return self.error("An unexpected error occurred.", str(e), status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+class PaymentMethodViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for Payment_Status
+    """
+    queryset = Payment_method.objects.all()
+    serializer_class = PaymentMethodSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """
+        Optionally filter payment statuses by branch or company via query parameters.
+        """
+        queryset = super().get_queryset()
+        user = self.request.user
+        company = user.profile.company 
+        branch_id = self.request.query_params.get('branch', None)
+        company_id =company.id
+
+        if branch_id:
+            queryset = queryset.filter(branch_id=branch_id)
+        if company_id:
+            queryset = queryset.filter(company_id=company_id)
+
+        return queryset
+    
+    def perform_create(self, serializer):
+        user = self.request.user
+        company = user.profile.company  # Adjust if your company relation is different
+
+        serializer.save(company=company)

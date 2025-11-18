@@ -57,13 +57,13 @@ def getProduct(user_id, id=None):
             serialized_data = serializer.data
             if id:
                 tableData = Products.objects.filter(
-                    branch=serialized_data["branch"],
+                    # branch=serialized_data["branch"],
                     company=serialized_data["company"],
                     id=id,
                 )
             else:
                 tableData = Products.objects.filter(
-                    branch=serialized_data["branch"], company=serialized_data["company"]
+                     company=serialized_data["company"]
                 )
         return tableData
     except ObjectDoesNotExist:
