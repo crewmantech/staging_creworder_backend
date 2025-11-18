@@ -3879,16 +3879,15 @@ class ReminderNotesViewSet(viewsets.ModelViewSet):
 
 from orders.models import Order_Table
 class UserMonthlyPerformanceAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         user = request.user
         
-        # 1. Get Month and Year from query params
+        # 1. Get Month and Year
         month = request.query_params.get("month", None)
         year = request.query_params.get("year", None)
 
-        # Default to current month/year if not provided
         today = timezone.now()
         if not month or not year:
             month = today.month
@@ -3897,66 +3896,55 @@ class UserMonthlyPerformanceAPIView(APIView):
             try:
                 month = int(month)
                 year = int(year)
-                if not (1 <= month <= 12):
-                    raise ValueError("Invalid month")
             except ValueError:
-                return Response(
-                    {"status": False, "message": "Invalid month or year format."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+                return Response({"status": False, "message": "Invalid date"}, status=400)
 
-        # 2. Calculate Date Range (Start of month to End of month)
-        # Get the last day of the month (e.g., 28, 30, 31)
-        _, last_day_num = calendar.monthrange(year, month)
-        
-        start_date = datetime(year, month, 1, 0, 0, 0)
-        end_date = datetime(year, month, last_day_num, 23, 59, 59)
-        
-        # Make dates timezone aware
-        start_date = timezone.make_aware(start_date)
-        end_date = timezone.make_aware(end_date)
-
-        # 3. Fetch User Target (Monthly)
+        # 2. Fetch User Target
         target_obj = UserTargetsDelails.objects.filter(user=user).first()
         
-        monthly_order_target = 0
-        if target_obj:
-            # Assuming 'monthly_orders_target' is the field name based on your previous code
-            monthly_order_target = target_obj.monthly_orders_target or 0
+        # Check if target exists AND is greater than 0
+        if target_obj and target_obj.monthly_orders_target and target_obj.monthly_orders_target > 0:
+            
+            # --- Target Found Logic ---
+            monthly_target = target_obj.monthly_orders_target
 
-        # 4. Calculate Delivered Orders Count for this User in this Date Range
-        # Filtering by orders created by this user, in the date range, with status 'Delivered'
-        delivered_count = Order_Table.objects.filter(
-            order_created_by=user,
-            is_deleted=False,
-            created_at__range=(start_date, end_date),
-            order_status__name__iexact='Delivered' # Case-insensitive check for 'Delivered'
-        ).count()
+            # Date Range Calculation
+            _, last_day_num = calendar.monthrange(year, month)
+            start_date = timezone.make_aware(datetime(year, month, 1, 0, 0, 0))
+            end_date = timezone.make_aware(datetime(year, month, last_day_num, 23, 59, 59))
 
-        # 5. Calculate Percentage
-        if monthly_order_target > 0:
-            percentage_achieved = (delivered_count / monthly_order_target) * 100
-        else:
-            # Avoid division by zero if target is not set
-            percentage_achieved = 0.0
+            # Calculate Counts
+            delivered_count = Order_Table.objects.filter(
+                order_created_by=user,
+                is_deleted=False,
+                created_at__range=(start_date, end_date),
+                order_status__name__iexact='Delivered'
+            ).count()
 
-        # 6. Response Data
-        data = {
-            "user": user.get_full_name(),
-            "month": month,
-            "year": year,
-            "performance": {
-                "monthly_target": monthly_order_target,
-                "delivered_achieved": delivered_count,
-                "percentage": round(percentage_achieved, 2)
+            percentage_achieved = (delivered_count / monthly_target) * 100
+
+            data = {
+                "user": user.get_full_name(),
+                "month": month,
+                "year": year,
+                "performance": {
+                    "monthly_target": monthly_target,
+                    "delivered_achieved": delivered_count,
+                    "percentage": round(percentage_achieved, 2)
+                }
             }
-        }
+        
+        else:
+            # --- No Target Logic ---
+            data = {
+                "user": user.get_full_name(),
+                "message": "No target is assigned"
+            }
 
         return Response(
             {"status": True, "message": "User performance fetched successfully", "data": data},
             status=status.HTTP_200_OK
         )
-
 
 class AgentAttendanceUserWiseAPIView(ListAPIView):
     """
