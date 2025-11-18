@@ -562,7 +562,7 @@ class ProductListCreateAPIView(generics.ListCreateAPIView):
         branch = user.profile.branch
         company = user.profile.company
         # Get all products for the user's branch and company
-        queryset = Products.objects.filter(branch=branch, company=company)
+        queryset = Products.objects.filter(company=company)
         # Check if the user is an agent
         if user.profile.user_type == "agent":
             user_permissions = set(user.get_all_permissions())
