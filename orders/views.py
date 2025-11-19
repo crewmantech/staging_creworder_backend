@@ -4199,6 +4199,7 @@ class OrderAggregationByPerformance(APIView):
             if not target:
                 response_data = {
                     "user_id": user.id,
+                    "username": user.username,
                     "month": start_date.strftime("%Y-%m"),
 
                     "target": {
@@ -4255,6 +4256,7 @@ class OrderAggregationByPerformance(APIView):
 
             response_data = {
                 "user_id": user.id,
+                "username": user.username,
                 "month": start_date.strftime("%Y-%m"),
 
                 "target": {
