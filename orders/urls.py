@@ -87,6 +87,6 @@ urlpatterns = [
         OrderLocationReportView.as_view(), 
         name='report_orders_by_location'
     ),
-    path('order-agent-performance/', OrderAggregationByPerformance.as_view(), name='order-agetnt-performance'),
+    path('monthly-target-achievement/', OrderAggregationByPerformance.as_view(), name='monthly-target-achievement'),
     
 ]
