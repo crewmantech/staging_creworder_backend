@@ -4130,7 +4130,7 @@ class OrderAggregationByPerformance(APIView):
 
             q_filters &= Q(order_created_by_id__in=manager_ids) | Q(updated_by_id__in=manager_ids)
 
-        if tl_id:
+        elif tl_id:
             employees_under_tl = Employees.objects.filter(teamlead_id=tl_id, status=1)
             tl_ids = employees_under_tl.values_list('user_id', flat=True)
 
@@ -4141,9 +4141,11 @@ class OrderAggregationByPerformance(APIView):
                 Q(updated_by_id=tl_id)
             )
 
-        if agent_id:
+        elif agent_id:
             q_filters &= Q(order_created_by_id=agent_id) | Q(updated_by_id=agent_id)
-
+        else:
+            return Response({"Success": False,"message":"Manager or Teamlead or Agent not found.","agent_list": []}, status=status.HTTP_200_OK)
+            
         # ------------------------
         # EXTRA USERS (MANAGER + TL)
         # ------------------------
@@ -4270,4 +4272,4 @@ class OrderAggregationByPerformance(APIView):
 
             agent_list.append(response_data)
 
-        return Response({"agent_list": agent_list}, status=status.HTTP_200_OK)
+        return Response({"Success": True,"message":"Data Fetch successfully","agent_list": agent_list}, status=status.HTTP_200_OK)
