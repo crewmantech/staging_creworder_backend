@@ -1595,7 +1595,7 @@ class OrderAggregationByStatusAPIView(APIView):
                 in_use=True
             ).first()
             # manager_targets = UserTargetsDelails.objects.filter(user__id=manager_id)
-            if manager_targets.exists():
+            if manager_targets:
                 target = manager_targets.first()
                 target_data['manager_target'] = {
                     'daily_amount_target': target.daily_amount_target,
@@ -1612,7 +1612,7 @@ class OrderAggregationByStatusAPIView(APIView):
                 in_use=True
             ).first()
             # tl_targets = UserTargetsDelails.objects.filter(user__id=tl_id)
-            if tl_targets.exists():
+            if tl_targets:
                 target = tl_targets.first()
                 target_data['tl_target'] = {
                     'daily_amount_target': target.daily_amount_target,
@@ -1629,7 +1629,7 @@ class OrderAggregationByStatusAPIView(APIView):
                 in_use=True
             ).first()
             # agent_targets = UserTargetsDelails.objects.filter(user__id=agent_id)
-            if agent_targets.exists():
+            if agent_targets:
                 target = agent_targets.first()
                 target_data['agent_target'] = {
                     'daily_amount_target': target.daily_amount_target,
