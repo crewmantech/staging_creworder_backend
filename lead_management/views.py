@@ -679,6 +679,7 @@ class LeadBulkUploadView(APIView):
             print(str(e))
             return Response({"Error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+
 class LeadStatusModelViewSet(viewsets.ModelViewSet):
     queryset = LeadStatusModel.objects.all()
     serializer_class = LeadStatusModelSerializer
