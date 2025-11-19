@@ -609,7 +609,8 @@ class LeadBulkUploadView(APIView):
                     branch = Branch.objects.get(id=row['branch']) if row.get('branch') else None
 
                     if pipeline.round_robin:
-                        assigned_users = list(pipeline.assigned_users.all().order_by("id"))
+                        
+                        assigned_users = list(pipeline.assigned_users.filter(profile__status=1).order_by("id"))
                         print(assigned_users,"assign_userassign_userassign_userassign_user----------------623")
                         if assigned_users:
                             next_index = (pipeline.last_assigned_index + 1) % len(assigned_users)
