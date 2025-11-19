@@ -4094,12 +4094,14 @@ class OrderAggregationByPerformance(APIView):
         # ------------------------
         if month:
             try:
+                monthyear = month
                 year, month_num = map(int, month.split("-"))
                 start_date = date(year, month_num, 1)
             except:
                 return Response({"error": "Invalid month format. Use YYYY-MM."}, status=400)
         else:
             today = timezone.now().date()
+            monthyear = f"{today.year}-{today.month:02d}"
             start_date = date(today.year, today.month, 1)
 
         last_day = calendar.monthrange(start_date.year, start_date.month)[1]
@@ -4187,7 +4189,12 @@ class OrderAggregationByPerformance(APIView):
             )
 
             # Fetch target
-            target = UserTargetsDelails.objects.filter(user=user).first()
+            # target = UserTargetsDelails.objects.filter(user=user).first()
+            target = UserTargetsDelails.objects.filter(
+                user=user,
+                monthyear=monthyear,
+                in_use=True
+            ).first()
 
             if not target:
                 response_data = {
