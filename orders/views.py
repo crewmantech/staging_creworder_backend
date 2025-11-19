@@ -4231,12 +4231,15 @@ class OrderAggregationByPerformance(APIView):
             )["total"] or 0
 
             order_percentage = (
-                (achieved_orders / order_target) * 100 if order_target else 0
+                (float(achieved_orders) / float(order_target)) * 100
+                if order_target else 0
             )
 
             amount_percentage = (
-                (achieved_amount / amount_target) * 100 if amount_target else 0
+                (float(achieved_amount) / float(amount_target)) * 100
+                if amount_target else 0
             )
+
 
             target_achieved = order_percentage >= 100 or amount_percentage >= 100
 
