@@ -158,9 +158,9 @@ class AccountsConfig(AppConfig):
             # if today.day != 1:
             #     return
 
-            current_monthyear = today.strftime("%m-%Y")
+            current_monthyear = today.strftime("%Y-%m")
             last_month = today.replace(day=1) - timedelta(days=1)
-            last_monthyear = last_month.strftime("%m-%Y")
+            last_monthyear = last_month.strftime("%Y-%m")
 
             # Fetch all last month targets
             last_month_targets = UserTargetsDelails.objects.filter(
