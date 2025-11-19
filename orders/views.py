@@ -4165,7 +4165,9 @@ class OrderAggregationByPerformance(APIView):
 
         # Combine employees under criteria + TL/Manager
         agents = agents_filtered.union(extra_users)
-
+        print(agents)
+        if not agents:
+            return Response({"Success": False,"message":"Agent found.","agent_list": []}, status=status.HTTP_200_OK)
         # ------------------------
         # BUILD RESPONSE
         # ------------------------
