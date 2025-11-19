@@ -153,10 +153,9 @@ class AccountsConfig(AppConfig):
         def auto_create_monthly_targets():
             from .models import UserTargetsDelails
             today = datetime.today()
-            print(today,"-----------156")
             # Only run if today is 1st (extra protection)
-            # if today.day != 1:
-            #     return
+            if today.day != 1:
+                return
 
             current_monthyear = today.strftime("%Y-%m")
             last_month = today.replace(day=1) - timedelta(days=1)
@@ -167,9 +166,7 @@ class AccountsConfig(AppConfig):
                 monthyear=last_monthyear,
                 in_use=True
             )
-            print(last_month_targets,"------------------170",last_monthyear)
             for target in last_month_targets:
-                print(target,"------------------172")
                 # Skip if new month target already exists
                 if UserTargetsDelails.objects.filter(
                     user=target.user,
