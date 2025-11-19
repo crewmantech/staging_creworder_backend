@@ -8,6 +8,7 @@
 # new
 
 import random
+import pytz
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from django.apps import AppConfig
@@ -149,7 +150,47 @@ class AccountsConfig(AppConfig):
             #     status = company.update(update_fields=['status'])
             #     print(status)
             #     print(f"Deactivated demo company: {company.name} (created at: {company.created_at})")
+        def auto_create_monthly_targets():
+            from .models import UserTargetsDelails
+            today = datetime.today()
+
+            # Only run if today is 1st (extra protection)
+            if today.day != 1:
+                return
+
+            current_monthyear = today.strftime("%m-%Y")
+            last_month = today.replace(day=1) - timedelta(days=1)
+            last_monthyear = last_month.strftime("%m-%Y")
+
+            # Fetch all last month targets
+            last_month_targets = UserTargetsDelails.objects.filter(
+                monthyear=last_monthyear,
+                in_use=True
+            )
+
+            for target in last_month_targets:
+                print(target,"------------------172")
+                # Skip if new month target already exists
+                if UserTargetsDelails.objects.filter(
+                    user=target.user,
+                    monthyear=current_monthyear
+                ).exists():
+                    continue
+
+                # Create auto new target
+                UserTargetsDelails.objects.create(
+                    user=target.user,
+                    daily_amount_target=target.daily_amount_target,
+                    daily_orders_target=target.daily_orders_target,
+                    monthly_amount_target=target.monthly_amount_target,
+                    monthly_orders_target=target.monthly_orders_target,
+                    monthyear=current_monthyear,
+                    branch=target.branch,
+                    company=target.company,
+                    in_use=True
+                )
         def start_scheduler(sender, **kwargs):
+            tz = pytz.timezone("Asia/Kolkata")
             scheduler = BackgroundScheduler()
             scheduler.add_job(
                 process_pending_inquiries,
@@ -165,7 +206,15 @@ class AccountsConfig(AppConfig):
                 max_instances=1,
                 replace_existing=True,
             )
+            
             scheduler.add_job(deactivate_old_demo_companies, 'interval', hours=24, id='deactivate_old_demo_companies')
+            scheduler.add_job(
+                auto_create_monthly_targets,
+                trigger=CronTrigger(day="1", hour="0", minute="1", timezone=tz),
+                id="auto_create_monthly_targets",
+                replace_existing=True,
+                max_instances=1
+            )
             # scheduler.add_job(
             #     deactivate_old_demo_companies,
             #     IntervalTrigger(seconds=40),  # Run every 30 seconds
