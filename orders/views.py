@@ -4079,16 +4079,19 @@ class PaymentMethodViewSet(viewsets.ModelViewSet):
 class OrderAggregationByPerformance(APIView):
 
     def get(self, request, *args, **kwargs):
-        month = request.query_params.get("month") 
+        month = request.query_params.get("month")
         tl_id = request.query_params.get('tl_id', None)
         manager_id = request.query_params.get('manager_id', None)
         agent_id = request.query_params.get('agent_id', None)
+
         company_id = self.request.user.profile.company
         branch_id = self.request.user.profile.branch
-        filter_conditions = {}
-        q_filters = Q() 
-        if branch_id:
-            filter_conditions['branch_id'] = branch_id
+
+        q_filters = Q()
+
+        # ------------------------
+        # MONTH RANGE HANDLING
+        # ------------------------
         if month:
             try:
                 year, month_num = map(int, month.split("-"))
@@ -4099,66 +4102,77 @@ class OrderAggregationByPerformance(APIView):
             today = timezone.now().date()
             start_date = date(today.year, today.month, 1)
 
-        # end of month
         last_day = calendar.monthrange(start_date.year, start_date.month)[1]
         end_date = date(start_date.year, start_date.month, last_day)
 
         start_datetime = datetime.combine(start_date, time.min)
-        end_datetime = datetime.combine(end_date, time.max) 
+        end_datetime = datetime.combine(end_date, time.max)
 
-        def apply_date_filter(query, start_datetime, end_datetime,count=True):
-                if count:
-                    return query.filter(
-                        Q(created_at__range=(start_datetime, end_datetime)),
-                        is_deleted=False,
-                    ).count()
-                    # return query.filter(
-                    #     Q(created_at__range=(start_datetime, end_datetime)) |
-                    #     Q(updated_at__range=(start_datetime, end_datetime)),
-                    #     is_deleted=False,
-                    # ).count()
-                else:
-                    return query.filter(
-                        Q(created_at__range=(start_datetime, end_datetime)),
-                        is_deleted=False,
-                    )
-                   
-        
-        # agents = Employees.objects.filter(
-        #         company_id=company_id,
-        #         branch_id=branch_id,status=1
-        #     )
+        # Helper
+        def apply_date_filter(query, start_datetime, end_datetime, count=True):
+            if count:
+                return query.filter(
+                    Q(created_at__range=(start_datetime, end_datetime)),
+                    is_deleted=False,
+                ).count()
+            else:
+                return query.filter(
+                    Q(created_at__range=(start_datetime, end_datetime)),
+                    is_deleted=False,
+                )
+
+        # ------------------------
+        # FILTER EMPLOYEES BY MANAGER / TL / AGENT
+        # ------------------------
         if manager_id:
-            employees_under_manager = Employees.objects.filter(manager_id=manager_id,status=1)
+            employees_under_manager = Employees.objects.filter(manager_id=manager_id, status=1)
             manager_ids = employees_under_manager.values_list('user_id', flat=True)
-            # filter_conditions['order_created_by_id__in'] = list(manager_ids)
+
             q_filters &= Q(order_created_by_id__in=manager_ids) | Q(updated_by_id__in=manager_ids)
 
         if tl_id:
-            employees_under_tl = Employees.objects.filter(teamlead_id=tl_id,status=1)
+            employees_under_tl = Employees.objects.filter(teamlead_id=tl_id, status=1)
             tl_ids = employees_under_tl.values_list('user_id', flat=True)
-            q_filters &= Q(order_created_by_id__in=tl_ids) | Q(updated_by_id__in=tl_ids) |Q(order_created_by_id=tl_id) | Q(updated_by_id=tl_id)
-            # filter_conditions['updated_by_id__in'] = list(tl_ids)
 
+            q_filters &= (
+                Q(order_created_by_id__in=tl_ids) |
+                Q(updated_by_id__in=tl_ids) |
+                Q(order_created_by_id=tl_id) |
+                Q(updated_by_id=tl_id)
+            )
 
         if agent_id:
-            # filter_conditions['order_created_by_id__in'] = [agent_id]
             q_filters &= Q(order_created_by_id=agent_id) | Q(updated_by_id=agent_id)
-            # agents = Employees.objects.all()
-        message = []
-        agent_list = []
+
+        # ------------------------
+        # EXTRA USERS (MANAGER + TL)
+        # ------------------------
         extra_users = Employees.objects.filter(
             Q(user__id=manager_id) | Q(user__id=tl_id),
             status=1
         )
 
-        # Combine agents + manager + team lead
-        agents = q_filters.union(extra_users)
-        
+        # ------------------------
+        # MAIN AGENT QUERY
+        # ------------------------
+        agents_filtered = Employees.objects.filter(
+            company_id=company_id,
+            branch_id=branch_id,
+            status=1
+        ).filter(q_filters)
+
+        # Combine employees under criteria + TL/Manager
+        agents = agents_filtered.union(extra_users)
+
+        # ------------------------
+        # BUILD RESPONSE
+        # ------------------------
+        agent_list = []
+
         for agent in agents:
             user = agent.user
 
-            # Orders created or updated today
+            # Orders created or updated this month
             today_orders = Order_Table.objects.filter(
                 Q(order_created_by=user) | Q(updated_by=user),
                 is_deleted=False,
@@ -4167,18 +4181,19 @@ class OrderAggregationByPerformance(APIView):
                 Q(updated_at__range=(start_datetime, end_datetime))
             )
 
-            # Status-based filtering
-            delivered_order = apply_date_filter(today_orders.filter(order_status__name='Delivered'), start_datetime, end_datetime)
-           
-        
+            delivered_order = apply_date_filter(
+                today_orders.filter(order_status__name='Delivered'),
+                start_datetime, end_datetime
+            )
 
-            # Daily target
+            # Fetch target
             target = UserTargetsDelails.objects.filter(user=user).first()
+
             if not target:
                 response_data = {
                     "user_id": user.id,
                     "month": start_date.strftime("%Y-%m"),
-                    
+
                     "target": {
                         "order_target": 0,
                         "amount_target": 0,
@@ -4194,73 +4209,62 @@ class OrderAggregationByPerformance(APIView):
                         "amount_percentage": 0,
                     },
 
-                    "target_achieved": target_achieved,
+                    "target_achieved": False,
                 }
                 agent_list.append(response_data)
-            else:
-                order_target = target.monthly_orders_target
-                amount_target = target.monthly_amount_target
+                continue
 
-                # =====================
-                # DELIVERED ORDERS OF MONTH
-                # =====================
-                delivered_orders = Order_Table.objects.filter(
-                    Q(order_created_by=user),
-                    Q(order_status__name="Delivered"),
-                    Q(created_at__range=(start_datetime, end_datetime)),
-                    is_deleted=False
-                )
+            # If target exists
+            order_target = target.monthly_orders_target
+            amount_target = target.monthly_amount_target
 
-                achieved_orders = delivered_orders.count()
-                achieved_amount = delivered_orders.aggregate(
-                    total=Sum("total_amount")
-                )["total"] or 0
+            delivered_orders = Order_Table.objects.filter(
+                Q(order_created_by=user),
+                Q(order_status__name="Delivered"),
+                Q(created_at__range=(start_datetime, end_datetime)),
+                is_deleted=False
+            )
 
-                # =====================
-                # CALCULATE PERCENTAGE
-                # =====================
-                order_percentage = (
-                    (achieved_orders / order_target) * 100 if order_target else 0
-                )
+            achieved_orders = delivered_orders.count()
+            achieved_amount = delivered_orders.aggregate(
+                total=Sum("total_amount")
+            )["total"] or 0
 
-                amount_percentage = (
-                    (achieved_amount / amount_target) * 100 if amount_target else 0
-                )
+            order_percentage = (
+                (achieved_orders / order_target) * 100 if order_target else 0
+            )
 
-                # Target Achieved?
-                target_achieved = order_percentage >= 100 or amount_percentage >= 100
+            amount_percentage = (
+                (achieved_amount / amount_target) * 100 if amount_target else 0
+            )
 
-                # Save result
-                target.achieve_target = target_achieved
-                target.save()
+            target_achieved = order_percentage >= 100 or amount_percentage >= 100
 
-                # =====================
-                # RESPONSE
-                # =====================
-                response_data = {
-                    "user_id": user.id,
-                    "month": start_date.strftime("%Y-%m"),
-                    
-                    "target": {
-                        "order_target": order_target,
-                        "amount_target": float(amount_target),
-                    },
+            target.achieve_target = target_achieved
+            target.save()
 
-                    "achieved": {
-                        "delivered_orders": achieved_orders,
-                        "delivered_amount": float(achieved_amount),
-                    },
+            response_data = {
+                "user_id": user.id,
+                "month": start_date.strftime("%Y-%m"),
 
-                    "percentage": {
-                        "order_percentage": round(order_percentage, 2),
-                        "amount_percentage": round(amount_percentage, 2),
-                    },
+                "target": {
+                    "order_target": order_target,
+                    "amount_target": float(amount_target),
+                },
 
-                    "target_achieved": target_achieved,
-                }
-                agent_list.append(response_data)
-        response_data = {
-            'agent_list': agent_list
-        }
+                "achieved": {
+                    "delivered_orders": achieved_orders,
+                    "delivered_amount": float(achieved_amount),
+                },
 
-        return Response(response_data, status=status.HTTP_200_OK)
+                "percentage": {
+                    "order_percentage": round(order_percentage, 2),
+                    "amount_percentage": round(amount_percentage, 2),
+                },
+
+                "target_achieved": target_achieved,
+            }
+
+            agent_list.append(response_data)
+
+        return Response({"agent_list": agent_list}, status=status.HTTP_200_OK)
