@@ -4087,7 +4087,7 @@ class OrderAggregationByPerformance(APIView):
         company_id = self.request.user.profile.company
         branch_id = self.request.user.profile.branch
 
-        q_filters = Q()
+        q_user_filters = Q()
 
         # ------------------------
         # MONTH RANGE HANDLING
