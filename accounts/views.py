@@ -3878,15 +3878,16 @@ class ReminderNotesViewSet(viewsets.ModelViewSet):
         serializer.save(company=user.profile.company, branch=user.profile.branch)
 
 from orders.models import Order_Table
+from django.db.models import Sum
 class UserMonthlyPerformanceAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         user = request.user
-        
-        # 1. Get Month and Year
-        month = request.query_params.get("month", None)
-        year = request.query_params.get("year", None)
+
+        # 1. Get Month & Year
+        month = request.query_params.get("month")
+        year = request.query_params.get("year")
 
         today = timezone.now()
         if not month or not year:
@@ -3899,53 +3900,65 @@ class UserMonthlyPerformanceAPIView(APIView):
             except ValueError:
                 return Response({"status": False, "message": "Invalid date"}, status=400)
 
-        # 2. Fetch User Target
-        target_obj = UserTargetsDelails.objects.filter(user=user).first()
-        
-        # Check if target exists AND is greater than 0
-        if target_obj and target_obj.monthly_orders_target and target_obj.monthly_orders_target > 0:
-            
-            # --- Target Found Logic ---
-            monthly_target = target_obj.monthly_orders_target
+        # 2. Fetch Target
+        target_obj = UserTargetsDelails.objects.filter(
+            user=user,
+            monthyear__iexact=f"{month}-{year}",
+            in_use=True
+        ).first()
 
-            # Date Range Calculation
-            _, last_day_num = calendar.monthrange(year, month)
-            start_date = timezone.make_aware(datetime(year, month, 1, 0, 0, 0))
-            end_date = timezone.make_aware(datetime(year, month, last_day_num, 23, 59, 59))
+        if not target_obj:
+            return Response({
+                "status": True,
+                "message": "No target is assigned for this month",
+                "data": {"user": user.get_full_name()}
+            })
 
-            # Calculate Counts
-            delivered_count = Order_Table.objects.filter(
-                order_created_by=user,
-                is_deleted=False,
-                created_at__range=(start_date, end_date),
-                order_status__name__iexact='Delivered'
-            ).count()
+        # --- Target values ---
+        monthly_target_orders = target_obj.monthly_orders_target
+        monthly_target_amount = float(target_obj.monthly_amount_target)
 
-            percentage_achieved = (delivered_count / monthly_target) * 100
+        # 3. Date Range
+        _, last_day_num = calendar.monthrange(year, month)
+        start_date = timezone.make_aware(datetime(year, month, 1, 0, 0, 0))
+        end_date = timezone.make_aware(datetime(year, month, last_day_num, 23, 59, 59))
 
-            data = {
-                "user": user.get_full_name(),
-                "month": month,
-                "year": year,
-                "performance": {
-                    "monthly_target": monthly_target,
-                    "delivered_achieved": delivered_count,
-                    "percentage": round(percentage_achieved, 2)
-                }
+        # 4. Achieved Monthly Data
+        delivered_orders = Order_Table.objects.filter(
+            order_created_by=user,
+            is_deleted=False,
+            created_at__range=(start_date, end_date),
+            order_status__name__iexact='Delivered'
+        )
+
+        achieved_orders = delivered_orders.count()
+        achieved_amount = delivered_orders.aggregate(total=Sum('total_amount'))['total'] or 0
+
+        # 5. Percentage Calculation
+        orders_percentage = (achieved_orders / monthly_target_orders) * 100 if monthly_target_orders > 0 else 0
+        amount_percentage = (achieved_amount / monthly_target_amount) * 100 if monthly_target_amount > 0 else 0
+
+        data = {
+            "user": user.get_full_name(),
+            "month": month,
+            "year": year,
+            "performance": {
+                "monthly_target_orders": monthly_target_orders,
+                "monthly_target_amount": monthly_target_amount,
+
+                "achieved_orders": achieved_orders,
+                "achieved_amount": achieved_amount,
+
+                "orders_percentage": round(orders_percentage, 2),
+                "amount_percentage": round(amount_percentage, 2)
             }
-        
-        else:
-            # --- No Target Logic ---
-            data = {
-                "user": user.get_full_name(),
-                "message": "No target is assigned"
-            }
+        }
 
         return Response(
             {"status": True, "message": "User performance fetched successfully", "data": data},
             status=status.HTTP_200_OK
         )
-
+        
 class AgentAttendanceUserWiseAPIView(ListAPIView):
     """
     User-wise attendance summary (present/absent counts)
