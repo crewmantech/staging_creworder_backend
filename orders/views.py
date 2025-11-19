@@ -4126,26 +4126,22 @@ class OrderAggregationByPerformance(APIView):
         # ------------------------
         if manager_id:
             employees_under_manager = Employees.objects.filter(manager_id=manager_id, status=1)
-            manager_ids = employees_under_manager.values_list('user_id', flat=True)
-
-            q_filters &= Q(order_created_by_id__in=manager_ids) | Q(updated_by_id__in=manager_ids)
+            manager_user_ids = list(employees_under_manager.values_list("user_id", flat=True))
+            q_user_filters &= Q(user_id__in=manager_user_ids)
 
         elif tl_id:
             employees_under_tl = Employees.objects.filter(teamlead_id=tl_id, status=1)
-            tl_ids = employees_under_tl.values_list('user_id', flat=True)
-
-            q_filters &= (
-                Q(order_created_by_id__in=tl_ids) |
-                Q(updated_by_id__in=tl_ids) |
-                Q(order_created_by_id=tl_id) |
-                Q(updated_by_id=tl_id)
-            )
+            tl_user_ids = list(employees_under_tl.values_list("user_id", flat=True))
+            q_user_filters &= Q(user_id__in=tl_user_ids + [int(tl_id)])
 
         elif agent_id:
-            q_filters &= Q(order_created_by_id=agent_id) | Q(updated_by_id=agent_id)
+            q_user_filters &= Q(user_id=agent_id)
+
         else:
-            return Response({"Success": False,"message":"Manager or Teamlead or Agent not found.","agent_list": []}, status=status.HTTP_200_OK)
-            
+            return Response(
+                {"Success": False, "message": "Manager or Team Lead or Agent not found.", "agent_list": []},
+                status=status.HTTP_200_OK
+            )
         # ------------------------
         # EXTRA USERS (MANAGER + TL)
         # ------------------------
@@ -4162,7 +4158,7 @@ class OrderAggregationByPerformance(APIView):
             branch_id=branch_id,
             status=1
         ).filter(q_filters)
-
+        print(agents_filtered,"-----------------------4162")
         # Combine employees under criteria + TL/Manager
         agents = agents_filtered.union(extra_users)
         print(agents)
