@@ -103,6 +103,12 @@ from datetime import datetime
 from rest_framework.decorators import action
 from django.db.models import Sum, F
 
+
+class FilterOrdersPagination(PageNumberPagination):
+    page_size = 50
+    page_size_query_param = 'page_size'
+    max_page_size = 10000 
+
 class OrderAPIView(APIView):
     permission_classes = [IsAuthenticated,OrderPermissions]
     
@@ -555,30 +561,34 @@ class ProductView(APIView):
 class ProductListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = ProductSerializer
     permission_classes = [IsAuthenticated]
-    pagination_class = None  # Disable pagination
+    
+    # Add the pagination class here
+    pagination_class = FilterOrdersPagination 
 
     def get_queryset(self):
         user = self.request.user
         branch = user.profile.branch
         company = user.profile.company
+
         # Get all products for the user's branch and company
         queryset = Products.objects.filter(company=company)
+
         # Check if the user is an agent
         if user.profile.user_type == "agent":
             user_permissions = set(user.get_all_permissions())
             allowed_product_ids = []
+            
             for product in queryset:
-                # Generate permission code name
                 product_name_slug = product.product_name.lower().replace(' ', '_')
                 permission_codename = f"products_can_work_on_this_{product_name_slug}"
-                full_permission = f"orders.{permission_codename}"  
-                # Check if user has this permission
+                full_permission = f"orders.{permission_codename}" 
+                
                 if full_permission in user_permissions:
                     allowed_product_ids.append(product.id)
+            
             queryset = queryset.filter(id__in=allowed_product_ids)
 
-        return queryset
-           
+        return queryset           
 
 
 class ProductDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
@@ -767,11 +777,6 @@ class GetUserPerformance(APIView):
         orders = Order_Table.objects.filter(order_created_by=request.user.id,is_deleted=False)
         serializer = OrderTableSerializer(orders, many=True)
         return Response({"massage": "HI", "data": serializer.data}, status.HTTP_200_OK)
-
-class FilterOrdersPagination(PageNumberPagination):
-    page_size = 50
-    page_size_query_param = 'page_size'
-    max_page_size = 10000 
 
 
 def get_date_range(self, request):
