@@ -4124,20 +4124,26 @@ class OrderAggregationByPerformance(APIView):
                     )
                    
         
-        agents = Employees.objects.filter(
-                company_id=company_id,
-                branch_id=branch_id,status=1
-            )
+        # agents = Employees.objects.filter(
+        #         company_id=company_id,
+        #         branch_id=branch_id,status=1
+        #     )
         if manager_id:
-            agents = Employees.objects.filter(manager_id=manager_id,status=1)
+            employees_under_manager = Employees.objects.filter(manager_id=manager_id,status=1)
+            manager_ids = employees_under_manager.values_list('user_id', flat=True)
+            # filter_conditions['order_created_by_id__in'] = list(manager_ids)
+            q_filters &= Q(order_created_by_id__in=manager_ids) | Q(updated_by_id__in=manager_ids)
+
         if tl_id:
-            agents = Employees.objects.filter(teamlead_id=tl_id,status=1)
+            employees_under_tl = Employees.objects.filter(teamlead_id=tl_id,status=1)
+            tl_ids = employees_under_tl.values_list('user_id', flat=True)
+            q_filters &= Q(order_created_by_id__in=tl_ids) | Q(updated_by_id__in=tl_ids) |Q(order_created_by_id=tl_id) | Q(updated_by_id=tl_id)
+            # filter_conditions['updated_by_id__in'] = list(tl_ids)
+
+
         if agent_id:
-            agents = Employees.objects.filter(
-                company_id=company_id,
-                branch_id=branch_id,
-                user__id=agent_id,status=1
-            )
+            # filter_conditions['order_created_by_id__in'] = [agent_id]
+            q_filters &= Q(order_created_by_id=agent_id) | Q(updated_by_id=agent_id)
             # agents = Employees.objects.all()
         message = []
         agent_list = []
@@ -4147,7 +4153,7 @@ class OrderAggregationByPerformance(APIView):
         )
 
         # Combine agents + manager + team lead
-        agents = agents.union(extra_users)
+        agents = q_filters.union(extra_users)
         
         for agent in agents:
             user = agent.user
