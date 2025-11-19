@@ -559,37 +559,56 @@ class ProductView(APIView):
 
 
 class ProductListCreateAPIView(generics.ListCreateAPIView):
+
     serializer_class = ProductSerializer
+
     permission_classes = [IsAuthenticated]
-    
-    # Add the pagination class here
-    pagination_class = FilterOrdersPagination 
+
+    pagination_class = None  # Disable pagination
+
+
 
     def get_queryset(self):
+
         user = self.request.user
+
         branch = user.profile.branch
+
         company = user.profile.company
 
         # Get all products for the user's branch and company
+
         queryset = Products.objects.filter(company=company)
 
         # Check if the user is an agent
+
         if user.profile.user_type == "agent":
+
             user_permissions = set(user.get_all_permissions())
+
             allowed_product_ids = []
-            
+
             for product in queryset:
+
+                # Generate permission code name
+
                 product_name_slug = product.product_name.lower().replace(' ', '_')
+
                 permission_codename = f"products_can_work_on_this_{product_name_slug}"
-                full_permission = f"orders.{permission_codename}" 
-                
+
+                full_permission = f"orders.{permission_codename}"  
+
+                # Check if user has this permission
+
                 if full_permission in user_permissions:
+
                     allowed_product_ids.append(product.id)
-            
+
             queryset = queryset.filter(id__in=allowed_product_ids)
 
-        return queryset           
 
+
+        return queryset
 
 class ProductDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = ProductSerializer
