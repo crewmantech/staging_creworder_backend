@@ -498,11 +498,34 @@ class BranchViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        user = self.request.user
-        # Check if the user has the delete permission
+        user = request.user
+
+        print("---------------check branch delete")
+
+        # Permission check
         if not user.has_perm('accounts.delete_branch'):
             raise PermissionDenied("You do not have permission to delete this branch.")
-        # Perform deletion if the user has permission
+
+        # Check if branch is used in any related model
+        related_objects = []
+
+        for rel in instance._meta.related_objects:
+            accessor_name = rel.get_accessor_name()
+            related_manager = getattr(instance, accessor_name)
+
+            if related_manager.exists():  # If any related record exists → don't delete
+                related_objects.append(rel.related_model.__name__)
+
+        if related_objects:
+            return Response(
+                {
+                    "error": "Branch cannot be deleted because it is assigned in other modules.",
+                    "modules": related_objects
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # If safe → delete branch
         self.perform_destroy(instance)
         return Response({"detail": "Branch deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
    
