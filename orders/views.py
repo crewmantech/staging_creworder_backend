@@ -609,6 +609,8 @@ class ProductListCreateAPIView(generics.ListCreateAPIView):
 
 
         return queryset
+           
+
 
 class ProductDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = ProductSerializer
@@ -796,6 +798,11 @@ class GetUserPerformance(APIView):
         orders = Order_Table.objects.filter(order_created_by=request.user.id,is_deleted=False)
         serializer = OrderTableSerializer(orders, many=True)
         return Response({"massage": "HI", "data": serializer.data}, status.HTTP_200_OK)
+
+class FilterOrdersPagination(PageNumberPagination):
+    page_size = 50
+    page_size_query_param = 'page_size'
+    max_page_size = 10000 
 
 
 def get_date_range(self, request):
@@ -1482,6 +1489,7 @@ class OrderAggregationByStatusAPIView(APIView):
             today = date.today()
             start_datetime = datetime.combine(today, time.min)  # 00:00:00
             end_datetime = datetime.combine(today, time.max) 
+        month_year = start_date.strftime("%Y-%m")
 
         def apply_date_filter(query, start_datetime, end_datetime,count=True):
                 if count:
@@ -1581,7 +1589,12 @@ class OrderAggregationByStatusAPIView(APIView):
         target_data = {}
 
         if manager_id:
-            manager_targets = UserTargetsDelails.objects.filter(user__id=manager_id)
+            manager_targets = UserTargetsDelails.objects.filter(
+                user__id=manager_id,
+                monthyear=month_year,
+                in_use=True
+            ).first()
+            # manager_targets = UserTargetsDelails.objects.filter(user__id=manager_id)
             if manager_targets.exists():
                 target = manager_targets.first()
                 target_data['manager_target'] = {
@@ -1593,7 +1606,12 @@ class OrderAggregationByStatusAPIView(APIView):
                 }
 
         if tl_id:
-            tl_targets = UserTargetsDelails.objects.filter(user__id=tl_id)
+            tl_targets = UserTargetsDelails.objects.filter(
+                user__id=tl_id,
+                monthyear=month_year,
+                in_use=True
+            ).first()
+            # tl_targets = UserTargetsDelails.objects.filter(user__id=tl_id)
             if tl_targets.exists():
                 target = tl_targets.first()
                 target_data['tl_target'] = {
@@ -1605,7 +1623,12 @@ class OrderAggregationByStatusAPIView(APIView):
                 }
 
         if agent_id:
-            agent_targets = UserTargetsDelails.objects.filter(user__id=agent_id)
+            agent_targets = UserTargetsDelails.objects.filter(
+                user__id=agent_id,
+                monthyear=month_year,
+                in_use=True
+            ).first()
+            # agent_targets = UserTargetsDelails.objects.filter(user__id=agent_id)
             if agent_targets.exists():
                 target = agent_targets.first()
                 target_data['agent_target'] = {
@@ -1735,12 +1758,65 @@ class OrderAggregationByStatusAPIView(APIView):
                 "payment_type_summary": list(payment_type_summary),  # e.g. [{"payment_type__name": "COD", "total": 5}]
                 # "orders": list(order_list),  # every order with payment type and status
             })
+        team_total_order_target = 0
+        team_total_amount_target = 0
+        team_total_delivered_orders = 0
+        team_total_delivered_amount = 0
 
+        for agent in agents:
+            user = agent.user
+
+            # Fetch user target
+            target = UserTargetsDelails.objects.filter(
+                user=user,
+                monthyear=month_year,
+                in_use=True
+            ).first()
+            if target:
+                team_total_order_target += target.daily_orders_target or 0
+                team_total_amount_target += target.daily_amount_target or 0
+
+            # Today's Delivered Orders (Accepted orders)
+            delivered_orders = Order_Table.objects.filter(
+                Q(order_created_by=user) | Q(updated_by=user),
+                order_status__name="Accepted",
+                is_deleted=False
+            ).filter(
+                Q(created_at__range=(start_datetime, end_datetime))
+            )
+
+            delivered_amount = delivered_orders.aggregate(
+                amount=Sum("total_amount")
+            )["amount"] or 0
+
+            team_total_delivered_orders += delivered_orders.count()
+            team_total_delivered_amount += delivered_amount
+
+        # Calculate percentage safely
+        order_percentage = (
+            (team_total_delivered_orders / team_total_order_target) * 100
+            if team_total_order_target else 0
+        )
+
+        amount_percentage = (
+            (team_total_delivered_amount / team_total_amount_target) * 100
+            if team_total_amount_target else 0
+        )
+
+        team_target_summary = {
+            "total_order_target": team_total_order_target,
+            "total_amount_target": team_total_amount_target,
+            "total_delivered_orders": team_total_delivered_orders,
+            "total_delivered_amount": team_total_delivered_amount,
+            "order_percentage": round(order_percentage, 2),
+            "amount_percentage": round(amount_percentage, 2),
+        }
         response_data = {
             'total_summary': total_summary,
             'status_data': status_data,
             'target_data': target_data,
             'agent_list': agent_list,
+            'team_target_summary': team_target_summary,
             "message":message
         }
 
@@ -4071,6 +4147,9 @@ class PaymentMethodViewSet(viewsets.ModelViewSet):
         return queryset
     
     def perform_create(self, serializer):
+        """
+        Automatically set `company` and `branch` fields for the created Payment_Status instance.
+        """ 
         user = self.request.user
         company = user.profile.company  # Adjust if your company relation is different
 
