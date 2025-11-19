@@ -4200,6 +4200,7 @@ class OrderAggregationByPerformance(APIView):
                 response_data = {
                     "user_id": user.id,
                     "username": user.username,
+                    "agent_name": user.get_full_name(),
                     "month": start_date.strftime("%Y-%m"),
 
                     "target": {
@@ -4257,6 +4258,7 @@ class OrderAggregationByPerformance(APIView):
             response_data = {
                 "user_id": user.id,
                 "username": user.username,
+                "agent_name": user.get_full_name(),
                 "month": start_date.strftime("%Y-%m"),
 
                 "target": {
