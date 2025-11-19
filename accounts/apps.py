@@ -155,8 +155,8 @@ class AccountsConfig(AppConfig):
             today = datetime.today()
             print(today,"-----------156")
             # Only run if today is 1st (extra protection)
-            if today.day != 1:
-                return
+            # if today.day != 1:
+            #     return
 
             current_monthyear = today.strftime("%m-%Y")
             last_month = today.replace(day=1) - timedelta(days=1)
