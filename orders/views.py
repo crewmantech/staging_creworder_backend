@@ -4157,7 +4157,7 @@ class OrderAggregationByPerformance(APIView):
             company_id=company_id,
             branch_id=branch_id,
             status=1
-        ).filter(q_filters)
+        ).filter(q_user_filters)
         print(agents_filtered,"-----------------------4162")
         # Combine employees under criteria + TL/Manager
         agents = agents_filtered.union(extra_users)
