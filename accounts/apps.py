@@ -199,13 +199,7 @@ class AccountsConfig(AppConfig):
                 max_instances=1,
                 misfire_grace_time=30,  # Optional
             )
-            scheduler.add_job(
-                auto_create_monthly_targets,
-                IntervalTrigger(seconds=30),  # Run every 30 seconds
-                id="create_target_inquiries",
-                max_instances=1,
-                misfire_grace_time=30,  # Optional
-            )
+            
             scheduler.add_job(
                 fix_attendance_clock_out,
                 CronTrigger(hour=23, minute=30),  # 10:3 PM
