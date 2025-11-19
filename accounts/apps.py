@@ -153,7 +153,7 @@ class AccountsConfig(AppConfig):
         def auto_create_monthly_targets():
             from .models import UserTargetsDelails
             today = datetime.today()
-
+            print(today,"-----------156")
             # Only run if today is 1st (extra protection)
             if today.day != 1:
                 return
@@ -167,7 +167,7 @@ class AccountsConfig(AppConfig):
                 monthyear=last_monthyear,
                 in_use=True
             )
-
+            print(current_monthyear,last_month_targets,"------------------170")
             for target in last_month_targets:
                 print(target,"------------------172")
                 # Skip if new month target already exists
@@ -201,7 +201,7 @@ class AccountsConfig(AppConfig):
             )
             scheduler.add_job(
                 auto_create_monthly_targets,
-                IntervalTrigger(seconds=180),  # Run every 30 seconds
+                IntervalTrigger(seconds=30),  # Run every 30 seconds
                 id="create_target_inquiries",
                 max_instances=1,
                 misfire_grace_time=30,  # Optional
