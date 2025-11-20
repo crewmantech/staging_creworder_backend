@@ -197,7 +197,7 @@ class UserViewSet(viewsets.ModelViewSet):
         print(new_status,UserStatus.suspended,UserStatus.active,"------------------195")
         # Send admin notification only for suspended
         if new_status == UserStatus.suspended:
-            self._send_admin_notification(instance)
+            # self._send_admin_notification(instance)
             reassign_user_assets_on_suspension(instance)
             OTPAttempt.objects.filter(user=instance).delete()
         # ---- CLEAR OTP ATTEMPTS WHEN STATUS CHANGES INACTIVE → ACTIVE ----
@@ -317,7 +317,7 @@ class UserViewSet(viewsets.ModelViewSet):
             
             html_message = render_to_string(template, context)
             recipient_list = [instance.email]
-            a = send_email(subject, html_message, recipient_list,"default")
+            # a = send_email(subject, html_message, recipient_list,"default")
             logger.info(f"Email sent successfully to {instance.email}")
         except Exception as email_error:
             logger.error(f"Error sending email to {instance.email}: {email_error}")
