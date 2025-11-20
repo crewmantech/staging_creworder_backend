@@ -250,7 +250,7 @@ class UserSerializer(serializers.ModelSerializer):
     profile = UserProfileCreateSerializer()
     role = serializers.SerializerMethodField()
     activity = serializers.SerializerMethodField()
-
+    branch_name = serializers.SerializerMethodField() 
     
     class Meta:
         model = User
@@ -259,7 +259,11 @@ class UserSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'password': {'write_only': True}
         }
-    
+    def get_branch_name(self, user):
+        try:
+            return user.profile.branch.name if user.profile.branch else None
+        except:
+            return None
     def get_role(self, user):
         # Get all groups assigned to this user
         user_groups = user.groups.all()
