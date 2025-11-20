@@ -50,6 +50,8 @@ class FollowUpView(viewsets.ModelViewSet):
             queryset = queryset.filter(company=user.profile.company)
         if user.profile.user_type == 'admin':
             return queryset
+        else:
+            queryset=queryset.filter(branch= user.profile.branch)
         if hasattr(user, 'profile') and user.profile.user_type == 'agent':
             if user.has_perm("accounts.view_own_followup_others"):
                 queryset = queryset.filter(follow_add_by=user)

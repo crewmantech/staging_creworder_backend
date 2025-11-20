@@ -1309,3 +1309,302 @@ class NimbuspostAPI:
 #             return JsonResponse({"status": False, "message": "Invalid action."})
 
 
+class ZoopshipService:
+    BASE_URL = "https://api.zoopship.com"
+    LOGIN_URL = "/api/login-users/"
+    CREATE_ORDER_URL = "/api/order-create/"
+    TRACK_ORDER_URL = "/api/track-orders/track_by_waybill/"
+    CANCEL_ORDER_URL = "/api/orders-cancel/"
+    CREATE_sHIP_ORDER_URL = "/api/order-create/"
+    def __init__(self, username: str, password: str):
+        """
+        Initialize ZoopshipService and auto-fetch token.
+        """
+        self.username = username
+        self.password = password
+        print("-------------------1325")
+        self.token = self._get_token()
+
+        if not self.token:
+            raise Exception("Failed to authenticate with Zoopship API.")
+
+        self.headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"token {self.token}"
+        }
+
+    def _get_token(self) -> str:
+        """
+        Authenticate and retrieve Zoopship API token.
+        """
+        data = {"username": self.username, "password": self.password}
+        try:
+            response = requests.post(f"{self.BASE_URL}{self.LOGIN_URL}", json=data)
+            response.raise_for_status()
+            print(response.json(), "----- LOGIN RESPONSE -----")
+            token = response.json().get("data").get("token")
+            if not token:
+                logger.error("Token not found in response.")
+            return token
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Token fetch error: {e}")
+            return None
+
+    def _post(self, endpoint, data=None):
+        """
+        Generic POST method with error handling.
+        """
+        url = f"{self.BASE_URL}{endpoint}"
+        try:
+            response = requests.post(url, headers=self.headers, json=data)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            logger.error(f"POST failed: {url} - {e}")
+            return {"error": str(e)}
+
+    def _get(self, endpoint, params=None):
+        """
+        Generic GET method with error handling.
+        """
+        url = f"{self.BASE_URL}{endpoint}"
+        try:
+            response = requests.get(url, headers=self.headers, params=params)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            logger.error(f"GET failed: {url} - {e}")
+            return {"error": str(e)}
+
+    def create_order(self, order_data: dict):
+        """
+        Create a new order on Zoopship.
+        """
+        print(order_data, "----- Creating Order -----")
+        return self._post(self.CREATE_sHIP_ORDER_URL, data=order_data)
+    
+
+    def track_order(self, tracking_number: str):
+        """
+        Track an existing order by waybill number.
+        """
+        payload = {"tracking_number": tracking_number}
+        return self._get(self.TRACK_ORDER_URL, params=payload)
+
+    def cancel_order(self, order_ids: list, reason="Cancelled"):
+        """
+        Cancel orders by order IDs.
+        """
+        payload = {
+            "order_ids": order_ids,
+            "order_status_title": reason
+        }
+        return self._post(self.CANCEL_ORDER_URL, data=payload)
+    @staticmethod
+    def makeJsonForApi(order_data: dict, channel_id=None, pickup=None) -> dict:
+        """
+        Prepare the JSON payload for Zoopship order creation API.
+        :param order_data: dict - Serialized order data with order_details
+        :param channel_id: optional channel reference
+        :param pickup: dict - Pickup point data (serialized)
+        :return: dict - Prepared request JSON for Zoopship API
+        """
+        print(order_data, "----------------------- Building JSON for Zoopship")
+
+        _itemsList = []
+        product_height = 0
+        product_length = 0
+        product_weight = 0
+        product_width = 0
+        product_hsn = ""
+
+        # ✅ Build product list and aggregate product metrics
+        if order_data.get('order_details'):
+            for _item in order_data['order_details']:
+                try:
+                    request = get_request()
+                    user = request.user
+                    data = getProduct(user.id, _item["product"])
+                    serializer = ProductSerializer(data, many=True)
+                    product_data = serializer.data[0]
+
+                    product_length = max(product_length, product_data.get('product_size', 0))
+                    product_height = max(product_height, product_data.get('product_height', 0))
+                    product_width = max(product_width, product_data.get('product_width', 0))
+                    product_weight += product_data.get('product_weight', 0)
+                    product_hsn = product_data.get('product_hsn_number', '')
+
+                    _itemsList.append({
+                        "product_name": _item.get("product_name"),
+                        "product_sku": _item.get("product_sku"),
+                        "product_value": _item.get("product_price"),
+                        "product_quantity": _item.get("product_qty"),
+                    })
+                except Exception as e:
+                    print(f"Error building product item: {_item} — {e}")
+
+        # ✅ Get customer state name
+        try:
+            state = Customer_State.objects.get(id=order_data.get('customer_state'))
+            state_name = state.name
+        except Customer_State.DoesNotExist:
+            print("State not found for order:", order_data.get("order_id"))
+            state_name = ""
+
+        # ✅ Build final order JSON for Zoopship API
+        _RequestJson = {
+            "network_ip": order_data.get("network_ip", "127.0.0.1"),
+            "customer_name": order_data.get("customer_name"),
+            "customer_phone": order_data.get("customer_phone"),
+            "customer_address": order_data.get("customer_address"),
+            "customer_postal": order_data.get("customer_postal"),
+            "customer_city": order_data.get("customer_city"),
+            "customer_state": state_name,
+            "customer_country": order_data.get("customer_country", "India"),
+            "total_amount": float(order_data.get("total_amount", 0)),
+            "gross_amount": float(order_data.get("gross_amount", 0)),
+            "discount": float(order_data.get("discount", 0)),
+            "prepaid_amount": float(order_data.get("prepaid_amount", 0)),
+            "order_remark": order_data.get("order_remark", ""),
+            "repeat_order": int(order_data.get("repeat_order", 0)),
+            "is_booked": int(order_data.get("is_booked", 0)),
+            "payment_type": "prepaid" if order_data['payment_type_name'] == "Prepaid Payment" else "cod",
+            "payment_status": order_data.get("payment_status"),
+            "order_status": order_data.get("order_status"),
+            "order_created_by": order_data.get("order_created_by"),
+            "product_details": _itemsList
+        }
+
+        # ✅ Optional pickup data (if available)
+        if pickup:
+            _RequestJson.update({
+                "pickup_contact_person": pickup.get("contact_person_name"),
+                "pickup_contact_number": pickup.get("contact_number"),
+                "pickup_address": pickup.get("complete_address"),
+                "pickup_pincode": pickup.get("pincode"),
+                "pickup_city": pickup.get("city"),
+                "pickup_state": pickup.get("state"),
+                "pickup_email": pickup.get("contact_email"),
+            })
+
+        print(_RequestJson, "----------------------- Final Zoopship Payload")
+        return _RequestJson
+
+    @staticmethod
+    def extract_order_info(resp):
+    # If main success is False → return False
+        if not resp.get("success"):
+            return {"success": False, "order_id": order_id, "awb_number": None}
+
+        updated_orders = resp.get("data", {}).get("updated_orders", [])
+        if not updated_orders:
+            return {"success": False, "order_id": order_id, "awb_number": None}
+
+        order = updated_orders[0]  # first order
+        order_id = order.get("order_id")
+
+        # Get AWB number from nested object
+        shipping_data = order.get("shipping", {}).get("data", [])
+        if not shipping_data:
+            return {"success": True, "order_id": order_id, "awb_number": None}
+
+        raw_response = shipping_data[0].get("raw_response", {})
+        awb_number = raw_response.get("data", {}).get("awb_number")
+
+        return {
+            "success": True,
+            "order_id": order_id,
+            "awb_number": awb_number
+        }
+
+
+        
+    def schedule_order_zoopshipservice(
+    self, order_list: list, branch_id: int, company_id: int, 
+    channel_id, user_id, pickup_id, shipment_vendor
+):
+        """
+        Schedule orders using Zoopship service.
+        """
+
+        OrdersData = Order_Table.objects.filter(branch=branch_id, company=company_id, id__in=order_list)
+        OrdersDataSerializer = OrderTableSerializer(OrdersData, many=True)
+        _OrderLogJson = []
+        _ResponsesDict = []
+
+        for order in OrdersDataSerializer.data:
+            pickup_point_id = pickup_id
+            if not pickup_point_id:
+                return {"status": "error", "message": "Pickup point not provided in order data."}
+
+            # --- Fetch Pickup Point Details ---
+            try:
+                pickup = PickUpPoint.objects.get(id=pickup_point_id)
+                pickup_data = PickUpPointSerializer(pickup)
+                pickup = pickup_data.data
+                print(pickup, "-------------------Zoopship Pickup-------------------", shipment_vendor)
+
+            except PickUpPoint.DoesNotExist:
+                return {"status": "error", "message": f"Pickup point with ID {pickup_point_id} does not exist."}
+
+            print(order, "---------------Zoopship Order---------------")
+
+            # --- Prepare Request JSON for API ---
+            _request_json = self.makeJsonForApi(order)
+            print(_request_json, "------------------Zoopship JSON------------------")
+
+            # --- Extract Details for Logging / Validation ---
+            delivery_pincode = order.get("customer_postal")
+            cod = 0 if order.get("payment_type_name", "").lower() == "prepaid" else 1
+
+            try:
+                # --- Call Zoopship API Instead of QuickShip ---
+                response = self.create_order(_request_json)
+                response_data1 = self.extract_order_info(response)
+                UpdateInstance = Order_Table.objects.filter(branch=branch_id, company=company_id, id=order['id'])
+
+                # response_data1 = response
+                if not response_data1 or not response_data1.get('success'):
+                    UpdateInstance.update(
+                        awb_response=response,
+                    )
+                    _ResponsesDict.append({"order": f"{order['id']}", "message": "Empty or invalid response from API"})
+                    continue
+
+                if not response_data1.get("awb_number"):
+                    UpdateInstance.update(
+                        awb_response=response_data1,
+                        is_booked=1,
+                        shipment_vendor=shipment_vendor
+                    )
+                    _ResponsesDict.append({"order": f"{order['id']}", "message": response.get("message", "Unknown error")})
+                    continue
+
+                # --- Update Order Status ---
+                order_status, created = OrderStatus.objects.get_or_create(name='IN TRANSIT')
+                status_id = order_status.id
+                UpdateInstance.update(
+                    order_wayBill=response_data1.get('awb_number', ''),
+                    vendor_order_id=response_data1.get('order_id', ''),
+                    awb_response=response_data1,
+                    is_booked=1,
+                    order_status=status_id,
+                    shipment_vendor=shipment_vendor
+                )
+
+                _ResponsesDict.append({"order": f"{order['id']}", "message": "Order IN PICKUP PENDING successfully"})
+
+                # --- Insert Order Log ---
+                orderLogInsert({
+                    "order": order['id'],
+                    "order_status": status_id,
+                    "action_by": user_id,
+                    "action": 'Order in PICKUP PENDING successfully',
+                    "remark": 'Order in PICKUP PENDING successfully'
+                })
+
+            except requests.exceptions.RequestException as e:
+                _ResponsesDict.append({"order": f"{order['id']}", "message": str(e)})
+                print(f"An error occurred for order {order['id']} (Zoopship):", e)
+
+        return _ResponsesDict

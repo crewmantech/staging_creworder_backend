@@ -198,7 +198,7 @@ class UserViewSet(viewsets.ModelViewSet):
         # Send admin notification only for suspended
         if new_status == UserStatus.suspended:
             self._send_admin_notification(instance)
-            reassign_user_assets_on_suspension(self.user)
+            reassign_user_assets_on_suspension(instance)
             OTPAttempt.objects.filter(user=instance).delete()
         # ---- CLEAR OTP ATTEMPTS WHEN STATUS CHANGES INACTIVE → ACTIVE ----
         if old_status == UserStatus.inactive and new_status == UserStatus.active:
@@ -3804,6 +3804,7 @@ class DeleteUserListView(ListAPIView):
             }, status=status.HTTP_200_OK)
 
         return Response({"status": "success", "results": data}, status=status.HTTP_200_OK)
+
 
 class CompanyMonthlySummaryView(APIView):
     """

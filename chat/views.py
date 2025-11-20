@@ -454,7 +454,6 @@ class getUserListChatAdmin(APIView):
 
             admin_and_agents = User.objects.filter(
                 profile__company=company,
-                profile__branch=branch,
                 profile__user_type__in=["agent", "admin"],
                 profile__status=1,
             )
@@ -489,7 +488,6 @@ class getUserListChatAdmin(APIView):
                 Employees.objects.filter(
                     department__name__in=[d.title() for d in allowed_department_names],
                     company=employee.company,
-                    branch=employee.branch,
                     status=1
                 ).values_list("department__id", flat=True)
             )
@@ -499,7 +497,6 @@ class getUserListChatAdmin(APIView):
             same_group_and_dept_users = User.objects.filter(
                 # groups__in=agent_groups,
                 profile__company=employee.company,
-                profile__branch=employee.branch,
                 profile__department__id__in=allowed_departments,
                 profile__status=1
             ).distinct()
@@ -840,7 +837,7 @@ class UserListView1(ListAPIView):
 
                 elif user.profile.user_type == "agent" and  user.has_perm("accounts.chat_user_permission_others"):
                     branch = user.profile.branch
-                    queryset = User.objects.filter(profile__branch=branch,profile__status=1)
+                    queryset = User.objects.filter(profile__status=1)
                     company = getattr(user.profile, "company", None)
                     branch = getattr(user.profile, "branch", None)
                     department = getattr(user.profile, "department", None)

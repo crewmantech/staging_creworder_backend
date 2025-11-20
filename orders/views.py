@@ -1799,9 +1799,10 @@ class OrderAggregationByStatusAPIView(APIView):
         )
 
         amount_percentage = (
-            (team_total_delivered_amount / team_total_amount_target) * 100
+            (float(team_total_delivered_amount) / float(team_total_amount_target)) * 100
             if team_total_amount_target else 0
         )
+
 
         team_target_summary = {
             "total_order_target": team_total_order_target,

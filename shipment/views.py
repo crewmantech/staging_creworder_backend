@@ -10,7 +10,7 @@ from rest_framework import viewsets, status
 from rest_framework import status
 from rest_framework.response import Response
 from services.shipment.shipment_service import *
-from services.shipment.schedule_orders import NimbuspostAPI, ShiprocketScheduleOrder,TekipostService
+from services.shipment.schedule_orders import NimbuspostAPI, ShiprocketScheduleOrder,TekipostService, ZoopshipService
 from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
 from rest_framework.decorators import action
@@ -191,7 +191,13 @@ class ScheduleOrders(viewsets.ModelViewSet):
                         serialized_data['credential_username'], serialized_data['credential_password']
                     )
                     _response=nimbuspost_service.schedule_order(order_ids, request.user.profile.branch.id, request.user.profile.company.id,channel_id,request.user.id,pickup_id,shipment_vendor)
-                        
+        elif serialized_data['shipment_vendor']['name'].lower()=='zoopship':
+                if serialized_data['credential_username']:
+                    shipment_vendor = serialized_data['shipment_vendor'].get('id')
+                    nimbuspost_service = ZoopshipService(
+                        serialized_data['credential_username'], serialized_data['credential_password']
+                    )
+                    _response=nimbuspost_service.schedule_order_zoopshipservice(order_ids, request.user.profile.branch.id, request.user.profile.company.id,channel_id,request.user.id,pickup_id,shipment_vendor)
         if _response:
             return Response(
                 {

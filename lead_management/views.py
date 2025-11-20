@@ -832,7 +832,8 @@ class LeadStatusModelViewSet(viewsets.ModelViewSet):
         Optionally filter the queryset based on the authenticated user's branch and company.
         """
         user = self.request.user
-        return LeadStatusModel.objects.filter(company=user.profile.company, branch=user.profile.branch)
+        # return LeadStatusModel.objects.filter(company=user.profile.company, branch=user.profile.branch)
+        return LeadStatusModel.objects.filter(company=user.profile.company)
     
 
 class DealCategoryModelViewSet(viewsets.ModelViewSet):
