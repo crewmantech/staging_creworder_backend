@@ -1779,7 +1779,7 @@ class OrderAggregationByStatusAPIView(APIView):
             # Today's Delivered Orders (Accepted orders)
             delivered_orders = Order_Table.objects.filter(
                 Q(order_created_by=user) | Q(updated_by=user),
-                order_status__name="Accepted",
+                order_status__name="Delivered",
                 is_deleted=False
             ).filter(
                 Q(created_at__range=(start_datetime, end_datetime))

@@ -2533,7 +2533,7 @@ class ManagerViewSet(APIView):
         if branch_id:
             managers = managers.filter(branch=branch_id)
 
-        manager_users = Employees.objects.filter(user__id__in=managers.values_list("manager", flat=True)).distinct()
+        manager_users = Employees.objects.filter(status=1,user__id__in=managers.values_list("manager", flat=True)).distinct()
 
         # managers = managers.values('manager').distinct()
 
