@@ -98,7 +98,7 @@ class CustomLoginView(LoginView):
                     }, status=status.HTTP_400_BAD_REQUEST)
         if existing_token:
             # If user is admin/super admin, send OTP for re-login
-            if user.profile.user_type in ["superadmin", "admin"]:
+            if user.profile.user_type in ["superadmin", "admin"] or(user.profile.user_type == "agent" and not user.has_perm('accounts.allow_otp_login_others')):
                 # Generate and send OTP
                 mobile = user.profile.contact_no
                 email = user.email
@@ -154,7 +154,7 @@ class CustomLoginView(LoginView):
                 return Response({"success": False, "message": "Failed to send OTP. Please try again."}, 
                                 status=status.HTTP_400_BAD_REQUEST)
 
-            return Response({"success": True, "message": message, "data": {"mobile": mobile, "email": username}}, 
+            return Response({"success": True, "message": message, "data": {"mobile": mobile, "email": email,"username":username}}, 
                             status=status.HTTP_200_OK)
         
         if user.profile.user_type == "agent" and user.has_perm('accounts.allow_otp_login_others'):
