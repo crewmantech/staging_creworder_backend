@@ -3939,7 +3939,24 @@ class UserMonthlyPerformanceAPIView(APIView):
         # 2. Fetch User Target
         # Assuming the target is global for the user or the latest one. 
         # If targets are stored by month, you might need to filter by 'monthyear' field here.
-        target_obj = UserTargetsDelails.objects.filter(user=user).first()
+        monthyear = f"{year}-{month:02d}"
+        target_obj = UserTargetsDelails.objects.filter(
+            user=user,
+            monthyear=monthyear,
+            in_use=True
+        ).first()
+        if not target_obj:
+            return Response({
+                "status": True,
+                "message": "No target is assigned this month",
+                "data": {
+                    "user": user.get_full_name(),
+                    "month": month,
+                    "year": year,
+                    "target_assigned": False
+                }
+            })
+        # target_obj = UserTargetsDelails.objects.filter(user=user).first()
         
         # Check if target exists AND (Orders Target > 0 OR Amount Target > 0)
         has_target = target_obj and (
