@@ -1776,8 +1776,15 @@ class OrderAggregationByStatusAPIView(APIView):
                 team_total_order_target += target.monthly_orders_target or 0
                 team_total_amount_target += target.monthly_amount_target or 0
             today = date.today()
-            start_datetime = datetime.combine(today, time.min)  # 00:00:00
-            end_datetime = datetime.combine(today, time.max) 
+            # First day of current month
+            first_day = date(today.year, today.month, 1)
+
+            # Last day of current month
+            last_day = date(today.year, today.month, calendar.monthrange(today.year, today.month)[1])
+
+            # Convert to datetime if needed
+            start_datetime = datetime.combine(first_day, time.min)
+            end_datetime = datetime.combine(last_day, time.max)
             # Today's Delivered Orders (Accepted orders)
             delivered_orders = Order_Table.objects.filter(
                 Q(order_created_by=user) | Q(updated_by=user),
