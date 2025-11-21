@@ -634,8 +634,8 @@ class LeadBulkUploadView(APIView):
                     'customer_postalcode': self.handle_blank(row.get('customer_postalcode'), default="000000"),
                     'customer_city': self.handle_blank(row.get('customer_city'), default="Unknown"),
                     'customer_state': self.handle_blank(row.get('customer_state'), default="Unknown"),
-                    'customer_address': self.handle_blank(row.get('customer_address'), default=""),
-                    'customer_message': self.handle_blank(row.get('customer_message'), default=""),
+                    'customer_address': self.handle_blank(row.get('customer_address'), default="Unknown"),
+                    'customer_message': self.handle_blank(row.get('customer_message'), default="Unknown"),
                     'remark': self.handle_blank(row.get('remark'), default=""),
                     
                     'product': product.id,
