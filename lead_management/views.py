@@ -569,7 +569,8 @@ class LeadBulkUploadView(APIView):
     def process_phone_number(self, number):
         """Add +91 prefix to valid 10-digit numbers"""
         return f"+91{number}"
-
+    def handle_blank(self, value, default=""):
+        return value.strip() if value and value.strip() else default
     def post(self, request, *args, **kwargs):
         user = request.user
         if 'file' not in request.FILES:
@@ -627,23 +628,23 @@ class LeadBulkUploadView(APIView):
                     company = profile.company if profile else None
 
                     lead_data = {
-                            'customer_name': self.handle_blank(row.get('customer_name'), default="Unknown"),
-                            'customer_email': self.handle_blank(row.get('customer_email'), default="unknown@test.com"),
-                            'customer_phone': processed_phone,
-                            'customer_postalcode': self.handle_blank(row.get('customer_postalcode'), default="000000"),
-                            'customer_city': self.handle_blank(row.get('customer_city'), default="Unknown"),
-                            'customer_state': self.handle_blank(row.get('customer_state'), default="Unknown"),
-                            'customer_address': self.handle_blank(row.get('customer_address'), default=""),
-                            'customer_message': self.handle_blank(row.get('customer_message'), default=""),
-                            'remark': self.handle_blank(row.get('remark'), default=""),
-                            
-                            'product': product.id,
-                            'lead_source': pipeline.lead_source.id,
-                            'pipeline': pipeline.id,
-                            'branch': branch.id if branch else None,
-                            'company': company.id if company else None,
-                            'assign_user': assign_user,
-                        }
+                    'customer_name': self.handle_blank(row.get('customer_name'), default="Unknown"),
+                    'customer_email': self.handle_blank(row.get('customer_email'), default="unknown@test.com"),
+                    'customer_phone': processed_phone,
+                    'customer_postalcode': self.handle_blank(row.get('customer_postalcode'), default="000000"),
+                    'customer_city': self.handle_blank(row.get('customer_city'), default="Unknown"),
+                    'customer_state': self.handle_blank(row.get('customer_state'), default="Unknown"),
+                    'customer_address': self.handle_blank(row.get('customer_address'), default=""),
+                    'customer_message': self.handle_blank(row.get('customer_message'), default=""),
+                    'remark': self.handle_blank(row.get('remark'), default=""),
+                    
+                    'product': product.id,
+                    'lead_source': pipeline.lead_source.id,
+                    'pipeline': pipeline.id,
+                    'branch': branch.id if branch else None,
+                    'company': company.id if company else None,
+                    'assign_user': assign_user,
+                }
 
                     # Save each valid record independently
                     with transaction.atomic():
