@@ -939,6 +939,7 @@ class RecentChatUserAPIView(APIView):
 
         # Build response
         results = []
+        print(distinct_users,"----------------942")
         for row in distinct_users:
             other_user = User.objects.get(id=row['other_user'])
             user_data = UserSerializer(other_user).data
