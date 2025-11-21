@@ -627,22 +627,23 @@ class LeadBulkUploadView(APIView):
                     company = profile.company if profile else None
 
                     lead_data = {
-                        'customer_name': row.get('customer_name', 'Null'),
-                        'customer_email': row.get('customer_email', 'null@test.com'),
-                        'customer_phone': processed_phone,
-                        'customer_postalcode': row.get('customer_postalcode', 'Null'),
-                        'customer_city': row.get('customer_city', 'Null'),
-                        'customer_state': row.get('customer_state', 'Null'),
-                        'customer_address': row.get('customer_address', 'Null'),
-                        'customer_message': row.get('customer_message', 'Null'),
-                        'remark': row.get('remark', 'Null'),
-                        'product': product.id,
-                        'lead_source': pipeline.lead_source.id,
-                        'pipeline': pipeline.id,
-                        'branch': branch.id if branch else None,
-                        'company': company.id if company else None,
-                        'assign_user': assign_user,
-                    }
+                            'customer_name': self.handle_blank(row.get('customer_name'), default="Unknown"),
+                            'customer_email': self.handle_blank(row.get('customer_email'), default="unknown@test.com"),
+                            'customer_phone': processed_phone,
+                            'customer_postalcode': self.handle_blank(row.get('customer_postalcode'), default="000000"),
+                            'customer_city': self.handle_blank(row.get('customer_city'), default="Unknown"),
+                            'customer_state': self.handle_blank(row.get('customer_state'), default="Unknown"),
+                            'customer_address': self.handle_blank(row.get('customer_address'), default=""),
+                            'customer_message': self.handle_blank(row.get('customer_message'), default=""),
+                            'remark': self.handle_blank(row.get('remark'), default=""),
+                            
+                            'product': product.id,
+                            'lead_source': pipeline.lead_source.id,
+                            'pipeline': pipeline.id,
+                            'branch': branch.id if branch else None,
+                            'company': company.id if company else None,
+                            'assign_user': assign_user,
+                        }
 
                     # Save each valid record independently
                     with transaction.atomic():
