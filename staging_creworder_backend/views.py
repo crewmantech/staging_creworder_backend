@@ -126,7 +126,8 @@ class CustomLoginView(LoginView):
                     "message": message, 
                     "data": {
                         "mobile": mobile, 
-                        "email": username,
+                        "email": email,
+                        "username":username,
                         "is_already_logged_in": True
                     }
                 }, status=status.HTTP_200_OK)
