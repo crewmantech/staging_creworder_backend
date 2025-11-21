@@ -1775,17 +1775,17 @@ class OrderAggregationByStatusAPIView(APIView):
             if target:
                 team_total_order_target += target.monthly_orders_target or 0
                 team_total_amount_target += target.monthly_amount_target or 0
-            now = timezone.now()
-            month = now.month
-            year = now.year
+            today = date.today()
+            start_datetime = datetime.combine(today, time.min)  # 00:00:00
+            end_datetime = datetime.combine(today, time.max) 
             # Today's Delivered Orders (Accepted orders)
             delivered_orders = Order_Table.objects.filter(
-                    Q(order_created_by=user) | Q(updated_by=user),
-                    order_status__name="Delivered",
-                    is_deleted=False,
-                    created_at__year=year,
-                    created_at__month=month
-                )
+                Q(order_created_by=user) | Q(updated_by=user),
+                order_status__name="Delivered",
+                is_deleted=False
+            ).filter(
+                Q(created_at__range=(start_datetime, end_datetime))
+            )
 
             delivered_amount = delivered_orders.aggregate(
                 amount=Sum("total_amount")
