@@ -21,7 +21,7 @@ from .models import Chat, ChatSession, Group, GroupDetails, User
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.generics import ListAPIView
 from accounts.models import Department, ExpiringToken as Token, Employees, CustomAuthGroup
-from django.db.models import Q
+from django.db.models import Q, F, Case, When
 import re
 
 
@@ -901,3 +901,55 @@ class UserListView1(ListAPIView):
             user['online'] = user['id'] in tokens  # Add online status
 
         return Response({"status": "success", "results": data}, status=status.HTTP_200_OK)
+    
+
+from django.contrib.auth.models import User
+from django.db import models
+class RecentChatUserAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        # All private chats involving current user
+        private_chats = (
+            Chat.objects.filter(
+                Q(from_user=user) | Q(to_user=user),
+                type="private"
+            )
+            .exclude(to_user=None)
+            .annotate(
+                other_user=Case(
+                    When(from_user=user, then=F('to_user')),
+                    default=F('from_user'),
+                    output_field=models.IntegerField()
+                )
+            )
+        )
+
+        # Latest message per user
+        latest_messages = (
+            private_chats.order_by('other_user', '-created_at')
+            .distinct('other_user')
+        )
+
+        results = []
+
+        for chat in latest_messages:
+            other_user_id = chat.other_user
+            other_user = User.objects.get(id=other_user_id)
+
+            user_data = UserSerializer(other_user).data
+
+            results.append({
+                "user": user_data,                # Full user details
+                "last_chat_time": chat.created_at  # Timestamp
+            })
+
+        # Sort by recent chat time
+        results = sorted(results, key=lambda x: x["last_chat_time"], reverse=True)
+
+        return Response({
+            "success": True,
+            "data": results
+        })
