@@ -195,7 +195,7 @@ class CustomLoginView(LoginView):
                 return Response({"success": False, "message": "Failed to send OTP. Please try again."}, 
                                 status=status.HTTP_400_BAD_REQUEST)
 
-            return Response({"success": True, "message": message, "data": {"mobile": mobile, "email": username}}, 
+            return Response({"success": True, "message": message, "data": {"mobile": mobile, "email": email,"username":username}}, 
                             status=status.HTTP_200_OK)
        
         
@@ -236,20 +236,20 @@ from django.contrib.auth import login
 class VerifyOTPView(APIView):
     def post(self, request, *args, **kwargs):
         phone = request.data.get("mobile")
-        email = request.data.get("email")
+        username = request.data.get("username")
         otp = request.data.get("otp")
 
-        if not all([phone, email, otp]):
+        if not all([phone, username, otp]):
             return Response({
                 "success": False,
-                "message": "Phone, email and OTP are required."
+                "message": "Phone, username and OTP are required."
             }, status=status.HTTP_400_BAD_REQUEST)
 
         # Validate OTP
-        user = User.objects.filter(username=email).first()
+        user = User.objects.filter(username=username).first()
         OTPAttempt.objects.filter(user=user, used=False).update(used=True)
 
-        otp_instance = OTPModel.objects.filter(phone_number=phone, otp=otp,username=email).first()
+        otp_instance = OTPModel.objects.filter(phone_number=phone, otp=otp,username=username).first()
         if not otp_instance:
             return Response({
                 "success": False,

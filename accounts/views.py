@@ -254,9 +254,7 @@ class UserViewSet(viewsets.ModelViewSet):
             # Only filter active for list/retrieve
             if self.action in ["list", "retrieve"]:
                 queryset = queryset.filter(profile__status=1)
-            username = self.request.query_params.get("username")
-            if username:
-                queryset = queryset.filter(username=username)
+           
             if user.profile.user_type == "superadmin":
                 company_id = self.request.query_params.get("company_id")
                 if company_id:
@@ -295,10 +293,24 @@ class UserViewSet(viewsets.ModelViewSet):
                         else:
                             # 🔴 4. Default: Only self (no permission)
                             queryset = queryset.filter(id=user.id)
-
+            
                 except Exception as e:
                     print("Agent filtering error:", e)
                     queryset = queryset.none()
+            search = self.request.query_params.get("search")
+            if search:
+                queryset = queryset.filter(
+                    Q(username__icontains=search) |
+                    Q(profile__contact_no__icontains=search) |
+                    Q(profile__professional_email__icontains=search) |
+                    Q(profile__employee_id__icontains=search) |
+                    Q(profile__gender__icontains=search) |
+                    Q(profile__department__name__icontains=search) |
+                    Q(profile__designation__name__icontains=search) |
+                    Q(first_name__icontains=search)|
+                    Q(email__icontains=search)
+
+                ).distinct()
         except Exception as e:
             print(f"Error in get_queryset: {e}")
         return queryset
