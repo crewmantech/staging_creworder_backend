@@ -911,46 +911,56 @@ class RecentChatUserAPIView(APIView):
     def get(self, request):
         user = request.user
 
-        # Identify other_user using annotation
-        base_chats = Chat.objects.filter(
+        # Identify other_user using simple queryset (NO annotate here)
+        user_chats = Chat.objects.filter(
             Q(from_user=user) | Q(to_user=user),
             type="private"
-        ).annotate(
-            other_user=Case(
-                When(from_user=user, then=F('to_user')),
-                default=F('from_user'),
-                output_field=models.IntegerField()
+        )
+
+        # Get only distinct other users
+        distinct_user_ids = (
+            user_chats.annotate(
+                other_user=Case(
+                    When(from_user=user, then=F('to_user')),
+                    default=F('from_user'),
+                    output_field=models.IntegerField()
+                )
             )
+            .values_list("other_user", flat=True)
+            .distinct()
         )
 
-        # Subquery to get latest message timestamp per other_user (MySQL compatible)
-        latest_message_subquery = (
-            base_chats.filter(other_user=OuterRef('other_user'))
-            .order_by('-created_at')
-            .values('created_at')[:1]
-        )
-
-        # Get distinct users via GROUP BY
-        distinct_users = (
-            base_chats.values('other_user')
-            .annotate(last_chat_time=Subquery(latest_message_subquery))
-            .order_by('-last_chat_time')
-        )
-
-        # Build response
+        # Build list with latest chat timestamps
         results = []
-        print(distinct_users,"----------------942")
-        for row in distinct_users:
-            other_user = User.objects.get(id=row['other_user'])
+
+        for uid in distinct_user_ids:
+
+            # Get latest chat with this user
+            last_chat = (
+                user_chats.filter(
+                    Q(from_user=uid) | Q(to_user=uid)
+                )
+                .order_by("-created_at")
+                .first()
+            )
+
+            if last_chat is None:
+                continue
+
+            other_user = User.objects.get(id=uid)
             user_data = UserSerializer(other_user).data
 
             results.append({
                 "user": user_data,
-                "last_chat_time": row['last_chat_time']
+                "last_chat_time": last_chat.created_at
             })
+
+        # Sort by latest timestamp
+        results = sorted(results, key=lambda x: x["last_chat_time"], reverse=True)
 
         return Response({
             "success": True,
             "data": results
         })
+
 
