@@ -1775,8 +1775,9 @@ class OrderAggregationByStatusAPIView(APIView):
             if target:
                 team_total_order_target += target.monthly_orders_target or 0
                 team_total_amount_target += target.monthly_amount_target or 0
-            month = start_datetime.month
-            year = start_datetime.year
+            now = timezone.now()
+            month = now.month
+            year = now.year
             # Today's Delivered Orders (Accepted orders)
             delivered_orders = Order_Table.objects.filter(
                     Q(order_created_by=user) | Q(updated_by=user),
