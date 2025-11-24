@@ -103,6 +103,14 @@ class CustomLoginView(LoginView):
                 mobile = user.profile.contact_no
                 email = user.email
                 mobile = str(mobile)[-10:]
+                if user.profile.user_type =='agent':
+                    OTPAttempt.objects.create(user=user, used=False)
+                    otp_attempts = OTPAttempt.objects.filter(user=user, used=False).count()
+
+                    if otp_attempts > 2:
+                        deactivate_user(user, "Too many OTP attempts without verification")
+                        return Response({"success": False, "message": "Account deactivated due to OTP misuse."},
+                                        status=status.HTTP_403_FORBIDDEN)
                 otp_instance = OTPModel.create_otp(mobile,username)
 
                 # Send OTP
