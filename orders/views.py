@@ -1776,6 +1776,7 @@ class OrderAggregationByStatusAPIView(APIView):
                 team_total_order_target += target.monthly_orders_target or 0
                 team_total_amount_target += target.monthly_amount_target or 0
             today = date.today()
+
             # First day of current month
             first_day = date(today.year, today.month, 1)
 
@@ -4259,7 +4260,10 @@ class OrderAggregationByPerformance(APIView):
         # BUILD RESPONSE
         # ------------------------
         agent_list = []
-
+        team_total_order_target = 0
+        team_total_amount_target = 0
+        team_total_delivered_orders = 0
+        team_total_delivered_amount = 0
         for agent in agents:
             user = agent.user
 
@@ -4367,7 +4371,31 @@ class OrderAggregationByPerformance(APIView):
 
                 "target_achieved": target_achieved,
             }
+            team_total_order_target = team_total_order_target +order_target
+            team_total_amount_target = team_total_amount_target + amount_target
+            team_total_delivered_orders = team_total_delivered_orders + achieved_orders
+            team_total_delivered_amount = team_total_delivered_amount + achieved_amount
 
             agent_list.append(response_data)
+        order_percentage = (
+            (team_total_delivered_orders / team_total_order_target) * 100
+            if team_total_order_target else 0
+        )
 
-        return Response({"Success": True,"message":"Data Fetch successfully","agent_list": agent_list}, status=status.HTTP_200_OK)
+        amount_percentage = (
+            (float(team_total_delivered_amount) / float(team_total_amount_target)) * 100
+            if team_total_amount_target else 0
+        )
+        team_target_summary = {
+            "total_order_target": team_total_order_target,
+            "total_amount_target": team_total_amount_target,
+            "total_delivered_orders": team_total_delivered_orders,
+            "total_delivered_amount": team_total_delivered_amount,
+            "order_percentage": round(order_percentage, 2),
+            "amount_percentage": round(amount_percentage, 2),
+        }
+        data = {
+            "agent_list":agent_list,
+            'team_target_summary': team_target_summary,
+        }
+        return Response({"Success": True,"message":"Data Fetch successfully","agent_list": data}, status=status.HTTP_200_OK)
