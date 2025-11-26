@@ -3374,62 +3374,42 @@ class ManagerTeamLeadAgentAPIView(APIView):
     def get(self, request, *args, **kwargs):
         manager_id = request.query_params.get("manager_id")
         teamlead_id = request.query_params.get("tl_id")
-
-        if request.user.profile.user_type == 'superadmin':
+        if self.request.user.profile.user_type == 'superadmin':
             company_id = None
             branch_id = None
         else:
-            company_id = request.user.profile.company
-            branch_id = request.user.profile.branch
+            company_id = self.request.user.profile.company
+            branch_id = self.request.user.profile.branch
 
-        # -------------------------
-        # Step 1: Filter Managers
-        # -------------------------
+        # Filter managers based on input
         if manager_id:
-            managers = Employees.objects.filter(
-                user_id=manager_id,
-                company_id=company_id,
-                status=1
-            )
+            managers = Employees.objects.filter(user_id=manager_id, company_id=company_id, status=1)
         else:
+            # Get all managers if not filtered
             manager_query = Employees.objects.filter(
                 company_id=company_id,
                 branch_id=branch_id
-            ).exclude(manager__isnull=True).values_list(
-                "manager", flat=True
-            ).distinct()
-
-            managers = Employees.objects.filter(
-                user__id__in=manager_query,
-                company_id=company_id,
-                status=1
-            ).order_by("id")
-
-        # -------------------------
-        # Step 2: Apply Pagination
-        # -------------------------
+            ).exclude(manager__isnull=True).values_list('manager', flat=True).distinct()
+            managers = Employees.objects.filter(user__id__in=manager_query, company_id=company_id,status=1)
         paginator = OrderPagination()
         paginated_managers = paginator.paginate_queryset(managers, request)
-
-        # -------------------------
-        # Step 3: Build Data
-        # -------------------------
         result = []
 
-        for manager in paginated_managers:
+        for manager in managers:
+            # Get all team leads under this manager
             teamleads = Employees.objects.filter(
                 manager=manager.user,
                 company_id=company_id,
-                teamlead_id=None,
-                status=1
+                # branch_id=branch_id,
+                teamlead_id=None,status=1
             )
 
             teamlead_list = []
             for tl in teamleads:
-
                 agents = Employees.objects.filter(
                     teamlead=tl.user,
                     company_id=company_id,
+                    # branch_id=branch_id,
                     status=1
                 )
 
@@ -3441,17 +3421,21 @@ class ManagerTeamLeadAgentAPIView(APIView):
                     }
                     for agent in agents
                 ]
-
-                # filter by teamlead_id only if passed
-                if teamlead_id and str(teamlead_id) != str(tl.user.id):
-                    continue
-
-                teamlead_list.append({
-                    "tl_id": tl.user.id,
-                    "tl_name": tl.user.get_full_name() or tl.user.username,
-                    "agent_under_teamlead": agent_list,
-                    "username": tl.user.username
-                })
+                if teamlead_id: 
+                    if str(teamlead_id)==str(tl.user.id):
+                        teamlead_list.append({
+                        "tl_id": tl.user.id,
+                        "tl_name": tl.user.get_full_name() or tl.user.username,
+                        "agent_under_teamlead": agent_list,
+                        "username":tl.user.username
+                    })
+                else:
+                    teamlead_list.append({
+                        "tl_id": tl.user.id,
+                        "tl_name": tl.user.get_full_name() or tl.user.username,
+                        "agent_under_teamlead": agent_list,
+                        "username":tl.user.username
+                    })
 
             result.append({
                 "manager_id": manager.user.id,
@@ -3465,6 +3449,7 @@ class ManagerTeamLeadAgentAPIView(APIView):
             "Data": result
         })
 
+        
 class UserPermissionStatusView(APIView):
     permission_classes = [IsAuthenticated]
 
