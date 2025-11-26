@@ -3380,14 +3380,14 @@ class ManagerTeamLeadAgentAPIView(APIView):
 
         # Filter managers based on input
         if manager_id:
-            managers = Employees.objects.filter(user_id=manager_id, company_id=company_id, branch_id=branch_id, status=1)
+            managers = Employees.objects.filter(user_id=manager_id, company_id=company_id, status=1)
         else:
             # Get all managers if not filtered
             manager_query = Employees.objects.filter(
                 company_id=company_id,
                 branch_id=branch_id
             ).exclude(manager__isnull=True).values_list('manager', flat=True).distinct()
-            managers = Employees.objects.filter(user__id__in=manager_query, company_id=company_id, branch_id=branch_id,status=1)
+            managers = Employees.objects.filter(user__id__in=manager_query, company_id=company_id,status=1)
 
         result = []
 
@@ -3396,7 +3396,7 @@ class ManagerTeamLeadAgentAPIView(APIView):
             teamleads = Employees.objects.filter(
                 manager=manager.user,
                 company_id=company_id,
-                branch_id=branch_id,
+                # branch_id=branch_id,
                 teamlead_id=None,status=1
             )
 
@@ -3405,7 +3405,8 @@ class ManagerTeamLeadAgentAPIView(APIView):
                 agents = Employees.objects.filter(
                     teamlead=tl.user,
                     company_id=company_id,
-                    branch_id=branch_id,status=1
+                    # branch_id=branch_id,
+                    status=1
                 )
 
                 agent_list = [
@@ -3444,7 +3445,6 @@ class ManagerTeamLeadAgentAPIView(APIView):
             {"Success": True, "Data": result},
             status=status.HTTP_200_OK
         )
-
 
 class UserPermissionStatusView(APIView):
     permission_classes = [IsAuthenticated]
