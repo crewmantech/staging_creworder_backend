@@ -1080,6 +1080,7 @@ class ShiftViewSet(viewsets.ModelViewSet):
             'create': ['superadmin_assets.show_submenusmodel_shift', 'superadmin_assets.add_submenusmodel'],
             'update': ['superadmin_assets.show_submenusmodel_shift', 'superadmin_assets.change_submenusmodel'],
             'destroy': ['superadmin_assets.show_submenusmodel_shift', 'superadmin_assets.delete_submenusmodel'],
+            'partial_update': ['superadmin_assets.show_submenusmodel_shift', 'superadmin_assets.delete_submenusmodel'],
             'retrieve': ['superadmin_assets.show_submenusmodel_shift', 'superadmin_assets.view_submenusmodel'],
             'list': ['superadmin_assets.show_submenusmodel_shift', 'superadmin_assets.view_submenusmodel']
         }
