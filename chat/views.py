@@ -390,9 +390,10 @@ class getUserListChat(APIView):
 
         # ✅ Only show users whose profile.status = 1
         users = User.objects.filter(
-            id__in=unique_to_users,
-            profile__status=1
-        )
+                Q(id__in=unique_to_users),
+                Q(profile__login_allowed=True),
+                Q(profile__status=1) | Q(profile__status=0)
+            )
 
         user_serializer = UserSerializer(users, many=True)
 
