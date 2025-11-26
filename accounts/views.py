@@ -1272,7 +1272,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                     
                 elif not user.has_perm('accounts.view_attendance'):
                     filters &= Q(user=user)
-                filters &= Q(user__status__in=[0, 1])
+                filters &= Q(user__profile__status=[0, 1])
         except Exception as e:
             print(f"[Role Filter Error] {e}")
             # fallback: return nothing if profile is broken
