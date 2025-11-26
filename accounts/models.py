@@ -1058,7 +1058,8 @@ class Others(models.Model):
             ('force_attendance_others', 'Can force attendance others'),
             ('create_group_chat_others', 'create group chat others'),
             ('view_click_team_order_others', 'Can click team order others'),
-            ('view_branch_switcher_others', 'view branch switcher others')
+            ('view_branch_switcher_others', 'view branch switcher others'),
+            ('view_team_deliverd_performance_others', 'view team deliverd performance others')
 
             )
     def __str__(self):
