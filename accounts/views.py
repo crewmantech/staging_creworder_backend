@@ -1085,8 +1085,11 @@ class ShiftViewSet(viewsets.ModelViewSet):
         }
         
         action = self.action
+        print("-----------------1131,------------------------",action)
+
         if action in permission_map:
             permissions = permission_map[action]
+            print([HasPermission(perm) for perm in permissions])
             return [HasPermission(perm) for perm in permissions]  # Return a list of permission checks
     
         return super().get_permissions()
@@ -1128,6 +1131,7 @@ class ShiftViewSet(viewsets.ModelViewSet):
 
     # Update ShiftTiming with branch permission logic
     def update(self, request, *args, **kwargs):
+        print("-----------------1131,------------------------")
         instance = self.get_object()
         # Ensure only users in the same branch or admin can edit
         # if not (request.user.profile.user_type == "admin" or (hasattr(request.user, 'profile') and request.user.profile.branch == instance.branch)):
@@ -3441,15 +3445,14 @@ class ManagerTeamLeadAgentAPIView(APIView):
                 "manager_id": manager.user.id,
                 "manager_name": manager.user.get_full_name() or manager.user.username,
                 "teamlead_under_manager": teamlead_list,
-                "username": manager.user.username
+                "username":manager.user.username
+                
             })
 
-        return paginator.get_paginated_response({
-            "Success": True,
-            "Data": result
-        })
-
-        
+        return Response(
+            {"Success": True, "Data": result},
+            status=status.HTTP_200_OK
+        )
 class UserPermissionStatusView(APIView):
     permission_classes = [IsAuthenticated]
 
