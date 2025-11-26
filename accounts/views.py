@@ -1266,11 +1266,13 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                 if user_id:
                     filters &= Q(user__id=user_id)
                 if user.profile.user_type == 'admin':
-                    filters &= Q(branch=branch)
+                    pass
+                    # filters &= Q(branch=branch)
                     # ✅ Allow admin to fetch a specific user's attendance
                     
                 elif not user.has_perm('accounts.view_attendance'):
                     filters &= Q(user=user)
+                filters &= Q(user__status__in=[0, 1])
         except Exception as e:
             print(f"[Role Filter Error] {e}")
             # fallback: return nothing if profile is broken
@@ -3371,41 +3373,62 @@ class ManagerTeamLeadAgentAPIView(APIView):
     def get(self, request, *args, **kwargs):
         manager_id = request.query_params.get("manager_id")
         teamlead_id = request.query_params.get("tl_id")
-        if self.request.user.profile.user_type == 'superadmin':
+
+        if request.user.profile.user_type == 'superadmin':
             company_id = None
             branch_id = None
         else:
-            company_id = self.request.user.profile.company
-            branch_id = self.request.user.profile.branch
+            company_id = request.user.profile.company
+            branch_id = request.user.profile.branch
 
-        # Filter managers based on input
+        # -------------------------
+        # Step 1: Filter Managers
+        # -------------------------
         if manager_id:
-            managers = Employees.objects.filter(user_id=manager_id, company_id=company_id, status=1)
+            managers = Employees.objects.filter(
+                user_id=manager_id,
+                company_id=company_id,
+                status=1
+            )
         else:
-            # Get all managers if not filtered
             manager_query = Employees.objects.filter(
                 company_id=company_id,
                 branch_id=branch_id
-            ).exclude(manager__isnull=True).values_list('manager', flat=True).distinct()
-            managers = Employees.objects.filter(user__id__in=manager_query, company_id=company_id,status=1)
+            ).exclude(manager__isnull=True).values_list(
+                "manager", flat=True
+            ).distinct()
 
+            managers = Employees.objects.filter(
+                user__id__in=manager_query,
+                company_id=company_id,
+                status=1
+            ).order_by("id")
+
+        # -------------------------
+        # Step 2: Apply Pagination
+        # -------------------------
+        paginator = OrderPagination()
+        paginated_managers = paginator.paginate_queryset(managers, request)
+
+        # -------------------------
+        # Step 3: Build Data
+        # -------------------------
         result = []
 
-        for manager in managers:
-            # Get all team leads under this manager
+        for manager in paginated_managers:
             teamleads = Employees.objects.filter(
                 manager=manager.user,
                 company_id=company_id,
-                # branch_id=branch_id,
-                teamlead_id=None,status=1
+                teamlead_id=None,
+                status=1
             )
 
             teamlead_list = []
             for tl in teamleads:
+
                 agents = Employees.objects.filter(
                     teamlead=tl.user,
                     company_id=company_id,
-                    # branch_id=branch_id,
                     status=1
                 )
 
@@ -3417,34 +3440,29 @@ class ManagerTeamLeadAgentAPIView(APIView):
                     }
                     for agent in agents
                 ]
-                if teamlead_id: 
-                    if str(teamlead_id)==str(tl.user.id):
-                        teamlead_list.append({
-                        "tl_id": tl.user.id,
-                        "tl_name": tl.user.get_full_name() or tl.user.username,
-                        "agent_under_teamlead": agent_list,
-                        "username":tl.user.username
-                    })
-                else:
-                    teamlead_list.append({
-                        "tl_id": tl.user.id,
-                        "tl_name": tl.user.get_full_name() or tl.user.username,
-                        "agent_under_teamlead": agent_list,
-                        "username":tl.user.username
-                    })
+
+                # filter by teamlead_id only if passed
+                if teamlead_id and str(teamlead_id) != str(tl.user.id):
+                    continue
+
+                teamlead_list.append({
+                    "tl_id": tl.user.id,
+                    "tl_name": tl.user.get_full_name() or tl.user.username,
+                    "agent_under_teamlead": agent_list,
+                    "username": tl.user.username
+                })
 
             result.append({
                 "manager_id": manager.user.id,
                 "manager_name": manager.user.get_full_name() or manager.user.username,
                 "teamlead_under_manager": teamlead_list,
-                "username":manager.user.username
-                
+                "username": manager.user.username
             })
 
-        return Response(
-            {"Success": True, "Data": result},
-            status=status.HTTP_200_OK
-        )
+        return paginator.get_paginated_response({
+            "Success": True,
+            "Data": result
+        })
 
 class UserPermissionStatusView(APIView):
     permission_classes = [IsAuthenticated]
