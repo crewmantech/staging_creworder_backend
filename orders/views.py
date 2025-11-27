@@ -4276,10 +4276,10 @@ class OrderAggregationByPerformance(APIView):
                 Q(updated_at__range=(start_datetime, end_datetime))
             )
 
-            delivered_order = apply_date_filter(
-                today_orders.filter(order_status__name='Delivered'),
-                start_datetime, end_datetime
-            )
+            # delivered_order = apply_date_filter(
+            #     today_orders.filter(order_status__name='Delivered'),
+            #     start_datetime, end_datetime
+            # )
 
             # Fetch target
             # target = UserTargetsDelails.objects.filter(user=user).first()
@@ -4319,19 +4319,37 @@ class OrderAggregationByPerformance(APIView):
             # If target exists
             order_target = target.monthly_orders_target
             amount_target = target.monthly_amount_target
-
-            delivered_orders = Order_Table.objects.filter(
-                Q(order_created_by=user),
-                Q(order_status__name="Delivered"),
-                Q(created_at__range=(start_datetime, end_datetime)),
+            total_order = Order_Table.objects.filter(
+                order_created_by=user,
+                # order_status__name__in=["Delivered", "RTO INITIATED", "RTO DELIVERED"],
+                created_at__range=(start_datetime, end_datetime),
                 is_deleted=False
             )
-
+            delivered_orders = total_order.objects.filter(
+                # Q(order_created_by=user),
+                Q(order_status__name="Delivered")
+                # Q(created_at__range=(start_datetime, end_datetime)),
+                # is_deleted=False
+            )
+            rto_orders = total_order.objects.filter(
+                # order_created_by=user,
+                order_status__name__in=["RTO INITIATED", "RTO DELIVERED"]
+                # created_at__range=(start_datetime, end_datetime),
+                # is_deleted=False
+            )
+            rto_order_count = rto_orders.count()
+            rto_count_amount = rto_orders.aggregate(
+                total=Sum("total_amount")
+            )["total"] or 0
+            total_order_count = total_order.count()
+            total_count_amount = total_order.aggregate(
+                total=Sum("total_amount")
+            )["total"] or 0
             achieved_orders = delivered_orders.count()
             achieved_amount = delivered_orders.aggregate(
                 total=Sum("total_amount")
             )["total"] or 0
-
+            
             order_percentage = (
                 (float(achieved_orders) / float(order_target)) * 100
                 if order_target else 0

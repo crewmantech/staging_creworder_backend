@@ -1,8 +1,8 @@
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import TokenAuthentication
-from .models import AgentReport, AgentAuthentication, EmailTemplate
-from .serializers import AgentAuthenticationSerializer, AgentReportSerializer, EmailTemplateSerializer
+from .models import AgentAuthenticationNew, AgentReport, AgentAuthentication, EmailTemplate
+from .serializers import AgentAuthenticationNewSerializer, AgentAuthenticationSerializer, AgentReportSerializer, EmailTemplateSerializer
 from services.email.email_service import send_email
 from django.core.mail import EmailMessage,get_connection
 from django.template.loader import render_to_string
@@ -11,6 +11,7 @@ from rest_framework import viewsets, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import viewsets, serializers  
+from django.db.models import Q
 class EmailTemplateViewSet(ModelViewSet):
     queryset = EmailTemplate.objects.all()
     serializer_class = EmailTemplateSerializer
@@ -212,3 +213,23 @@ class AgentReportViewSet(viewsets.ModelViewSet):
         user = self.request.user
         company = getattr(user.profile, "company", None)  # Safely get the company
         serializer.save(company=company)
+
+
+class AgentAuthenticationNewViewSet(ModelViewSet):
+    serializer_class = AgentAuthenticationNewSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """Filter AgentAuthentication objects by the user's company."""
+        user = self.request.user
+        company = getattr(user.profile, "company", None)  # Get the user's company safely
+        if company:
+            return AgentAuthenticationNew.objects.filter(company=company)
+        return AgentAuthenticationNew.objects.none()
+    
+    def perform_create(self, serializer):
+        """
+        Automatically set company and branch based on the authenticated user during creation.
+        """
+        user = self.request.user
+        serializer.save(company=user.profile.company)

@@ -60,3 +60,56 @@ class AgentReport(models.Model):
 
     def __str__(self):
         return self.email
+    
+from django.core.exceptions import ValidationError
+class AgentAuthenticationNew(models.Model):
+    company = models.ForeignKey(
+    "accounts.Company",
+    on_delete=models.CASCADE,
+    null=True,
+    blank=True
+)
+
+    branch = models.ForeignKey(
+        "accounts.Branch",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True
+)
+
+    users = models.ManyToManyField(
+        User,
+        through="AgentUserMapping",
+        related_name="agent_auth_users",
+        blank=True
+    )
+
+    email = models.EmailField(max_length=100)
+    phone = PhoneNumberField(region="IN")
+
+    class Meta:
+        db_table = 'agent_authenticationnew_table'
+
+    def __str__(self):
+        return self.email
+
+
+class AgentUserMapping(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, unique=True)
+    agent_auth = models.ForeignKey(AgentAuthenticationNew, on_delete=models.CASCADE)
+
+    class Meta:
+        db_table = "agent_user_mapping"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user"],
+                name="user_unique_globally_for_agent_auth"
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.user} → {self.agent_auth}"
+
+    def clean(self):
+        if AgentUserMapping.objects.filter(user=self.user).exists() and not self.pk:
+            raise ValidationError("This user is already assigned to another entity.")

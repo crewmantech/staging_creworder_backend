@@ -168,8 +168,14 @@ class CustomLoginView(LoginView):
         
         if user.profile.user_type == "agent" and user.has_perm('accounts.allow_otp_login_others'):
             auth_data = AgentAuthentication.objects.filter(
-                Q(branch=user.profile.branch) | Q(company=user.profile.company)
+                branch=user.profile.branch
             ).first()
+
+            # If no branch match, then check by company
+            if not auth_data:
+                auth_data = AgentAuthentication.objects.filter(
+                    company=user.profile.company
+                ).first()
 
             if not auth_data:  # If no authentication data is found
                 return Response({"success": False, "message": "Authentication data not found.Please contact to admin!"}, 
