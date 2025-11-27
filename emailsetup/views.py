@@ -262,7 +262,8 @@ class AvailableUsersForAgentView(APIView):
                 "email": emp.user.email,
                 "contact_no": str(emp.contact_no),
                 "employee_id": emp.employee_id,
-                "user_type": emp.user_type
+                "user_type": emp.user_type,
+                "name":emp.name
             }
             for emp in available
         ]

@@ -4360,7 +4360,13 @@ class OrderAggregationByPerformance(APIView):
                 if amount_target else 0
             )
 
-
+            rto_order_percentage = ((float(rto_count_amount) / float(total_order_count)) * 100
+                if order_target else 0
+            )
+            rto_amount_percentage = (
+                (float(achieved_amount) / float(total_count_amount)) * 100
+                if amount_target else 0
+            )
             target_achieved = order_percentage >= 100 or amount_percentage >= 100
 
             target.achieve_target = target_achieved
@@ -4371,7 +4377,14 @@ class OrderAggregationByPerformance(APIView):
                 "username": user.username,
                 "agent_name": user.get_full_name(),
                 "month": start_date.strftime("%Y-%m"),
-
+                "rto":{
+                    "total_order":total_order_count,
+                    "total_order_amount":total_count_amount,
+                    "total_rto_order":rto_order_count,
+                    "total_rto_count":rto_count_amount,
+                    "rto_order_percentage":rto_order_percentage,
+                    "rto_amount_percentage":rto_amount_percentage
+                },
                 "target": {
                     "order_target": order_target,
                     "amount_target": float(amount_target),
