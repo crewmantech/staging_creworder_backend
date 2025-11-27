@@ -4264,6 +4264,12 @@ class OrderAggregationByPerformance(APIView):
         team_total_amount_target = 0
         team_total_delivered_orders = 0
         team_total_delivered_amount = 0
+        total_orders = 0
+        total_orders_amount = 0
+        total_rto_orders = 0
+        total_rto_amount = 0
+        rto_orders_percentage = 0
+        rto_amount_percentage = 0
         for agent in agents:
             user = agent.user
 
@@ -4363,16 +4369,20 @@ class OrderAggregationByPerformance(APIView):
             )
 
             rto_order_percentage = ((float(rto_count_amount) / float(total_order_count)) * 100
-                if order_target else 0
+                if total_order_count else 0
             )
             rto_amount_percentage = (
                 (float(achieved_amount) / float(total_count_amount)) * 100
-                if amount_target else 0
+                if total_count_amount else 0
             )
             target_achieved = order_percentage >= 100 or amount_percentage >= 100
 
             target.achieve_target = target_achieved
             target.save()
+            total_orders = total_order_count + total_orders
+            total_orders_amount = total_orders_amount + total_count_amount
+            total_rto_orders = total_rto_orders + rto_order_count
+            total_rto_amount = total_rto_amount + rto_count_amount
 
             response_data = {
                 "user_id": user.id,
@@ -4419,6 +4429,15 @@ class OrderAggregationByPerformance(APIView):
             (float(team_total_delivered_amount) / float(team_total_amount_target)) * 100
             if team_total_amount_target else 0
         )
+        rto_orders_percentage = (
+            (total_rto_orders / total_orders) * 100
+            if total_orders else 0
+        )
+
+        rto_amount_percentage = (
+            (float(total_rto_amount) / float(total_orders_amount)) * 100
+            if total_orders_amount else 0
+        )
         team_target_summary = {
             "total_order_target": team_total_order_target,
             "total_amount_target": team_total_amount_target,
@@ -4426,6 +4445,13 @@ class OrderAggregationByPerformance(APIView):
             "total_delivered_amount": team_total_delivered_amount,
             "order_percentage": round(order_percentage, 2),
             "amount_percentage": round(amount_percentage, 2),
+            "total_orders":total_orders,
+            "total_orders_amount":total_orders_amount,
+            "total_rto_orders":total_rto_orders,
+            "total_rto_amount":total_rto_amount,
+            "rto_orders_percentage":rto_orders_percentage,
+            "rto_amount_percentage":rto_amount_percentage
+
         }
         data = {
             "agent_list":agent_list,
