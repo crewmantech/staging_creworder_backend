@@ -58,7 +58,7 @@ class AgentAuthenticationNewSerializer(serializers.ModelSerializer):
             "phone",
             "users",
             "user_ids",
-            "branch_name"
+            "branch_name",
             "company_name"
         ]
         # extra_fields = ['company_name', 'branch_name']
