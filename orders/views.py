@@ -4321,21 +4321,16 @@ class OrderAggregationByPerformance(APIView):
             amount_target = target.monthly_amount_target
             total_order = Order_Table.objects.filter(
                 order_created_by=user,
-                # order_status__name__in=["Delivered", "RTO INITIATED", "RTO DELIVERED"],
                 created_at__range=(start_datetime, end_datetime),
                 is_deleted=False
             )
-            delivered_orders = total_order.objects.filter(
-                # Q(order_created_by=user),
-                Q(order_status__name="Delivered")
-                # Q(created_at__range=(start_datetime, end_datetime)),
-                # is_deleted=False
+
+            delivered_orders = total_order.filter(
+                order_status__name="Delivered"
             )
-            rto_orders = total_order.objects.filter(
-                # order_created_by=user,
+
+            rto_orders = total_order.filter(
                 order_status__name__in=["RTO INITIATED", "RTO DELIVERED"]
-                # created_at__range=(start_datetime, end_datetime),
-                # is_deleted=False
             )
             rto_order_count = rto_orders.count()
             rto_count_amount = rto_orders.aggregate(
