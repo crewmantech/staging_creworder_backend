@@ -40,7 +40,8 @@ class UserMiniSerializer(serializers.ModelSerializer):
 
 class AgentAuthenticationNewSerializer(serializers.ModelSerializer):
     users = UserMiniSerializer(many=True, read_only=True)
-
+    company_name = serializers.SerializerMethodField()
+    branch_name = serializers.SerializerMethodField()
     user_ids = serializers.ListField(
         child=serializers.IntegerField(),
         write_only=True,
@@ -58,7 +59,7 @@ class AgentAuthenticationNewSerializer(serializers.ModelSerializer):
             "users",
             "user_ids",
         ]
-
+        extra_fields = ['company_name', 'branch_name']
     def create(self, validated_data):
         user_ids = validated_data.pop("user_ids", [])
         instance = AgentAuthenticationNew.objects.create(**validated_data)
@@ -103,3 +104,8 @@ class AgentAuthenticationNewSerializer(serializers.ModelSerializer):
                 )
 
         return instance
+    def get_company_name(self, obj):
+        return obj.company.name if obj.company else None
+
+    def get_branch_name(self, obj):
+        return obj.branch.name if obj.branch else None
