@@ -4295,7 +4295,14 @@ class OrderAggregationByPerformance(APIView):
                     "username": user.username,
                     "agent_name": user.get_full_name(),
                     "month": start_date.strftime("%Y-%m"),
-
+                    "rto":{
+                            "total_order":0,
+                            "total_order_amount":0,
+                            "total_rto_order":0,
+                            "total_rto_count":0,
+                            "rto_order_percentage":0,
+                            "rto_amount_percentage":0
+                        },
                     "target": {
                         "order_target": 0,
                         "amount_target": 0,
