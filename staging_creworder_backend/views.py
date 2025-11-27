@@ -12,7 +12,7 @@ from rest_framework.response import Response
 from accounts.models import AllowedIP, Branch, Company,User
 from accounts.utils import deactivate_user
 from kyc.models import OTPModel
-from emailsetup.models import AgentAuthentication
+from emailsetup.models import AgentAuthentication, AgentAuthenticationNew
 from django.db.models import Q
 from django.shortcuts import render
 from rest_framework import status
@@ -167,13 +167,15 @@ class CustomLoginView(LoginView):
                             status=status.HTTP_200_OK)
         
         if user.profile.user_type == "agent" and user.has_perm('accounts.allow_otp_login_others'):
-            auth_data = AgentAuthentication.objects.filter(
+            auth_data = AgentAuthenticationNew.objects.filter(users__id=user_obj.id).first()
+            if not auth_data:
+                auth_data = AgentAuthenticationNew.objects.filter(
                 branch=user.profile.branch
             ).first()
 
             # If no branch match, then check by company
             if not auth_data:
-                auth_data = AgentAuthentication.objects.filter(
+                auth_data = AgentAuthenticationNew.objects.filter(
                     company=user.profile.company
                 ).first()
 
