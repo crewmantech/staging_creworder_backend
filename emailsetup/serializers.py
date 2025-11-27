@@ -58,8 +58,10 @@ class AgentAuthenticationNewSerializer(serializers.ModelSerializer):
             "phone",
             "users",
             "user_ids",
+            "branch_name"
+            "company_name"
         ]
-        extra_fields = ['company_name', 'branch_name']
+        # extra_fields = ['company_name', 'branch_name']
     def create(self, validated_data):
         user_ids = validated_data.pop("user_ids", [])
         instance = AgentAuthenticationNew.objects.create(**validated_data)
