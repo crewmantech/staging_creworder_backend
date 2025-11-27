@@ -1,7 +1,9 @@
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import TokenAuthentication
-from .models import AgentAuthenticationNew, AgentReport, AgentAuthentication, EmailTemplate
+
+from accounts.models import Employees
+from .models import AgentAuthenticationNew, AgentReport, AgentAuthentication, AgentUserMapping, EmailTemplate
 from .serializers import AgentAuthenticationNewSerializer, AgentAuthenticationSerializer, AgentReportSerializer, EmailTemplateSerializer
 from services.email.email_service import send_email
 from django.core.mail import EmailMessage,get_connection
@@ -233,3 +235,36 @@ class AgentAuthenticationNewViewSet(ModelViewSet):
         """
         user = self.request.user
         serializer.save(company=user.profile.company)
+
+
+class AvailableUsersForAgentView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        branch_id = request.query_params.get("branch_id")
+
+        if not branch_id:
+            return Response({"error": "branch_id is required"}, status=400)
+
+        # all employees of this branch
+        employees = Employees.objects.filter(branch_id=branch_id)
+
+        # users already assigned to some entity
+        assigned_user_ids = AgentUserMapping.objects.values_list("user_id", flat=True)
+
+        # filter users not in mapping table
+        available = employees.exclude(user_id__in=assigned_user_ids)
+
+        data = [
+            {
+                "id": emp.user.id,
+                "username": emp.user.username,
+                "email": emp.user.email,
+                "contact_no": str(emp.contact_no),
+                "employee_id": emp.employee_id,
+                "user_type": emp.user_type
+            }
+            for emp in available
+        ]
+
+        return Response({"users": data})
