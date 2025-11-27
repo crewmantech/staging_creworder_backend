@@ -35,7 +35,7 @@ class AgentReportSerializer(serializers.ModelSerializer):
 class UserMiniSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["id", "username", "email"]
+        fields = ["id", "username", "email","first_name"]
 
 
 class AgentAuthenticationNewSerializer(serializers.ModelSerializer):
