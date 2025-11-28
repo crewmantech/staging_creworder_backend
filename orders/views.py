@@ -8,7 +8,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework import status,pagination
 from rest_framework.response import Response
 from rest_framework import viewsets, status
-from django.db.models import Q
+from django.db.models import Q,OuterRef,Subquery
 from django.db.models import Sum, Count
 from accounts.models import Attendance, Branch, CompanyUserAPIKey, Employees, UserTargetsDelails
 from accounts.permissions import CanCreateAndDeleteCustomerState, CanCreateOrDeletePaymentStatus, IsSuperAdmin
@@ -4475,3 +4475,133 @@ class OrderAggregationByPerformance(APIView):
             'team_target_summary': team_target_summary,
         }
         return Response({"Success": True,"message":"Data Fetch successfully","agent_list": data}, status=status.HTTP_200_OK)
+
+
+
+class OFDListView(viewsets.GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    pagination_class = FilterOrdersPagination
+
+    # ------------------ DATE RANGE ------------------
+    def get_date_range(self, request):
+        date_range = request.query_params.get('date_range')
+        try:
+            if date_range:
+                if isinstance(date_range, str):
+                    date_range = date_range.split(' ')
+                    if len(date_range) != 2:
+                        raise ValueError("Date range invalid")
+                    start_date = datetime.fromisoformat(date_range[0]).date()
+                    end_date = datetime.fromisoformat(date_range[1]).date()
+
+                elif isinstance(date_range, dict):
+                    start_date = date_range.get("start_date")
+                    end_date = date_range.get("end_date", datetime.now().strftime('%Y-%m-%d'))
+                    start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+                    end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+
+            else:
+                today = datetime.now().date()
+                start_date = end_date = today
+
+            start_datetime = timezone.make_aware(datetime.combine(start_date, time.min))
+            end_datetime = timezone.make_aware(datetime.combine(end_date, time.max))
+            return start_datetime, end_datetime
+
+        except:
+            return None, None
+
+    # ------------------ USER SCOPE ------------------
+    def _scope_queryset(self, qs, user):
+        agent_ids = Employees.objects.filter(manager=user.id).values_list('user', flat=True)
+        mgr_ids = Employees.objects.filter(
+            Q(teamlead__in=agent_ids) | Q(user=user.id)
+        ).values_list('user', flat=True)
+
+        mgr = set(mgr_ids) | set(agent_ids)
+
+        tl_ids = list(Employees.objects.filter(teamlead=user.id).values_list('user', flat=True))
+        tl_ids.append(user.id)
+
+        if user.profile.user_type in ["admin", "superadmin"]:
+            return qs
+
+        elif user.has_perm("accounts.view_all_order_others"):
+            return qs
+
+        elif user.has_perm("accounts.view_manager_order_others"):
+            return qs.filter(Q(order_created_by__in=mgr) | Q(updated_by__in=mgr))
+
+        elif user.has_perm("accounts.view_teamlead_order_others"):
+            return qs.filter(Q(order_created_by__in=tl_ids) | Q(updated_by__in=tl_ids))
+
+        elif user.has_perm("accounts.view_own_order_others"):
+            return qs.filter(Q(order_created_by=user.id) | Q(updated_by=user.id))
+
+        return qs.none()
+
+    # ------------------ MAIN GET API ------------------
+    def get(self, request):
+        user = request.user
+        params = request.query_params
+        branch = request.user.profile.branch
+        company = request.user.profile.company
+        # OUT FOR DELIVERY Shipped status
+        ofd_status = OrderStatus.objects.get(name="OUT FOR DELIVERY")
+
+        # Subquery: latest OFD log
+        latest_ofd_log = OrderLogModel.objects.filter(
+            order=OuterRef('pk'),
+            order_status=ofd_status
+        ).order_by('-created_at').values('created_at')[:1]
+
+        # Base queryset
+        # qs = Order_Table.objects.all()
+        qs = Order_Table.objects.filter(
+        branch=branch,
+        company=company,
+        is_deleted=False
+    ).order_by("-created_at")
+        # Apply user scope
+        qs = self._scope_queryset(qs, user)
+
+        # Date range filter
+        start_datetime, end_datetime = self.get_date_range(request)
+        if start_datetime and end_datetime:
+            qs = qs.filter(created_at__range=(start_datetime, end_datetime))
+
+        # Order status filter
+        if params.get("order_status"):
+            qs = qs.filter(order_status__name__icontains=params["order_status"])
+
+        qs = qs.annotate(
+            ofd_date=Subquery(latest_ofd_log)
+        ).order_by("-created_at")
+
+        # ---------------- PAGINATION ----------------
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            data = page.values(
+                "id",
+                "order_id",
+                "customer_name",
+                "order_status__name",
+                "estimated_delivery_date",
+                "ofd_date",
+                "created_at",
+                "order_wayBill",
+            )
+            return self.get_paginated_response(data)
+
+        # If no pagination
+        data = qs.values(
+            "id",
+            "order_id",
+            "customer_name",
+            "order_status__name",
+            "estimated_delivery_date",
+            "ofd_date",
+            "created_at",
+            "order_wayBill",
+        )
+        return Response({"status": True, "data": data})

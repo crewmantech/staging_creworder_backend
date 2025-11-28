@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
-from .views import AcceptedOrdersReportAPIView, AllowStatusViewSet, ChangeOrderStatusAPIView, CreateRepeatOrderAPIView, CustomerStateViewSet, ExternalOrderCreateView, FilterOrdersCreatedView, FilterOrdersView1, FilteredOrderViewSet, MainOrderStatusAPIView, NotificationsConfigViewSet, OrderAggregationByPerformance, OrderAggregationByStatusAPIView,OrderAggregationByStatusAPIViewPerformance, OrderLocationReportView, OrderLogListView, OrderStatusAPIView,FilterOrdersView, OrderStatusWorkflowViewSet, OrderValueSettingViewSet, PaymentStatusViewSet, PaymentTypeViewSet,PincodeLocalityViewSet,BulkOrderUploadView, ProductOrderSummaryView1, RecurringOrdersAPIView, ReturnTypeViewSet, ScanOrderAPIView, UpdateOrderStatusAndPaymentStatusView,OrderMetricsAPIView,ProductOrderSummaryView,LableLayoutAPIView,LableInvoiceAPIView,CSVProductUploadView,PaymentMethodViewSet
+from .views import AcceptedOrdersReportAPIView, AllowStatusViewSet, ChangeOrderStatusAPIView, CreateRepeatOrderAPIView, CustomerStateViewSet, ExternalOrderCreateView, FilterOrdersCreatedView, FilterOrdersView1, FilteredOrderViewSet, MainOrderStatusAPIView, NotificationsConfigViewSet, OFDListView, OrderAggregationByPerformance, OrderAggregationByStatusAPIView,OrderAggregationByStatusAPIViewPerformance, OrderLocationReportView, OrderLogListView, OrderStatusAPIView,FilterOrdersView, OrderStatusWorkflowViewSet, OrderValueSettingViewSet, PaymentStatusViewSet, PaymentTypeViewSet,PincodeLocalityViewSet,BulkOrderUploadView, ProductOrderSummaryView1, RecurringOrdersAPIView, ReturnTypeViewSet, ScanOrderAPIView, UpdateOrderStatusAndPaymentStatusView,OrderMetricsAPIView,ProductOrderSummaryView,LableLayoutAPIView,LableInvoiceAPIView,CSVProductUploadView,PaymentMethodViewSet
 
 router = DefaultRouter()
 router.register(r'order_status',OrderStatusAPIView)
@@ -88,5 +88,5 @@ urlpatterns = [
         name='report_orders_by_location'
     ),
     path('monthly-target-achievement/', OrderAggregationByPerformance.as_view(), name='monthly-target-achievement'),
-    
+    path('ofd-orders/', OFDListView.as_view(), name='ofd-list'),    
 ]
