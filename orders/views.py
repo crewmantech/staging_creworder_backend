@@ -4509,7 +4509,10 @@ class OFDListView(GenericAPIView):
                 else:
                     raise ValueError("Invalid date_range format.")
             elif start_date and end_date:
-                pass
+                passstart_date = datetime.strptime(start_date, "%Y-%m-%d").date()
+                # start_datetime = datetime.combine(start_date, time.min)
+                end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+                # end_datetime = datetime.combine(end_date, time.max)
             else:
                 today = datetime.now().date()
                 start_date = end_date = today
