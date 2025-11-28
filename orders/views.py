@@ -3201,6 +3201,8 @@ class FilterOrdersView1(viewsets.ViewSet):
 
     def get_date_range(self, request):
         date_range = request.query_params.get('date_range')
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
         try:
             if date_range:
                 if isinstance(date_range, str):
@@ -3216,6 +3218,8 @@ class FilterOrdersView1(viewsets.ViewSet):
                     end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
                 else:
                     raise ValueError("Invalid date_range format.")
+            elif start_date and end_date:
+                pass
             else:
                 today = datetime.now().date()
                 start_date = end_date = today
@@ -4487,7 +4491,7 @@ class OFDListView(GenericAPIView):
     def get_date_range(self, request):
         date_range = request.query_params.get('date_range')
         start_date = request.query_params.get('start_date')
-        end_date = request.queru_params.get('end_date')
+        end_date = request.query_params.get('end_date')
         try:
             if date_range:
                 if isinstance(date_range, str):
@@ -4513,7 +4517,7 @@ class OFDListView(GenericAPIView):
             end_datetime = timezone.make_aware(datetime.combine(end_date, time.max))
             return start_datetime, end_datetime
 
-        except:
+        except Exception as e:
             return None, None
 
     # ------------------ USER SCOPE ------------------
