@@ -264,9 +264,15 @@ class UserViewSet(viewsets.ModelViewSet):
 
             elif user.profile.user_type == "admin":
                 queryset = queryset.filter(profile__company=user.profile.company)
+                branch_id = self.request.query_params.get("branch_id")
+                if branch_id:
+                    queryset = queryset.filter(profile__branch=branch_id)
 
             elif user.profile.user_type == "agent":
                 queryset = queryset.filter(profile__branch=user.profile.branch)
+                branch_id = self.request.query_params.get("branch_id")
+                if branch_id:
+                    queryset = queryset.filter(profile__branch=branch_id)
                 try:
                     user_permissions = user.user_permissions.values_list('codename', flat=True)
 
