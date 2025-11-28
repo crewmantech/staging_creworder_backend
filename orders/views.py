@@ -4492,6 +4492,7 @@ class OFDListView(GenericAPIView):
         date_range = request.query_params.get('date_range')
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
+        print(date_range,"--------------------4495")
         try:
             if date_range:
                 if isinstance(date_range, str):
