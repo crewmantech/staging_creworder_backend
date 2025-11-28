@@ -4516,7 +4516,7 @@ class OFDListView(GenericAPIView):
             else:
                 today = datetime.now().date()
                 start_date = end_date = today
-
+            print(start_date,end_date,"-----------------------4518")
             start_datetime = timezone.make_aware(datetime.combine(start_date, time.min))
             end_datetime = timezone.make_aware(datetime.combine(end_date, time.max))
             print(start_date,end_date)
