@@ -3304,6 +3304,23 @@ class FilterOrdersView1(viewsets.ViewSet):
                     filter_conditions &= Q(order_status__id=order_status_int)
                 except (ValueError, TypeError):
                     filter_conditions &= Q(order_status__name__icontains=str(order_status))
+        if filters.get('counter'):
+            counter = filters['counter']
+            if '+' in counter:  
+                # Example: "3+"
+                try:
+                    base_value = int(counter.replace('+', ''))
+                    filter_conditions &= Q(ofd_counter__gt=base_value)
+                except ValueError:
+                    pass  # ignore invalid value
+            else:
+                # Normal number case: "1", "2", "3"
+                try:
+                    base_value = int(counter)
+                    filter_conditions &= Q(ofd_counter=base_value)
+                except ValueError:
+                    pass  # ignore invalid value
+
 
         # Agent name
         if filters.get("agent_name"):
