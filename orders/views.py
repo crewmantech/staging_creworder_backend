@@ -4486,6 +4486,8 @@ class OFDListView(GenericAPIView):
     # ------------------ DATE RANGE ------------------
     def get_date_range(self, request):
         date_range = request.query_params.get('date_range')
+        start_date = request.query_params.get('start_date')
+        end_date = request.queru_params.get('end_date')
         try:
             if date_range:
                 if isinstance(date_range, str):
@@ -4494,13 +4496,15 @@ class OFDListView(GenericAPIView):
                         raise ValueError("Date range invalid")
                     start_date = datetime.fromisoformat(date_range[0]).date()
                     end_date = datetime.fromisoformat(date_range[1]).date()
-
                 elif isinstance(date_range, dict):
                     start_date = date_range.get("start_date")
                     end_date = date_range.get("end_date", datetime.now().strftime('%Y-%m-%d'))
                     start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
                     end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
-
+                else:
+                    raise ValueError("Invalid date_range format.")
+            elif start_date and end_date:
+                pass
             else:
                 today = datetime.now().date()
                 start_date = end_date = today
