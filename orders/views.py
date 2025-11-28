@@ -4492,38 +4492,55 @@ class OFDListView(GenericAPIView):
         date_range = request.query_params.get('date_range')
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
-        print(date_range,start_date,"--------------------4495")
+
+        print(date_range, start_date, "--------------------4495")
+
         try:
+            # -----------------------------
+            # CASE 1: date_range = "2025-10-01 2025-10-02"
+            # -----------------------------
             if date_range:
+                date_range = date_range.strip()
+
                 if isinstance(date_range, str):
-                    date_range = date_range.split(' ')
-                    if len(date_range) != 2:
+                    parts = date_range.split(" ")
+                    if len(parts) != 2:
                         raise ValueError("Date range invalid")
-                    start_date = datetime.fromisoformat(date_range[0]).date()
-                    end_date = datetime.fromisoformat(date_range[1]).date()
+
+                    start_date = datetime.strptime(parts[0], "%Y-%m-%d").date()
+                    end_date = datetime.strptime(parts[1], "%Y-%m-%d").date()
+
                 elif isinstance(date_range, dict):
-                    start_date = date_range.get("start_date")
-                    end_date = date_range.get("end_date", datetime.now().strftime('%Y-%m-%d'))
-                    start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
-                    end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+                    start_date = datetime.strptime(date_range.get("start_date"), "%Y-%m-%d").date()
+                    end_date = datetime.strptime(date_range.get("end_date"), "%Y-%m-%d").date()
+
                 else:
                     raise ValueError("Invalid date_range format.")
+
+            # -----------------------------
+            # CASE 2: start_date & end_date provided separately
+            # -----------------------------
             elif start_date and end_date:
-                passstart_date = datetime.strptime(start_date, "%Y-%m-%d").date()
-                # start_datetime = datetime.combine(start_date, time.min)
+                start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
                 end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
-                # end_datetime = datetime.combine(end_date, time.max)
+
+            # -----------------------------
+            # CASE 3: No dates provided → default to today
+            # -----------------------------
             else:
                 today = datetime.now().date()
                 start_date = end_date = today
-            print(start_date,end_date,"-----------------------4518")
+
+            print(start_date, end_date, "-----------------------4518")
+
+            # Convert date → datetime
             start_datetime = timezone.make_aware(datetime.combine(start_date, time.min))
             end_datetime = timezone.make_aware(datetime.combine(end_date, time.max))
-            print(start_date,end_date)
+
             return start_datetime, end_datetime
 
         except Exception as e:
-            print(str(e),"------------4523")
+            print(str(e), "------------4523")
             return None, None
 
     # ------------------ USER SCOPE ------------------
