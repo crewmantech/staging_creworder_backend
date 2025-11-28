@@ -4477,8 +4477,9 @@ class OrderAggregationByPerformance(APIView):
         return Response({"Success": True,"message":"Data Fetch successfully","agent_list": data}, status=status.HTTP_200_OK)
 
 
+from rest_framework.generics import GenericAPIView
 
-class OFDListView(viewsets.GenericAPIView):
+class OFDListView(GenericAPIView):
     permission_classes = [IsAuthenticated]
     pagination_class = FilterOrdersPagination
 
