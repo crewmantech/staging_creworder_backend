@@ -4566,36 +4566,25 @@ class OFDListView(GenericAPIView):
         # Apply user scope
         qs = self._scope_queryset(qs, user)
 
-        # Date range filter
+        # DATE FILTER
         start_datetime, end_datetime = self.get_date_range(request)
         if start_datetime and end_datetime:
             qs = qs.filter(created_at__range=(start_datetime, end_datetime))
 
-        # Order status filter
+        # ORDER STATUS
         if params.get("order_status"):
             qs = qs.filter(order_status__name__icontains=params["order_status"])
 
-        qs = qs.annotate(
-            ofd_date=Subquery(latest_ofd_log)
-        ).order_by("-created_at")
+        
 
-        # ---------------- PAGINATION ----------------
-        page = self.paginate_queryset(qs)
-        if page is not None:
-            data = page.values(
-                "id",
-                "order_id",
-                "customer_name",
-                "order_status__name",
-                "estimated_delivery_date",
-                "ofd_date",
-                "created_at",
-                "order_wayBill",
-            )
-            return self.get_paginated_response(data)
+        
 
-        # If no pagination
-        data = qs.values(
+        # ADD OFD DATE
+        qs = qs.annotate(ofd_date=Subquery(latest_ofd_log)).order_by("-created_at")
+
+        # ----------------- IMPORTANT FIX -----------------
+        # Convert queryset to list BEFORE pagination
+        list_qs = list(qs.values(
             "id",
             "order_id",
             "customer_name",
@@ -4603,6 +4592,12 @@ class OFDListView(GenericAPIView):
             "estimated_delivery_date",
             "ofd_date",
             "created_at",
-            "order_wayBill",
-        )
-        return Response({"status": True, "data": data})
+            "order_wayBill"
+        ))
+
+        # PAGINATE LIST
+        page = self.paginate_queryset(list_qs)
+        if page is not None:
+            return self.get_paginated_response(page)
+
+        return Response({"status": True, "data": list_qs})
