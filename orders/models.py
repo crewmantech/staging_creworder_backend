@@ -464,6 +464,7 @@ class LableLayout(BaseModel):
     order_gst = models.BooleanField(default=False,null=True)
     order_address = models.BooleanField(default=False,null=True)
     standard_printout = models.BooleanField(default=False,null=True)
+    partial = models.BooleanField(default=False,null=True)
     show_logo = models.BooleanField(default=False,null=True)
     logo_images = models.ImageField(upload_to='logo_images/', null=True, blank=True)
     branch = models.ForeignKey(Branch, on_delete=models.CASCADE,null=True, blank=True)
