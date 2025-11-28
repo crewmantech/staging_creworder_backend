@@ -4520,6 +4520,7 @@ class OFDListView(GenericAPIView):
             return start_datetime, end_datetime
 
         except Exception as e:
+            print(str(e),"------------4523")
             return None, None
 
     # ------------------ USER SCOPE ------------------
