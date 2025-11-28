@@ -4516,6 +4516,7 @@ class OFDListView(GenericAPIView):
 
             start_datetime = timezone.make_aware(datetime.combine(start_date, time.min))
             end_datetime = timezone.make_aware(datetime.combine(end_date, time.max))
+            print(start_date,end_date)
             return start_datetime, end_datetime
 
         except Exception as e:
@@ -4579,6 +4580,7 @@ class OFDListView(GenericAPIView):
         start_datetime, end_datetime = self.get_date_range(request)
         if start_datetime and end_datetime:
             qs = qs.filter(created_at__range=(start_datetime, end_datetime))
+        print(qs,"-------------4583")
 
         # ORDER STATUS
         if params.get("order_status"):
