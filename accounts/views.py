@@ -495,16 +495,20 @@ class BranchViewSet(viewsets.ModelViewSet):
 
         # If user is agent --> show only permitted branches
         if user.profile.user_type == "agent":
-            allowed_branch_ids = []
-
+            # Get all permission codenames the user has
+            user_permissions = set(user.get_all_permissions())
+            print(user_permissions,"-----------------494")
+            allowed = []
             for branch in base_qs:
-                perm_codename = f"branch_view_{branch.company.name.replace(' ', '_').lower()}_{branch.name.replace(' ', '_').lower()}"
-                perm_label = f"{branch._meta.app_label}.{perm_codename}"
+                company_slug = branch.company.name.replace(" ", "_").lower()
+                branch_slug = branch.name.replace(" ", "_").lower()
 
-                if user.has_perm(perm_label):
-                    allowed_branch_ids.append(branch.id)
+                perm_full = f"{branch._meta.app_label}.branch_view_{company_slug}_{branch_slug}"
+                print(perm_full,"----------------------501")
+                if perm_full in user_permissions:
+                    allowed.append(branch.id)
 
-            return base_qs.filter(id__in=allowed_branch_ids)
+            return base_qs.filter(id__in=allowed)
 
         return Branch.objects.none()
 

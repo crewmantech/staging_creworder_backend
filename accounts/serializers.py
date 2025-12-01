@@ -630,9 +630,14 @@ class PermissionSerializer1(serializers.ModelSerializer):
 class UserTargetSerializer(serializers.ModelSerializer):
     username = serializers.SerializerMethodField()
     name = serializers.SerializerMethodField()
+    company_name = serializers.CharField(source='company.name', read_only=True)
+    branch_name = serializers.CharField(source='branch.name', read_only=True)
+    user_name = serializers.CharField(source='user.username', read_only=True)
+
     class Meta:
         model = UserTargetsDelails
         fields = '__all__'
+    
 
     def get_username(self, obj):
         try:
@@ -810,6 +815,10 @@ class QcScoreSerializer(serializers.ModelSerializer):
 
 
 class UserTargetsDelailsSerializer(serializers.ModelSerializer):
+    company_name = serializers.CharField(source='company.name', read_only=True)
+    branch_name = serializers.CharField(source='branch.name', read_only=True)
+    user_name = serializers.CharField(source='user.username', read_only=True)
+
     class Meta:
         model = UserTargetsDelails
         fields = '__all__'
