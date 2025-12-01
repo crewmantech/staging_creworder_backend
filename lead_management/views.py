@@ -315,6 +315,7 @@ class LeadViewSet(viewsets.ModelViewSet):
         customer_city = self.request.query_params.get('city')
         status = self.request.query_params.get('status')
         lead_id = self.request.query_params.get('lead_id')
+        product_id = self.request.query_params.get('product_id')
 
         if customer_phone:
             queryset = queryset.filter(customer_phone__icontains=customer_phone)
@@ -326,7 +327,8 @@ class LeadViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(status__id=status)  # assuming status is a FK
         if lead_id:
             queryset = queryset.filter(lead_id__icontains=lead_id)  # allows partial matches like LEAD123
-
+        if product_id:
+            queryset = queryset.filter(product__id=product_id) 
         return queryset
 
 
