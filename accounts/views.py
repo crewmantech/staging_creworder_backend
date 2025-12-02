@@ -4183,23 +4183,39 @@ class InterviewApplicationViewSet(viewsets.ModelViewSet):
     queryset = InterviewApplication.objects.all().order_by("-created_at")
     serializer_class = InterviewApplicationSerializer
     permission_classes = [IsAuthenticated]
-
+    pagination_class = OrderPagination
     # -------------------------
     # FILTER DATA BY USER TYPE
     # -------------------------
     def get_queryset(self):
-        user = self.request.user
         qs = super().get_queryset()
+        user = self.request.user
 
-        # If user is admin -> filter company & branch wise
+        # ---------------------------------------------------
+        # 1. ADMIN FILTER → company-wise & branch-wise data
+        # ---------------------------------------------------
         if hasattr(user, "user_type") and user.user_type == "admin":
-            company = getattr(user, "company", None)
-            branch = getattr(user, "branch", None)
-            if company is not None:
-                qs = qs.filter(company=company)
-            if branch is not None:
-                qs = qs.filter(branch=branch)
-        # else (superadmin or others) -> full qs
+            if getattr(user, "company", None):
+                qs = qs.filter(company=user.company)
+            if getattr(user, "branch", None):
+                qs = qs.filter(branch=user.branch)
+
+        # ---------------------------------------------------
+        # 2. CUSTOM KEYWORD SEARCH (LIKE %keyword%)
+        # ---------------------------------------------------
+        keyword = self.request.query_params.get("keyword")
+        if keyword:
+            qs = qs.filter(
+                Q(name__icontains=keyword) |
+                Q(mobile__icontains=keyword) |
+                Q(email__icontains=keyword) |
+                Q(location__icontains=keyword) |
+                Q(position__icontains=keyword) |
+                Q(job_code__icontains=keyword) |
+                Q(department__icontains=keyword) |
+                Q(source__icontains=keyword) |
+                Q(status__icontains=keyword)
+            )
 
         return qs
 
