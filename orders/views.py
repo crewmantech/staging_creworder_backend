@@ -3203,32 +3203,55 @@ class FilterOrdersView1(viewsets.ViewSet):
         date_range = request.query_params.get('date_range')
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
+
+        print(date_range, start_date, "--------------------4495")
+
         try:
+            # -----------------------------
+            # CASE 1: date_range = "2025-10-01 2025-10-02"
+            # -----------------------------
             if date_range:
+                date_range = date_range.strip()
+
                 if isinstance(date_range, str):
-                    date_range = date_range.split(' ')
-                    if len(date_range) != 2:
+                    parts = date_range.split(" ")
+                    if len(parts) != 2:
                         raise ValueError("Date range invalid")
-                    start_date = datetime.fromisoformat(date_range[0]).date()
-                    end_date = datetime.fromisoformat(date_range[1]).date()
+
+                    start_date = datetime.strptime(parts[0], "%Y-%m-%d").date()
+                    end_date = datetime.strptime(parts[1], "%Y-%m-%d").date()
+
                 elif isinstance(date_range, dict):
-                    start_date = date_range.get("start_date")
-                    end_date = date_range.get("end_date", datetime.now().strftime('%Y-%m-%d'))
-                    start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
-                    end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+                    start_date = datetime.strptime(date_range.get("start_date"), "%Y-%m-%d").date()
+                    end_date = datetime.strptime(date_range.get("end_date"), "%Y-%m-%d").date()
+
                 else:
                     raise ValueError("Invalid date_range format.")
+
+            # -----------------------------
+            # CASE 2: start_date & end_date provided separately
+            # -----------------------------
             elif start_date and end_date:
-                pass
+                start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
+                end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+
+            # -----------------------------
+            # CASE 3: No dates provided → default to today
+            # -----------------------------
             else:
                 today = datetime.now().date()
                 start_date = end_date = today
 
+            print(start_date, end_date, "-----------------------4518")
+
+            # Convert date → datetime
             start_datetime = timezone.make_aware(datetime.combine(start_date, time.min))
             end_datetime = timezone.make_aware(datetime.combine(end_date, time.max))
+
             return start_datetime, end_datetime
 
         except Exception as e:
+            print(str(e), "------------4523")
             return None, None  # Could also raise an error if needed
 
     def _scope_queryset(self, qs, user):
@@ -3242,6 +3265,8 @@ class FilterOrdersView1(viewsets.ViewSet):
             return qs
         elif user.has_perm("accounts.view_all_order_others"):
             return qs
+        elif user.has_perm("accounts.view_owm_branch_order_others"):
+            return qs.filter(branch=user.profile.branch)
         elif user.has_perm("accounts.view_manager_order_others"):
             return qs.filter(Q(order_created_by__in=mgr) | Q(updated_by__in=mgr))
         elif user.has_perm("accounts.view_teamlead_order_others"):
@@ -3257,7 +3282,7 @@ class FilterOrdersView1(viewsets.ViewSet):
         company = request.user.profile.company
 
         queryset = Order_Table.objects.filter(
-        branch=branch,
+        # branch=branch,
         company=company,
         is_deleted=False
     ).order_by("-created_at")
@@ -3308,23 +3333,6 @@ class FilterOrdersView1(viewsets.ViewSet):
                     filter_conditions &= Q(order_status__id=order_status_int)
                 except (ValueError, TypeError):
                     filter_conditions &= Q(order_status__name__icontains=str(order_status))
-        if filters.get('counter'):
-            counter = filters['counter']
-            if '+' in counter:  
-                # Example: "3+"
-                try:
-                    base_value = int(counter.replace('+', ''))
-                    filter_conditions &= Q(ofd_counter__gt=base_value)
-                except ValueError:
-                    pass  # ignore invalid value
-            else:
-                # Normal number case: "1", "2", "3"
-                try:
-                    base_value = int(counter)
-                    filter_conditions &= Q(ofd_counter=base_value)
-                except ValueError:
-                    pass  # ignore invalid value
-
 
         # Agent name
         if filters.get("agent_name"):
@@ -3343,7 +3351,22 @@ class FilterOrdersView1(viewsets.ViewSet):
                     Q(created_at__range=(start_datetime, end_datetime)) |
                     Q(updated_at__range=(start_datetime, end_datetime))
                 )
-
+        if filters.get('counter'):
+            counter = filters['counter']
+            if '+' in counter:  
+                # Example: "3+"
+                try:
+                    base_value = int(counter.replace('+', ''))
+                    filter_conditions &= Q(ofd_counter__gt=base_value)
+                except ValueError:
+                    pass  # ignore invalid value
+            else:
+                # Normal number case: "1", "2", "3"
+                try:
+                    base_value = int(counter)
+                    filter_conditions &= Q(ofd_counter=base_value)
+                except ValueError:
+                    pass 
         # Course repeated filter
         if str(filters.get("course")).lower() == "true":
             filter_conditions &= Q(course_order_repeated__gt=0)
