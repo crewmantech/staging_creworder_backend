@@ -4212,7 +4212,7 @@ class InterviewApplicationViewSet(viewsets.ModelViewSet):
                 Q(location__icontains=keyword) |
                 Q(position__icontains=keyword) |
                 Q(job_code__icontains=keyword) |
-                Q(department__icontains=keyword) |
+                Q(designation__icontains=keyword) |
                 Q(source__icontains=keyword) |
                 Q(status__icontains=keyword)
             )
@@ -4319,7 +4319,7 @@ class InterviewApplicationViewSet(viewsets.ModelViewSet):
                     "notice_period": row.get("notice_period"),
                     "position": row.get("position"),
                     "job_code": row.get("job_code"),
-                    "department": row.get("department"),
+                    "designation": row.get("designation"),
                     "source": row.get("source"),
                     "interview_date": self.parse_date(row.get("interview_date")),
                     "interview_mode": row.get("interview_mode"),
