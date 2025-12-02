@@ -4335,7 +4335,7 @@ class InterviewApplicationViewSet(viewsets.ModelViewSet):
 
                 serializer = self.get_serializer(data=data)
                 if serializer.is_valid():
-                    serializer.save()
+                    serializer.save(company=company, branch=branch)
                     created_count += 1
                 else:
                     errors.append(
