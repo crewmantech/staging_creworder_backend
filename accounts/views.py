@@ -4224,8 +4224,8 @@ class InterviewApplicationViewSet(viewsets.ModelViewSet):
     # -------------------------
     def perform_create(self, serializer):
         user = self.request.user
-        company = getattr(user, "company", None)
-        branch = getattr(user, "branch", None)
+        company = user.profile.company
+        branch = user.profile.branch
         serializer.save(company=company, branch=branch)
 
     # -------------------------
@@ -4288,9 +4288,9 @@ class InterviewApplicationViewSet(viewsets.ModelViewSet):
         errors = []
 
         user = request.user
-        company = getattr(user, "company", None)
-        branch = getattr(user, "branch", None)
-
+        company = user.profile.company
+        branch = user.profile.branch
+        # request.user.profile.branch
         with transaction.atomic():
             for index, row in enumerate(reader, start=1):
                 # Get values safely: if column not present, returns None
