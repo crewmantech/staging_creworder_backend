@@ -1192,7 +1192,7 @@ class InterviewApplication(BaseModel):
     position = models.CharField(max_length=255, blank=True, null=True)
     job_code = models.CharField(max_length=50, blank=True, null=True)
  
-    department = models.CharField(max_length=255, blank=True, null=True)
+    designation = models.CharField(max_length=255, blank=True, null=True)
     source = models.CharField(max_length=255, blank=True, null=True)  # Referral, LinkedIn, Naukri
 
     interview_date = models.DateField(blank=True, null=True)
