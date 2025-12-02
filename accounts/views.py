@@ -29,10 +29,10 @@ from services.email.email_service import send_email
 from services.shipment.schedule_orders import ShiprocketScheduleOrder,TekipostService
 from shipment.models import ShipmentModel, ShipmentVendor
 from shipment.serializers import ShipmentSerializer
-from .models import  Agreement, AttendanceSession, CompanyInquiry, CompanyUserAPIKey, Enquiry, QcScore, ReminderNotes, StickyNote, User, Company, Package, Employees, Notice, Branch, FormEnquiry, SupportTicket, Module, \
+from .models import  Agreement, AttendanceSession, CompanyInquiry, CompanyUserAPIKey, Enquiry, InterviewApplication, QcScore, ReminderNotes, StickyNote, User, Company, Package, Employees, Notice, Branch, FormEnquiry, SupportTicket, Module, \
     Department, Designation, Leaves, Holiday, Award, Appreciation, ShiftTiming, Attendance, AllowedIP,Shift_Roster,CustomAuthGroup,PickUpPoint, UserStatus,\
     UserTargetsDelails,AdminBankDetails,QcTable,OTPAttempt
-from .serializers import  AgreementSerializer, CompanyInquirySerializer, CompanyUserAPIKeySerializer, CustomPasswordResetSerializer, EnquirySerializer, NewPasswordSerializer,  QcScoreSerializer, ReminderNotesSerializer, StickyNoteSerializer, UpdateTeamLeadManagerSerializer, UserSerializer, CompanySerializer, PackageSerializer, \
+from .serializers import  AgreementSerializer, CompanyInquirySerializer, CompanyUserAPIKeySerializer, CustomPasswordResetSerializer, EnquirySerializer, InterviewApplicationSerializer, NewPasswordSerializer,  QcScoreSerializer, ReminderNotesSerializer, StickyNoteSerializer, UpdateTeamLeadManagerSerializer, UserSerializer, CompanySerializer, PackageSerializer, \
     UserProfileSerializer, NoticeSerializer, BranchSerializer, UserSignupSerializer, FormEnquirySerializer, \
     SupportTicketSerializer, ModuleSerializer, DepartmentSerializer, DesignationSerializer, LeaveSerializer, \
     HolidaySerializer, AwardSerializer, AppreciationSerializer, ShiftSerializer, AttendanceSerializer,ShiftRosterSerializer, \
@@ -254,7 +254,7 @@ class UserViewSet(viewsets.ModelViewSet):
             # Only filter active for list/retrieve
             if self.action in ["list", "retrieve"]:
                 queryset = queryset.filter(profile__status=1)
-           
+            print("----------------------257")
             if user.profile.user_type == "superadmin":
                 company_id = self.request.query_params.get("company_id")
                 if company_id:
@@ -269,19 +269,23 @@ class UserViewSet(viewsets.ModelViewSet):
                     queryset = queryset.filter(profile__branch=branch_id)
 
             elif user.profile.user_type == "agent":
+                print("----------------------272")
                 queryset = queryset.filter(profile__branch=user.profile.branch)
                 branch_id = self.request.query_params.get("branch_id")
                 if branch_id:
                     queryset = queryset.filter(profile__branch=branch_id)
                 try:
+                    print("--------------------------277", user.has_perm('accounts.department_can_view_all'))
                     user_permissions = user.user_permissions.values_list('codename', flat=True)
-
+                   
                     # 🟢 1. Full Access: All departments
-                    if 'department_can_view_all_department' in user_permissions:
+                    if user.has_perm('accounts.department_can_view_all'):
+                        
                         pass  # full access
 
                     # 🟡 2. Own Department Access
-                    elif 'department_can_view_own_department' in user_permissions:
+                    
+                    elif user.has_perm('accounts.department_can_view_own_department'):
                         queryset = queryset.filter(profile__department=user.profile.department)
 
                     else:
@@ -4170,3 +4174,163 @@ class AgentAttendanceUserWiseAPIView(ListAPIView):
             },
             "date_wise_totals": date_wise_summary,
         })
+
+
+
+
+
+class InterviewApplicationViewSet(viewsets.ModelViewSet):
+    queryset = InterviewApplication.objects.all().order_by("-created_at")
+    serializer_class = InterviewApplicationSerializer
+    permission_classes = [IsAuthenticated]
+
+    # -------------------------
+    # FILTER DATA BY USER TYPE
+    # -------------------------
+    def get_queryset(self):
+        user = self.request.user
+        qs = super().get_queryset()
+
+        # If user is admin -> filter company & branch wise
+        if hasattr(user, "user_type") and user.user_type == "admin":
+            company = getattr(user, "company", None)
+            branch = getattr(user, "branch", None)
+            if company is not None:
+                qs = qs.filter(company=company)
+            if branch is not None:
+                qs = qs.filter(branch=branch)
+        # else (superadmin or others) -> full qs
+
+        return qs
+
+    # -------------------------
+    # AUTO SET COMPANY & BRANCH ON CREATE
+    # -------------------------
+    def perform_create(self, serializer):
+        user = self.request.user
+        company = getattr(user, "company", None)
+        branch = getattr(user, "branch", None)
+        serializer.save(company=company, branch=branch)
+
+    # -------------------------
+    # HELPER: SAFE PARSERS
+    # -------------------------
+    def parse_decimal(self, value):
+        if value is None:
+            return None
+        value = str(value).strip()
+        if value == "":
+            return None
+        try:
+            return float(value)
+        except ValueError:
+            return None
+
+    def parse_date(self, value):
+        if value is None:
+            return None
+        value = str(value).strip()
+        if value == "":
+            return None
+
+        # Try common formats: 2025-12-02, 02-12-2025, 02/12/2025
+        for fmt in ("%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y"):
+            try:
+                return datetime.strptime(value, fmt).date()
+            except ValueError:
+                continue
+        return None
+
+    # -------------------------
+    # BULK CSV UPLOAD
+    # -------------------------
+    @action(detail=False, methods=["post"], url_path="upload-csv")
+    def upload_csv(self, request):
+        """
+        Expects a CSV file in 'file' field.
+        - If a column is missing -> ignore it, still save.
+        - If a cell is empty/null -> save with NULL.
+        - Only 'name' and 'mobile' are mandatory per row.
+        """
+        file = request.FILES.get("file")
+        if not file:
+            return Response(
+                {"error": "CSV file is required with key 'file'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            csv_file = TextIOWrapper(file.file, encoding="utf-8")
+            reader = csv.DictReader(csv_file)
+        except Exception as e:
+            return Response(
+                {"error": f"Invalid CSV file. {str(e)}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        created_count = 0
+        errors = []
+
+        user = request.user
+        company = getattr(user, "company", None)
+        branch = getattr(user, "branch", None)
+
+        with transaction.atomic():
+            for index, row in enumerate(reader, start=1):
+                # Get values safely: if column not present, returns None
+                name = (row.get("name") or "").strip()
+                mobile = (row.get("mobile") or "").strip()
+
+                # Name & mobile are mandatory
+                if not name or not mobile:
+                    errors.append(
+                        f"Row {index}: 'name' and 'mobile' are required. Skipped."
+                    )
+                    continue
+
+                data = {
+                    "name": name,
+                    "mobile": mobile,
+                    "email": row.get("email"),
+                    "location": row.get("location"),
+                    "preferred_location": row.get("preferred_location"),
+                    "gender": row.get("gender"),
+                    "dob": self.parse_date(row.get("dob")),
+                    "qualification": row.get("qualification"),
+                    "total_exp": self.parse_decimal(row.get("total_exp")),
+                    "current_salary": self.parse_decimal(row.get("current_salary")),
+                    "expected_salary": self.parse_decimal(row.get("expected_salary")),
+                    "notice_period": row.get("notice_period"),
+                    "position": row.get("position"),
+                    "job_code": row.get("job_code"),
+                    "department": row.get("department"),
+                    "source": row.get("source"),
+                    "interview_date": self.parse_date(row.get("interview_date")),
+                    "interview_mode": row.get("interview_mode"),
+                    "remarks": row.get("remarks"),
+                    "status": row.get("status"),
+                    "offered_salary": self.parse_decimal(row.get("offered_salary")),
+                    "offer_status": row.get("offer_status"),
+                    "joining_date": self.parse_date(row.get("joining_date")),
+                    # company & branch always from user, not CSV
+                    "company": company,
+                    "branch": branch,
+                }
+
+                serializer = self.get_serializer(data=data)
+                if serializer.is_valid():
+                    serializer.save()
+                    created_count += 1
+                else:
+                    errors.append(
+                        f"Row {index}: {serializer.errors}"
+                    )
+
+        return Response(
+            {
+                "message": "CSV processing completed.",
+                "created": created_count,
+                "errors": errors,
+            },
+            status=status.HTTP_200_OK,
+        )

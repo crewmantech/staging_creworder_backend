@@ -12,7 +12,7 @@ from staging_creworder_backend import settings
 from lead_management.models import Lead, LeadSourceModel
 from orders.models import  Products
 from services.email.email_service import send_email
-from .models import  Agreement, AttendanceSession, CompanyInquiry, CompanyUserAPIKey, Enquiry, QcScore, ReminderNotes, StickyNote, User, Company, Package,Employees, Notice, Branch, FormEnquiry, SupportTicket, Module, \
+from .models import  Agreement, AttendanceSession, CompanyInquiry, CompanyUserAPIKey, Enquiry, InterviewApplication, QcScore, ReminderNotes, StickyNote, User, Company, Package,Employees, Notice, Branch, FormEnquiry, SupportTicket, Module, \
     Department, Designation, Leaves, Holiday, Award, Appreciation, ShiftTiming, Attendance,Shift_Roster,PackageDetailsModel,CustomAuthGroup,\
     PickUpPoint,UserTargetsDelails,AdminBankDetails,AllowedIP,QcTable
 import string
@@ -840,3 +840,10 @@ class ReminderNotesSerializer(serializers.ModelSerializer):
     class Meta:
         model = ReminderNotes
         fields = '__all__'
+
+
+class InterviewApplicationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InterviewApplication
+        fields = "__all__"
+        read_only_fields = ("company", "branch", "created_at", "updated_at")

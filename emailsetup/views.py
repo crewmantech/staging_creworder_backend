@@ -247,7 +247,12 @@ class AvailableUsersForAgentView(APIView):
             return Response({"error": "branch_id is required"}, status=400)
 
         # all employees of this branch
-        employees = Employees.objects.filter(branch_id=branch_id)
+        employees = Employees.objects.filter(
+    branch_id=branch_id,
+    user_type='agent',
+    login_allowed=True,      # or 1
+    status__in=[0, 1]
+)
 
         # users already assigned to some entity
         assigned_user_ids = AgentUserMapping.objects.values_list("user_id", flat=True)

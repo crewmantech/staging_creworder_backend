@@ -208,11 +208,13 @@ class AccountsConfig(AppConfig):
             scheduler.add_job(deactivate_old_demo_companies, 'interval', hours=24, id='deactivate_old_demo_companies')
             scheduler.add_job(
                 auto_create_monthly_targets,
-                trigger=CronTrigger(day="1", hour="0", minute="1", timezone=tz),
+                trigger=CronTrigger(day="1", hour=00, minute=10, timezone=tz),
                 id="auto_create_monthly_targets",
                 replace_existing=True,
-                max_instances=1
+                max_instances=1,
+                misfire_grace_time=86400
             )
+
             # scheduler.add_job(
             #     deactivate_old_demo_companies,
             #     IntervalTrigger(seconds=40),  # Run every 30 seconds

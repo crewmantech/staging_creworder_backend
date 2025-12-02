@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import AgentAttendanceUserWiseAPIView, AgreementViewSet, AssignRole,AgentListByManagerAPIView, AgentListByTeamleadAPIView, CSVUserUploadView, CompanyInquiryViewSet, CompanyMonthlySummaryView, CompanyUserAPIKeyViewSet, CompanyUserViewSet, CustomPasswordResetView, DeleteUserListView, EnquiryViewSet, ForceLogoutView, ManagerTeamLeadAgentAPIView, ManagerViewSet, MonthlyCompanyStatsView, QcScoreViewSet, ReminderNotesViewSet, ResetPasswordAPIView, StickyNoteViewSet, TeamleadViewSet, UpdateTeamLeadManagerAPIView, UserExportView, UserPermissionStatusView, UserViewSet, CompanyViewSet, PackageViewSet, UserPermissionsView, \
+from .views import AgentAttendanceUserWiseAPIView, AgreementViewSet, AssignRole,AgentListByManagerAPIView, AgentListByTeamleadAPIView, CSVUserUploadView, CompanyInquiryViewSet, CompanyMonthlySummaryView, CompanyUserAPIKeyViewSet, CompanyUserViewSet, CustomPasswordResetView, DeleteUserListView, EnquiryViewSet, ForceLogoutView, InterviewApplicationViewSet, ManagerTeamLeadAgentAPIView, ManagerViewSet, MonthlyCompanyStatsView, QcScoreViewSet, ReminderNotesViewSet, ResetPasswordAPIView, StickyNoteViewSet, TeamleadViewSet, UpdateTeamLeadManagerAPIView, UserExportView, UserPermissionStatusView, UserViewSet, CompanyViewSet, PackageViewSet, UserPermissionsView, \
     UserProfileViewSet, \
     NoticeViewSet, BranchViewSet, AdminSelfSignUp, FormEnquiryViewSet, SupportTicketViewSet, ModuleViewSet, \
     GetSpecificUsers, \
@@ -48,6 +48,7 @@ router.register(r'agreements', AgreementViewSet, basename='agreement')
 router.register(r'qcscore', QcScoreViewSet, basename='qcscore')
 router.register(r'assign-company-user', CompanyUserAPIKeyViewSet, basename='assign-company-user')
 router.register(r'reminder-notes', ReminderNotesViewSet, basename='remindernotes')
+router.register(r"interviews", InterviewApplicationViewSet, basename="interview")
 
 # router.register(r'assign-role',AssignRole,basename='assign-role')
 urlpatterns = [

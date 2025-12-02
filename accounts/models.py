@@ -1049,6 +1049,7 @@ class Others(models.Model):
             ('view_Product_Information_others', ' view Product Information other'),
             ('view_own_order_others', 'Can view own lead others'),
             ('view_all_order_others', 'Can view all order others'),
+            ('view_owm_branch_order_others','Can view own branch order others'),
             ('view_manager_order_others', 'Can view manager order others'),
             ('view_teamlead_order_others', 'Can view teamlead order others'),
             ('edit_order_others', 'Can edit order others'),
@@ -1164,3 +1165,54 @@ class OTPAttempt(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     used = models.BooleanField(default=False)
     timestamp = models.DateTimeField(auto_now_add=True)
+
+
+
+class InterviewApplication(BaseModel):
+    # -------------------------
+    # BASIC DETAILS (Mandatory)
+    # -------------------------
+    name = models.CharField(max_length=255)            # required
+    mobile = models.CharField(max_length=20)           # required
+
+    email = models.EmailField(blank=True, null=True)
+    location = models.CharField(max_length=255, blank=True, null=True)
+    preferred_location = models.CharField(max_length=255, blank=True, null=True)
+
+   
+    gender = models.CharField(max_length=20, blank=True, null=True)
+    dob = models.DateField(blank=True, null=True)
+    qualification = models.CharField(max_length=255, blank=True, null=True)
+
+    total_exp = models.DecimalField(max_digits=4, decimal_places=1, blank=True, null=True)
+    current_salary = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    expected_salary = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    notice_period = models.CharField(max_length=100, blank=True, null=True)
+
+    position = models.CharField(max_length=255, blank=True, null=True)
+    job_code = models.CharField(max_length=50, blank=True, null=True)
+ 
+    department = models.CharField(max_length=255, blank=True, null=True)
+    source = models.CharField(max_length=255, blank=True, null=True)  # Referral, LinkedIn, Naukri
+
+    interview_date = models.DateField(blank=True, null=True)
+  
+
+    interview_mode = models.CharField(max_length=100, blank=True, null=True)  # Online, Offline, Phone
+   
+
+    remarks = models.TextField(blank=True, null=True)
+    status = models.CharField(max_length=255, blank=True, null=True)  # simple text
+
+    offered_salary = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    offer_status = models.CharField(max_length=100, blank=True, null=True)
+
+    joining_date = models.DateField(blank=True, null=True)
+
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    branch = models.ForeignKey(Branch, related_name="interview_branch", on_delete=models.CASCADE, null=True, blank=True)
+    company = models.ForeignKey(Company, related_name="interview_company", on_delete=models.CASCADE, null=True, blank=True)
+    def __str__(self):
+        return self.name

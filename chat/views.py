@@ -389,12 +389,13 @@ class getUserListChat(APIView):
         )
 
         # ✅ Only show users whose profile.status = 1
+        
         users = User.objects.filter(
                 Q(id__in=unique_to_users),
                 Q(profile__login_allowed=True),
                 Q(profile__status=1) | Q(profile__status=0)
             )
-
+        print("-----------------------",users,398)
         user_serializer = UserSerializer(users, many=True)
 
         return Response(
@@ -456,6 +457,7 @@ class getUserListChatAdmin(APIView):
             admin_and_agents = User.objects.filter(
                 profile__company=company,
                 profile__user_type__in=["agent", "admin"],
+                profile__login_allowed=True,
                 profile__status=1,
             )
             print(f"👥 Admin+Agents added: {admin_and_agents.count()} users")
