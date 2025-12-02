@@ -4194,11 +4194,11 @@ class InterviewApplicationViewSet(viewsets.ModelViewSet):
         # ---------------------------------------------------
         # 1. ADMIN FILTER → company-wise & branch-wise data
         # ---------------------------------------------------
-        if hasattr(user, "user_type") and user.user_type == "admin":
-            if getattr(user, "company", None):
-                qs = qs.filter(company=user.company)
-            if getattr(user, "branch", None):
-                qs = qs.filter(branch=user.branch)
+        if user.profile.user_type == "admin":
+            if user.profile.company:
+                qs = qs.filter(company=user.profile.company)
+            if user.profile.branch:
+                qs = qs.filter(branch=user.profile.branch)
 
         # ---------------------------------------------------
         # 2. CUSTOM KEYWORD SEARCH (LIKE %keyword%)
