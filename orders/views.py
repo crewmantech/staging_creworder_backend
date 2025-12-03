@@ -3207,9 +3207,6 @@ class FilterOrdersView1(viewsets.ViewSet):
         print(date_range, start_date, "--------------------4495")
 
         try:
-            # -----------------------------
-            # CASE 1: date_range = "2025-10-01 2025-10-02"
-            # -----------------------------
             if date_range:
                 date_range = date_range.strip()
 
@@ -3228,23 +3225,16 @@ class FilterOrdersView1(viewsets.ViewSet):
                 else:
                     raise ValueError("Invalid date_range format.")
 
-            # -----------------------------
-            # CASE 2: start_date & end_date provided separately
-            # -----------------------------
             elif start_date and end_date:
                 start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
                 end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
 
-            # -----------------------------
-            # CASE 3: No dates provided → default to today
-            # -----------------------------
             else:
                 today = datetime.now().date()
                 start_date = end_date = today
 
             print(start_date, end_date, "-----------------------4518")
 
-            # Convert date → datetime
             start_datetime = timezone.make_aware(datetime.combine(start_date, time.min))
             end_datetime = timezone.make_aware(datetime.combine(end_date, time.max))
 
@@ -3252,11 +3242,13 @@ class FilterOrdersView1(viewsets.ViewSet):
 
         except Exception as e:
             print(str(e), "------------4523")
-            return None, None  # Could also raise an error if needed
+            return None, None
 
     def _scope_queryset(self, qs, user):
         agent_ids = Employees.objects.filter(manager=user.id).values_list('user', flat=True)
-        mgr_ids = Employees.objects.filter(Q(teamlead__in=agent_ids) | Q(user=user.id)).values_list('user', flat=True)
+        mgr_ids = Employees.objects.filter(
+            Q(teamlead__in=agent_ids) | Q(user=user.id)
+        ).values_list('user', flat=True)
         mgr = set(mgr_ids) | set(agent_ids)
         tl_ids = list(Employees.objects.filter(teamlead=user.id).values_list('user', flat=True))
         tl_ids.append(user.id)
@@ -3282,15 +3274,16 @@ class FilterOrdersView1(viewsets.ViewSet):
         company = request.user.profile.company
 
         queryset = Order_Table.objects.filter(
-        # branch=branch,
-        company=company,
-        is_deleted=False
-    ).order_by("-created_at")
+            # branch=branch,
+            company=company,
+            is_deleted=False
+        ).order_by("-created_at")
+
         filter_conditions = Q()
 
-        # Filter by basic fields
+        # 🔹 Basic field filters (removed order_id from here)
         filterable_fields = {
-            "order_id": "order_id",
+            # "order_id": "order_id",   # ⬅️ removed, handled separately below
             "awb": "order_wayBill",
             "phone_no": "customer_phone",
             "payment_type": "payment_type__id",
@@ -3303,9 +3296,22 @@ class FilterOrdersView1(viewsets.ViewSet):
             if value:
                 filter_conditions &= Q(**{model_field: value})
 
-        # Product filter
+        # 🔹 Order ID filter (now matches primary key `id` AND order_id column)
+        if filters.get("order_id"):
+            order_id_value = filters["order_id"]
+            # will match if either internal id (id) or external order_id matches
+            filter_conditions &= (Q(id=order_id_value) | Q(order_id=order_id_value))
+
+        # 🔹 OLD product filter (if you still have OrderDetail relation)
         if filters.get("product_id"):
             filter_conditions &= Q(orderdetail__product_id=filters["product_id"])
+
+        # 🔹 NEW product filter on product_details JSON (key "id" inside array)
+        # expects: ?product=<product_id>  e.g. ODI2O7XD
+        if filters.get("product"):
+            product_code = filters["product"]
+            # simple JSON string match: "id": "ODI2O7XD"
+            filter_conditions &= Q(product_details__icontains=f'"id": "{product_code}"')
 
         # State filter
         if filters.get("state_id"):
@@ -3338,7 +3344,7 @@ class FilterOrdersView1(viewsets.ViewSet):
         if filters.get("agent_name"):
             filter_conditions &= Q(order_created_by__username__icontains=filters["agent_name"])
 
-        # User ID filter (fixed parentheses)
+        # User ID filter
         if filters.get("user_id"):
             user_id = filters["user_id"]
             filter_conditions &= Q(order_created_by=user_id) | Q(updated_by=user_id)
@@ -3351,22 +3357,23 @@ class FilterOrdersView1(viewsets.ViewSet):
                     Q(created_at__range=(start_datetime, end_datetime)) |
                     Q(updated_at__range=(start_datetime, end_datetime))
                 )
+
+        # OFD counter filter
         if filters.get('counter'):
             counter = filters['counter']
-            if '+' in counter:  
-                # Example: "3+"
+            if '+' in counter:
                 try:
                     base_value = int(counter.replace('+', ''))
                     filter_conditions &= Q(ofd_counter__gt=base_value)
                 except ValueError:
-                    pass  # ignore invalid value
+                    pass
             else:
-                # Normal number case: "1", "2", "3"
                 try:
                     base_value = int(counter)
                     filter_conditions &= Q(ofd_counter=base_value)
                 except ValueError:
-                    pass 
+                    pass
+
         # Course repeated filter
         if str(filters.get("course")).lower() == "true":
             filter_conditions &= Q(course_order_repeated__gt=0)
@@ -3374,7 +3381,7 @@ class FilterOrdersView1(viewsets.ViewSet):
         # Apply filters
         queryset = queryset.filter(filter_conditions).distinct()
 
-        # Apply permission-based filtering
+        # Apply permission-based scoping
         queryset = self._scope_queryset(queryset, request.user)
 
         # Pagination
