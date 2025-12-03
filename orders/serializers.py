@@ -40,67 +40,101 @@ class OrderDetailSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ['id']
 
+    # 🔹 Helper to safely convert to float
+    def _safe_float(self, value, default=0.0):
+        try:
+            if value is None or value == "":
+                return float(default)
+            return float(value)
+        except (TypeError, ValueError):
+            return float(default)
+
+    # ---------- STATE HELPERS ----------
     def get_customer_state_code(self, obj):
-        return obj.order.customer_state.gst_state_code  
+        order = getattr(obj, "order", None)
+        customer_state = getattr(order, "customer_state", None) if order else None
+        return getattr(customer_state, "gst_state_code", None)
 
     def get_company_state_code(self, obj):
-        return "07" # assuming state_code exists
+        # Hard-coded as per your logic
+        return "07"
 
     def is_same_state(self, obj):
-        return self.get_customer_state_code(obj) == self.get_company_state_code(obj)
+        customer_code = self.get_customer_state_code(obj)
+        company_code = self.get_company_state_code(obj)
+        if not customer_code or not company_code:
+            return False
+        return customer_code == company_code
 
+    # ---------- BASIC PRODUCT INFO ----------
     def get_gst_rate(self, obj):
-        return obj.product.product_gst_percent if obj.product else None
+        if obj.product and getattr(obj.product, "product_gst_percent", None) is not None:
+            return obj.product.product_gst_percent
+        return None
 
     def get_product_sku(self, obj):
         return obj.product.product_sku if obj.product else None
-    
+
     def get_product_weight(self, obj):
         return obj.product.product_weight if obj.product else None
-    
+
     def get_product_hsn_number(self, obj):
         return obj.product.product_hsn_number if obj.product else None
 
+    # ---------- DISCOUNT / PRICE ----------
     def get_discount_per_product(self, obj):
-        order = obj.order
-        if not order or not order.discount:
-            return 0
+        order = getattr(obj, "order", None)
+        if not order or not getattr(order, "discount", None):
+            return 0.0
 
-        qty = obj.product_qty
-        unit_price = float(obj.product_price)
+        qty = obj.product_qty or 0
+        unit_price = self._safe_float(obj.product_price, 0)
         product_total = unit_price * qty
 
+        # Total order value from all order details
         order_details = order.orderdetail_set.all()
-        total_order_value = sum(float(item.product_price) * item.product_qty for item in order_details)
+        total_order_value = 0.0
+        for item in order_details:
+            item_price = self._safe_float(getattr(item, "product_price", 0), 0)
+            item_qty = getattr(item, "product_qty", 0) or 0
+            total_order_value += item_price * item_qty
 
-        if total_order_value == 0:
-            return 0
+        if total_order_value == 0 or qty == 0:
+            return 0.0
 
         product_discount_total = (product_total / total_order_value) * float(order.discount)
-        discount_per_unit = product_discount_total / qty if qty else 0
-
+        discount_per_unit = product_discount_total / qty
         return round(discount_per_unit, 2)
 
     def get_base_price(self, obj):
+        price = self._safe_float(obj.product_price, 0)
         gst_rate = self.get_gst_rate(obj)
-        if gst_rate is None:
-            return float(obj.product_price)
-        base_price = float(obj.product_price) / (1 + gst_rate / 100)
+
+        # If no GST rate, base price is just the price
+        if not gst_rate:
+            return round(price, 2)
+
+        base_price = price / (1 + gst_rate / 100)
         return round(base_price, 2)
 
     def get_final_price_per_unit(self, obj):
-        unit_price = float(obj.product_price)
-        discount = self.get_discount_per_product(obj)
-        return round(unit_price - discount, 2)
+        unit_price = self._safe_float(obj.product_price, 0)
+        discount = self.get_discount_per_product(obj) or 0.0
+        final_price = unit_price - discount
+        return round(final_price, 2)
 
     def get_final_total_price(self, obj):
-        return round(self.get_final_price_per_unit(obj) * obj.product_qty, 2)
+        qty = obj.product_qty or 0
+        return round(self.get_final_price_per_unit(obj) * qty, 2)
 
+    # ---------- GST / TAX ----------
     def get_gst_amount(self, obj):
         final_price_total = self.get_final_total_price(obj)
         gst_rate = self.get_gst_rate(obj)
+
         if not gst_rate:
-            return 0
+            return 0.0
+
         base_price_total = final_price_total / (1 + gst_rate / 100)
         gst_total = final_price_total - base_price_total
         return round(gst_total, 2)
@@ -108,32 +142,48 @@ class OrderDetailSerializer(serializers.ModelSerializer):
     def get_taxable_value(self, obj):
         final_price_total = self.get_final_total_price(obj)
         gst_rate = self.get_gst_rate(obj)
+
         if not gst_rate:
             return round(final_price_total, 2)
+
         base_price_total = final_price_total / (1 + gst_rate / 100)
         return round(base_price_total, 2)
 
-    # 🧾 NEW FIELDS - TAX BREAKUP
+    # ---------- TAX BREAKUP (SGST/CGST/IGST) ----------
     def get_sgst_rate(self, obj):
-        return round(self.get_gst_rate(obj) / 2, 2) if self.is_same_state(obj) else 0
+        gst_rate = self.get_gst_rate(obj)
+        if not gst_rate or not self.is_same_state(obj):
+            return 0
+        return round(gst_rate / 2, 2)
 
     def get_cgst_rate(self, obj):
-        return round(self.get_gst_rate(obj) / 2, 2) if self.is_same_state(obj) else 0
+        gst_rate = self.get_gst_rate(obj)
+        if not gst_rate or not self.is_same_state(obj):
+            return 0
+        return round(gst_rate / 2, 2)
 
     def get_igst_rate(self, obj):
-        return self.get_gst_rate(obj) if not self.is_same_state(obj) else 0
+        gst_rate = self.get_gst_rate(obj)
+        if not gst_rate or self.is_same_state(obj):
+            return 0
+        return gst_rate
 
     def get_sgst_amount(self, obj):
         gst_amount = self.get_gst_amount(obj)
-        return round(gst_amount / 2, 2) if self.is_same_state(obj) else 0
+        if not self.is_same_state(obj) or not gst_amount:
+            return 0.0
+        return round(gst_amount / 2, 2)
 
     def get_cgst_amount(self, obj):
         gst_amount = self.get_gst_amount(obj)
-        return round(gst_amount / 2, 2) if self.is_same_state(obj) else 0
+        if not self.is_same_state(obj) or not gst_amount:
+            return 0.0
+        return round(gst_amount / 2, 2)
 
     def get_igst_amount(self, obj):
-        return self.get_gst_amount(obj) if not self.is_same_state(obj) else 0
-
+        if self.is_same_state(obj):
+            return 0.0
+        return self.get_gst_amount(obj)
 
 
 
@@ -488,10 +538,3 @@ class OrderSummarySerializer(serializers.Serializer):
     payment_type__name = serializers.CharField()
     total_orders = serializers.IntegerField()
     total_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
-
-
-class PaymentMethodSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Payment_method
-        fields = '__all__' 
-        read_only_fields = ['id']
