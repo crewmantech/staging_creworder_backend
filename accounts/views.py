@@ -4179,10 +4179,6 @@ class AgentAttendanceUserWiseAPIView(ListAPIView):
             "date_wise_totals": date_wise_summary,
         })
 
-
-
-
-
 class InterviewApplicationViewSet(viewsets.ModelViewSet):
     queryset = InterviewApplication.objects.all().order_by("-created_at")
     serializer_class = InterviewApplicationSerializer

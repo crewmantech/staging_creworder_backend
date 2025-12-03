@@ -538,3 +538,15 @@ class OrderSummarySerializer(serializers.Serializer):
     payment_type__name = serializers.CharField()
     total_orders = serializers.IntegerField()
     total_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    
+class PaymentMethodSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Payment_method
+        fields = [
+            'id',
+            'name',
+            'company',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['id', 'company', 'created_at', 'updated_at']

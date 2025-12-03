@@ -36,7 +36,7 @@ from .models import (
     ReturnType,
     LableLayout,
     SmsConfig,
-    invoice_layout
+    invoice_layout,
 )
 from .serializers import (
     AllowStatusSerializer,
@@ -4017,7 +4017,6 @@ class MainOrderStatusAPIView(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
 
         return Response({"message": "No matching order status found."}, status=status.HTTP_404_NOT_FOUND)
-
 
 STATE_CODE_MAP = {
     'ANDAMAN AND NICOBAR ISLANDS': 'AN', 'ANDHRA PRADESH': 'AP', 'ARUNACHAL PRADESH': 'AR', 'ASSAM': 'AS',
