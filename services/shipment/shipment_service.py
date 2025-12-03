@@ -60,16 +60,17 @@ def getShipment(user_id, id=None):
             userData = Employees.objects.filter(user_id=user_id).first()
             serializer = UserProfileSerializer(userData)
             serialized_data = serializer.data
+
             if id:
                 tableData = ShipmentModel.objects.filter(
-                    branch=serialized_data["branch"],
                     company=serialized_data["company"],
                     id=id,
                 )
             else:
                 tableData = ShipmentModel.objects.filter(
-                    branch=serialized_data["branch"], company=serialized_data["company"]
+                    company=serialized_data["company"]
                 )
+
         return tableData
     except ObjectDoesNotExist:
         return False
