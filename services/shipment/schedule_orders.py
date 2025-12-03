@@ -145,7 +145,7 @@ class ShiprocketScheduleOrder:
         :param order_data: Dictionary containing order details.
         :return: Response from the Shiprocket API.
         """
-        OrdersData = Order_Table.objects.filter(branch=branch_id,company=company_id,id__in=order_list)
+        OrdersData = Order_Table.objects.filter(company=company_id,id__in=order_list)
         OrdersDataSerializer = OrderTableSerializer(OrdersData, many=True)
         _OrderLogJson=[]
         _ResponsesDict=[]
@@ -837,7 +837,7 @@ class TekipostService:
         return  _RequestJson
     def schedule_order(self, order_list:list, branch_id:int ,company_id:int,channel_id,user_id,pickup_id,shipment_vendor):
 
-        OrdersData = Order_Table.objects.filter(branch=branch_id,company=company_id,id__in=order_list)
+        OrdersData = Order_Table.objects.filter(company=company_id,id__in=order_list)
         OrdersDataSerializer = OrderTableSerializer(OrdersData, many=True)
         _OrderLogJson=[]
         _ResponsesDict=[]
@@ -1527,7 +1527,7 @@ class ZoopshipService:
         Schedule orders using Zoopship service.
         """
 
-        OrdersData = Order_Table.objects.filter(branch=branch_id, company=company_id, id__in=order_list)
+        OrdersData = Order_Table.objects.filter(company=company_id, id__in=order_list)
         OrdersDataSerializer = OrderTableSerializer(OrdersData, many=True)
         _OrderLogJson = []
         _ResponsesDict = []
