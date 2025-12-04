@@ -3310,18 +3310,22 @@ class FilterOrdersView1(viewsets.ViewSet):
         # expects: ?product=<product_id>  e.g. ODI2O7XD
         if filters.get("product"):
             product_id = filters["product"]
+            # First, try to filter using the order_details relationship (more reliable)
             try:
                 from django.db.models import Exists, OuterRef
                 
+                # Get order IDs that have this specific product in order_details
                 orders_with_product = Order_Table.objects.filter(
                     id=OuterRef('id')
                 ).filter(
                     order_details__product=product_id
                 )
                 
-                filter_conditions &= Q(Exists(orders_with_product))
-            except Exception as e:
-                print(f"Product filter error: {str(e)}, falling back to JSON search")
+                filter_conditions &= Q(
+                    Exists(orders_with_product)
+                )
+            except:
+                # Fallback to JSON search if order_details relationship doesn't exist
                 filter_conditions &= Q(product_details__icontains=f'"product": "{product_id}"')
         # State filter
         if filters.get("state_id"):
@@ -3357,7 +3361,7 @@ class FilterOrdersView1(viewsets.ViewSet):
         # User ID filter
         if filters.get("user_id"):
             user_id = filters["user_id"]
-            filter_conditions &= (Q(order_created_by=user_id) | Q(updated_by=user_id))
+            filter_conditions &= Q(order_created_by=user_id) | Q(updated_by=user_id)
 
         # Date range filter (non-running)
         if filters.get("date_range") and filters.get("order_status") != "running":
