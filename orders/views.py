@@ -3312,9 +3312,7 @@ class FilterOrdersView1(viewsets.ViewSet):
             product_id = str(filters["product"]).strip()
             print(f"🔍 PRODUCT FILTER DEBUG - Searching for product_id: '{product_id}'")
             
-            try:
-                from django.db.models import Q
-                
+            try:                
                 # Check database backend
                 from django.db import connection
                 db_vendor = connection.vendor
