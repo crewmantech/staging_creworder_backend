@@ -399,7 +399,7 @@ class SansSoftwareService:
         }
         return self._post_request("api/getNumber", data)
 
-    def get_all_call_log_detail(self, phone_number: str, process_id: str | None = None):
+    def get_all_call_log_detail(self, phone_number: str, process_id: Optional[str] = None):
         """
         Wraps:
             POST https://bsl.sansoftwares.com/api/getAllCallLogDetail
@@ -411,7 +411,7 @@ class SansSoftwareService:
         }
         return self._post_request("api/getAllCallLogDetail", data)
 
-    def get_lead_recording(self, phone_number: str, process_id: str | None = None):
+    def get_lead_recording(self, phone_number: str, process_id: Optional[str] = None):
         """
         Wraps:
             POST https://bsl.sansoftwares.com/api/getLeadrecording
