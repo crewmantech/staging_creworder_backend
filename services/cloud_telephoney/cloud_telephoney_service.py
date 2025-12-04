@@ -387,7 +387,7 @@ class SansSoftwareService:
 
     # ========== API Wrappers ==========
 
-    def get_number(self, lead_id: str, process_id: str | None = None):
+    def get_number(self, lead_id: str, process_id: Optional[str] = None):
         """
         Wraps:
             POST https://bsl.sansoftwares.com/api/getNumber
