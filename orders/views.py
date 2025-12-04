@@ -3309,9 +3309,14 @@ class FilterOrdersView1(viewsets.ViewSet):
         # 🔹 NEW product filter on product_details JSON (key "id" inside array)
         # expects: ?product=<product_id>  e.g. ODI2O7XD
         if filters.get("product"):
-            product_code = filters["product"]
-            # simple JSON string match: "id": "ODI2O7XD"
-            filter_conditions &= Q(product_details__icontains=f'"id": "{product_code}"')
+            product_code = str(filters["product"])
+
+            # For MySQL JSONField (stored as text) this works as a LIKE search
+            # Matches: "product": "3"  OR  "product": 3
+            filter_conditions &= (
+                Q(product_details__icontains=f'"product": "{product_code}"') |
+                Q(product_details__icontains=f'"product": {product_code}')
+            )
 
         # State filter
         if filters.get("state_id"):
