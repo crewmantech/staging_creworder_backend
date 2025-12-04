@@ -2848,26 +2848,32 @@ class CSVUserUploadView(APIView):
     permission_classes = [IsAuthenticated, IsAdminOrSuperAdmin]
 
     def post(self, request, *args, **kwargs):
-        if 'file' not in request.FILES:
-            return Response({"Error": "No file provided"}, status=status.HTTP_400_BAD_REQUEST)
+        if "file" not in request.FILES:
+            return Response(
+                {"success": False, "message": "No file provided"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-        csv_file = request.FILES['file']
+        csv_file = request.FILES["file"]
 
         # Ensure it's a CSV
-        if not csv_file.name.endswith('.csv'):
-            return Response({"Error": "File is not a CSV"}, status=status.HTTP_400_BAD_REQUEST)
+        if not csv_file.name.endswith(".csv"):
+            return Response(
+                {"success": False, "message": "File is not a CSV"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         try:
-            file_data = csv_file.read().decode('utf-8')
+            file_data = csv_file.read().decode("utf-8")
             io_string = io.StringIO(file_data)
             reader = csv.DictReader(io_string)
 
             users_data = []
 
             with transaction.atomic():
+                # 1) Build user data list from CSV
                 for row in reader:
                     try:
-                        # Extract profile fields
                         profile_data = {
                             "gender": row.get("gender"),
                             "contact_no": row.get("contact_no"),
@@ -2879,7 +2885,6 @@ class CSVUserUploadView(APIView):
                             "department": row.get("department"),
                         }
 
-                        # Extract user fields
                         user_data = {
                             "username": row.get("username"),
                             "password": row.get("password"),
@@ -2892,45 +2897,90 @@ class CSVUserUploadView(APIView):
                         users_data.append(user_data)
 
                     except Exception as e:
-                        return Response({"Error": f"Error processing row: {row}. Error: {str(e)}"},
-                                        status=status.HTTP_400_BAD_REQUEST)
+                        return Response(
+                            {
+                                "success": False,
+                                "message": "Error processing one of the rows.",
+                                "detail": f"Row: {row}, Error: {str(e)}",
+                            },
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
 
-                # Save all users
+                # 2) Create all users
                 serializer = UserSerializer(data=users_data, many=True)
-                if serializer.is_valid():
-                    saved_users = serializer.save()
+                if not serializer.is_valid():
+                    return Response(
+                        {
+                            "success": False,
+                            "message": "Invalid data.",
+                            "errors": serializer.errors,
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
 
-                    # Assign groups after users are created
-                    io_string.seek(0)  # Reset CSV reader to first row
-                    next(reader)  # Skip headers
+                saved_users = serializer.save()
 
-                    for user, row in zip(saved_users, reader):
-                        group_id = row.get('role')  # CSV column "role" must have Group ID
-                        if group_id:
-                            try:
-                                group = Group.objects.get(id=group_id)
-                                user.groups.add(group)
-                            except Group.DoesNotExist:
-                                return Response({
-                                    "Error": f"Group with ID '{group_id}' not found for user '{user.username}'."
-                                }, status=status.HTTP_400_BAD_REQUEST)
+                # 3) Rewind CSV and re-read for role assignment
+                io_string.seek(0)
+                role_reader = csv.DictReader(io_string)
 
-                    return Response({
-                        "Success": True,
-                        "Message": "Users uploaded and groups assigned successfully.",
-                        "Data": serializer.data
-                    }, status=status.HTTP_201_CREATED)
+                for user, row in zip(saved_users, role_reader):
+                    role_value = (row.get("role") or "").strip()
 
-                else:
-                    return Response({
-                        "Success": False,
-                        "Message": "Invalid data.",
-                        "Errors": serializer.errors
-                    }, status=status.HTTP_400_BAD_REQUEST)
+                    # if role is empty, just skip
+                    if not role_value:
+                        continue
+
+                    try:
+                        # ALWAYS match with primary key (id), which can be numeric or alphanumeric
+                        group = Group.objects.get(pk=role_value)
+                        user.groups.add(group)
+
+                    except Group.DoesNotExist:
+                        return Response(
+                            {
+                                "success": False,
+                                "message": "Group not found.",
+                                "detail": (
+                                    f"Group with id '{role_value}' not found "
+                                    f"for user '{user.username}'."
+                                ),
+                            },
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+
+                    except (ValueError, TypeError) as e:
+                        # Handles cases where pk type doesn't accept given value
+                        return Response(
+                            {
+                                "success": False,
+                                "message": "Invalid group id.",
+                                "detail": (
+                                    f"Invalid group id '{role_value}' for "
+                                    f"user '{user.username}'. Detail: {str(e)}"
+                                ),
+                            },
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+
+                return Response(
+                    {
+                        "success": True,
+                        "message": "Users uploaded and groups assigned successfully.",
+                        "data": serializer.data,
+                    },
+                    status=status.HTTP_201_CREATED,
+                )
 
         except Exception as e:
-            return Response({"Error": f"An error occurred: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
-
+            return Response(
+                {
+                    "success": False,
+                    "message": "An unexpected error occurred while processing file.",
+                    "detail": str(e),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 # class CSVUserUploadView(APIView):
 #     permission_classes = [IsAuthenticated, IsAdminOrSuperAdmin]
 
