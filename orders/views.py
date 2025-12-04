@@ -3309,63 +3309,23 @@ class FilterOrdersView1(viewsets.ViewSet):
         # 🔹 NEW product filter on product_details JSON (key "id" inside array)
         # expects: ?product=<product_id>  e.g. ODI2O7XD
         if filters.get("product"):
-            product_id = str(filters["product"]).strip()
-            print(f"🔍 PRODUCT FILTER DEBUG - Searching for product_id: '{product_id}'")
-            
-            try:                
-                # Check database backend
-                from django.db import connection
-                db_vendor = connection.vendor
-                print(f"🗄️ Database vendor: {db_vendor}")
+            product_id = filters["product"]
+            # First, try to filter using the order_details relationship (more reliable)
+            try:
+                from django.db.models import Exists, OuterRef
                 
-                if db_vendor == 'postgresql':
-                    # PostgreSQL - use JSONField operators
-                    print("Using PostgreSQL JSON query")
-                    # Use @> operator to check if JSON contains the product
-                    filter_conditions &= Q(product_details__contains=[{"product": product_id}])
-                    
-                elif db_vendor == 'mysql':
-                    # MySQL - use JSON_CONTAINS or JSON_SEARCH
-                    print("Using MySQL JSON query")
-                    from django.db.models import Func, Value
-                    
-                    # Custom SQL for MySQL
-                    filter_conditions &= Q(
-                        id__in=Order_Table.objects.raw(
-                            """
-                            SELECT id FROM orders_table 
-                            WHERE JSON_SEARCH(product_details, 'one', %s, NULL, '$[*].product') IS NOT NULL
-                            """,
-                            [product_id]
-                        )
-                    )
-                    
-                else:
-                    # SQLite or other - use string matching as fallback
-                    print(f"Using string matching fallback for {db_vendor}")
-                    # Look for exact pattern in JSON string
-                    filter_conditions &= Q(product_details__icontains=f'"product": "{product_id}"')
+                # Get order IDs that have this specific product in order_details
+                orders_with_product = Order_Table.objects.filter(
+                    id=OuterRef('id')
+                ).filter(
+                    order_details__product=product_id
+                )
                 
-                # Count results after filter
-                temp_qs = queryset.filter(filter_conditions)
-                result_count = temp_qs.count()
-                print(f"📊 Orders matching product {product_id}: {result_count}")
-                
-                if result_count > 0:
-                    # Show first matching order for verification
-                    first_match = temp_qs.first()
-                    if first_match:
-                        print(f"✅ First matching order: {first_match.id}")
-                        print(f"📋 Product details preview: {str(first_match.product_details)[:200]}")
-                else:
-                    print("⚠️ No orders found with this product")
-                    
-            except Exception as e:
-                print(f"❌ PRODUCT FILTER ERROR: {str(e)}")
-                import traceback
-                print(traceback.format_exc())
-                # Fallback to simple string search
-                print("📌 Falling back to simple string search")
+                filter_conditions &= Q(
+                    Exists(orders_with_product)
+                )
+            except:
+                # Fallback to JSON search if order_details relationship doesn't exist
                 filter_conditions &= Q(product_details__icontains=f'"product": "{product_id}"')
         # State filter
         if filters.get("state_id"):
