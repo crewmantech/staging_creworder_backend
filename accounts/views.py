@@ -2873,6 +2873,26 @@ class CSVUserUploadView(APIView):
                 # 1) Build user data list from CSV
                 for row in reader:
                     try:
+                        # --- NEW: handle login_allowed from CSV (0/1) ---
+                        raw_login_allowed = (row.get("login_allowed") or "").strip()
+
+                        if raw_login_allowed == "1":
+                            login_allowed = True
+                        elif raw_login_allowed in ("0", ""):
+                            # 0 or empty -> False (default behavior)
+                            login_allowed = False
+                        else:
+                            # If you want to hard-fail on invalid values:
+                            return Response(
+                                {
+                                    "Success": False,
+                                    "Message": "Invalid value for login_allowed.",
+                                    "Errors": f"Row: {row}, login_allowed must be 0 or 1.",
+                                },
+                                status=status.HTTP_400_BAD_REQUEST,
+                            )
+                        # ------------------------------------------------
+
                         profile_data = {
                             "gender": row.get("gender"),
                             "contact_no": row.get("contact_no"),
@@ -2882,6 +2902,7 @@ class CSVUserUploadView(APIView):
                             "branch": row.get("branch"),
                             "designation": row.get("designation"),
                             "department": row.get("department"),
+                            "login_allowed": login_allowed,  # <--- NEW FIELD
                         }
 
                         user_data = {
@@ -2966,7 +2987,6 @@ class CSVUserUploadView(APIView):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
 # class CSVUserUploadView(APIView):
 #     permission_classes = [IsAuthenticated, IsAdminOrSuperAdmin]
 
