@@ -2850,16 +2850,15 @@ class CSVUserUploadView(APIView):
     def post(self, request, *args, **kwargs):
         if "file" not in request.FILES:
             return Response(
-                {"success": False, "message": "No file provided"},
+                {"Success": False, "Message": "No file provided"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         csv_file = request.FILES["file"]
 
-        # Ensure it's a CSV
         if not csv_file.name.endswith(".csv"):
             return Response(
-                {"success": False, "message": "File is not a CSV"},
+                {"Success": False, "Message": "File is not a CSV"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -2899,9 +2898,9 @@ class CSVUserUploadView(APIView):
                     except Exception as e:
                         return Response(
                             {
-                                "success": False,
-                                "message": "Error processing one of the rows.",
-                                "detail": f"Row: {row}, Error: {str(e)}",
+                                "Success": False,
+                                "Message": "Error processing one of the rows.",
+                                "Errors": f"Row: {row}, Error: {str(e)}",
                             },
                             status=status.HTTP_400_BAD_REQUEST,
                         )
@@ -2911,9 +2910,9 @@ class CSVUserUploadView(APIView):
                 if not serializer.is_valid():
                     return Response(
                         {
-                            "success": False,
-                            "message": "Invalid data.",
-                            "errors": serializer.errors,
+                            "Success": False,
+                            "Message": "Invalid data.",
+                            "Errors": serializer.errors,
                         },
                         status=status.HTTP_400_BAD_REQUEST,
                     )
@@ -2921,53 +2920,39 @@ class CSVUserUploadView(APIView):
                 saved_users = serializer.save()
 
                 # 3) Rewind CSV and re-read for role assignment
-                io_string.seek(0)
-                role_reader = csv.DictReader(io_string)
+                io_string.seek(0)  # Reset to beginning
+                role_reader = csv.DictReader(io_string)  # new reader; header handled automatically
 
                 for user, row in zip(saved_users, role_reader):
-                    role_value = (row.get("role") or "").strip()
+                    group_id = (row.get("role") or "").strip()  # CSV column "role" has CustomAuthGroup.id
 
-                    # if role is empty, just skip
-                    if not role_value:
+                    if not group_id:
+                        # No role provided for this row → skip
                         continue
 
                     try:
-                        # ALWAYS match with primary key (id), which can be numeric or alphanumeric
-                        group = Group.objects.get(pk=role_value)
-                        user.groups.add(group)
-
-                    except Group.DoesNotExist:
-                        return Response(
-                            {
-                                "success": False,
-                                "message": "Group not found.",
-                                "detail": (
-                                    f"Group with id '{role_value}' not found "
-                                    f"for user '{user.username}'."
-                                ),
-                            },
-                            status=status.HTTP_400_BAD_REQUEST,
+                        # Find CustomAuthGroup by its alphanumeric id (e.g. 'CAG001')
+                        custom_group = CustomAuthGroup.objects.select_related("group").get(
+                            id=group_id
                         )
+                        # Attach the underlying Django Group to the user
+                        user.groups.add(custom_group.group)
 
-                    except (ValueError, TypeError) as e:
-                        # Handles cases where pk type doesn't accept given value
+                    except CustomAuthGroup.DoesNotExist:
                         return Response(
                             {
-                                "success": False,
-                                "message": "Invalid group id.",
-                                "detail": (
-                                    f"Invalid group id '{role_value}' for "
-                                    f"user '{user.username}'. Detail: {str(e)}"
-                                ),
+                                "Success": False,
+                                "Message": "CustomAuthGroup not found.",
+                                "Errors": f"Group with ID '{group_id}' not found for user '{user.username}'.",
                             },
                             status=status.HTTP_400_BAD_REQUEST,
                         )
 
                 return Response(
                     {
-                        "success": True,
-                        "message": "Users uploaded and groups assigned successfully.",
-                        "data": serializer.data,
+                        "Success": True,
+                        "Message": "Users uploaded and groups assigned successfully.",
+                        "Data": serializer.data,
                     },
                     status=status.HTTP_201_CREATED,
                 )
@@ -2975,12 +2960,13 @@ class CSVUserUploadView(APIView):
         except Exception as e:
             return Response(
                 {
-                    "success": False,
-                    "message": "An unexpected error occurred while processing file.",
-                    "detail": str(e),
+                    "Success": False,
+                    "Message": "An error occurred while processing the file.",
+                    "Errors": str(e),
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
 # class CSVUserUploadView(APIView):
 #     permission_classes = [IsAuthenticated, IsAdminOrSuperAdmin]
 
