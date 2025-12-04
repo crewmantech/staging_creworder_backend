@@ -110,6 +110,8 @@
 
 import requests
 import hashlib
+from typing import Optional
+
 class CloudConnectService:
     BASE_URL = "https://crm5.cloud-connect.in/CCC_api/v1.4"
 
