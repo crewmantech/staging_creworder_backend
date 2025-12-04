@@ -3309,14 +3309,9 @@ class FilterOrdersView1(viewsets.ViewSet):
         # 🔹 NEW product filter on product_details JSON (key "id" inside array)
         # expects: ?product=<product_id>  e.g. ODI2O7XD
         if filters.get("product"):
-            product_code = str(filters.get("product")).strip()
-
-            queryset = queryset.extra(
-                where=[
-                    "JSON_SEARCH(product_details, 'one', %s, NULL, '$[*].product') IS NOT NULL"
-                ],
-                params=[product_code]
-            )
+            product_id = filters["product"]
+            # Search for "product": "3" in the JSON array
+            filter_conditions &= Q(product_details__icontains=f'"product": "{product_id}"')
 
         # State filter
         if filters.get("state_id"):
