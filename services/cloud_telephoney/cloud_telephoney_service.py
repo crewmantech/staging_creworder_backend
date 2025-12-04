@@ -361,3 +361,74 @@ class TataSmartfloService:
 
         except requests.exceptions.RequestException as e:
             return {"success": False, "error": str(e)}
+        
+        
+class SansSoftwareService:
+    BASE_URL = "https://bsl.sansoftwares.com"
+
+    def __init__(self, process_id: str):
+        """
+        process_id is the 'process_id' you are sending in all Sanssoftwares API requests (e.g. '74').
+        """
+        self.process_id = process_id
+
+    def _post_request(self, endpoint: str, data: dict):
+        """
+        Internal helper to make POST requests to Sanssoftwares.
+        `endpoint` should be a relative path like 'api/getNumber'.
+        """
+        url = f"{self.BASE_URL}/{endpoint.lstrip('/')}"
+        headers = {"Content-Type": "application/json"}
+        response = requests.post(url, json=data, headers=headers)
+        # You can add error handling/logging here if needed
+        return response.json()
+
+    # ========== API Wrappers ==========
+
+    def get_number(self, lead_id: str, process_id: str | None = None):
+        """
+        Wraps:
+            POST https://bsl.sansoftwares.com/api/getNumber
+            Body: { "Lead_ID": "...", "process_id": "..." }
+        """
+        data = {
+            "Lead_ID": lead_id,
+            "process_id": process_id or self.process_id,
+        }
+        return self._post_request("api/getNumber", data)
+
+    def get_all_call_log_detail(self, phone_number: str, process_id: str | None = None):
+        """
+        Wraps:
+            POST https://bsl.sansoftwares.com/api/getAllCallLogDetail
+            Body: { "Phone_number": "...", "process_id": "..." }
+        """
+        data = {
+            "Phone_number": phone_number,
+            "process_id": process_id or self.process_id,
+        }
+        return self._post_request("api/getAllCallLogDetail", data)
+
+    def get_lead_recording(self, phone_number: str, process_id: str | None = None):
+        """
+        Wraps:
+            POST https://bsl.sansoftwares.com/api/getLeadrecording
+            Body: { "Phone_number": "...", "process_id": "..." }
+        """
+        data = {
+            "Phone_number": phone_number,
+            "process_id": process_id or self.process_id,
+        }
+        return self._post_request("api/getLeadrecording", data)
+
+    def click_to_call(self, agent_name: str, dialed_number: str):
+        """
+        Wraps:
+            POST https://bsl.sansoftwares.com/caller/Api/ClicktoCall
+            Body: { "agent_name": "...", "dialed_number": "..." }
+        """
+        data = {
+            "agent_name": agent_name,
+            "dialed_number": dialed_number,
+        }
+        return self._post_request("caller/Api/ClicktoCall", data)

@@ -199,7 +199,7 @@ from rest_framework.response import Response
 from follow_up.models import Follow_Up
 from lead_management.models import Lead
 from orders.models import Order_Table
-from services.cloud_telephoney.cloud_telephoney_service import CloudConnectService, TataSmartfloService
+from services.cloud_telephoney.cloud_telephoney_service import CloudConnectService, TataSmartfloService,SansSoftwareService
 from .models import (
     CloudTelephonyVendor, 
     CloudTelephonyChannel, 
@@ -351,8 +351,37 @@ class CallServiceViewSet(viewsets.ViewSet):
                 phone_number,
                 request.data.get('caller_id', '')
             )
+        
+    # ============ SANSOFTWARES ============
+        elif cloud_vendor == 'sansoftwares':
+            # Assuming you store Sanssoftwares process_id in channel.tenent_id
+            process_id = channel.tenent_id
+            if not process_id:
+                return Response(
+                    {"error": "process_id (stored in tenant_id) is required for Sanssoftwares."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            sans_service = SansSoftwareService(process_id=process_id)
+
+            # Use assigned agent username as Sanssoft 'agent_name'
+            agent_name = channel_assign.agent_username or user.username
+            if not agent_name:
+                return Response(
+                    {"error": "agent_username is required for Sanssoftwares click-to-call."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            response_data = sans_service.click_to_call(
+                agent_name=agent_name,
+                dialed_number=phone_number
+            )
+
         else:
-            return Response({"error": f"{cloud_vendor} is not supported."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": f"{cloud_vendor} is not supported."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         return Response({"success": True, "response": response_data}, status=status.HTTP_200_OK)
 
@@ -457,9 +486,9 @@ class CallServiceViewSet(viewsets.ViewSet):
         agent_id = request.query_params.get("agent_id")
         date = request.query_params.get("date")
 
-        if  not date:
+        if not date:
             return Response({
-                "error": "Missing required parameters:  'agent_id', and 'date' are required."
+                "error": "Missing required parameters: 'date' is required."
             }, status=status.HTTP_400_BAD_REQUEST)
 
         user = request.user
@@ -467,23 +496,28 @@ class CallServiceViewSet(viewsets.ViewSet):
             channel_assign = CloudTelephonyChannelAssign.objects.get(user_id=user.id)
             channel = channel_assign.cloud_telephony_channel
         except CloudTelephonyChannelAssign.DoesNotExist:
-            return Response({"error": "No channel assigned to this user."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "No channel assigned to this user."},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
         cloud_vendor = channel.cloudtelephony_vendor.name.lower()
 
+        # ============ CLOUD CONNECT ============
         if cloud_vendor == 'cloud connect':
             if not channel.token or not channel.tenent_id:
-                return Response({"error": "token and tenant_id required for CloudConnect."}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"error": "token and tenant_id required for CloudConnect."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
             cloud_connect_service = CloudConnectService(channel.token, channel.tenent_id)
-            session_response = cloud_connect_service.get_session_id(channel_assign.agent_id)
-    
-            # if session_response.get("code") != 200 or "session_id" not in session_response:
-            #     return Response({"error": "Failed to get session ID from CloudConnect."}, status=status.HTTP_400_BAD_REQUEST)
-            # session_id = session_response["session_id"]
             response_data = cloud_connect_service.get_call_details(date, phone_number)
             if response_data.get("code") != 200:
-                return Response({"error": "Failed to retrieve call details."}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"error": "Failed to retrieve call details."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
             return Response({
                 "success": True,
@@ -491,7 +525,42 @@ class CallServiceViewSet(viewsets.ViewSet):
                 "message": response_data.get("status_message")
             }, status=status.HTTP_200_OK)
 
-        return Response({"error": f"{cloud_vendor} is not supported."}, status=status.HTTP_400_BAD_REQUEST)
+        # ============ SANSOFTWARES ============
+        elif cloud_vendor == 'sansoftwares':
+            # Sanssoft docs only show phone_number + process_id (no date),
+            # so we will primarily use phone_number here.
+            process_id = channel.tenent_id
+            if not process_id:
+                return Response(
+                    {"error": "process_id (stored in tenant_id) is required for Sanssoftwares."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            if not phone_number:
+                return Response(
+                    {"error": "phone_number is required for Sanssoftwares call details."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            sans_service = SansSoftwareService(process_id=process_id)
+            response_data = sans_service.get_all_call_log_detail(phone_number)
+
+            if not response_data:
+                return Response(
+                    {"error": "Failed to retrieve call details from Sanssoftwares."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            return Response({
+                "success": True,
+                "data": response_data,
+                "message": response_data.get("message", "Call details retrieved successfully.")
+            }, status=status.HTTP_200_OK)
+
+        return Response(
+            {"error": f"{cloud_vendor} is not supported."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
     
 from rest_framework.views import APIView
 class GetNumberAPIView(APIView):
