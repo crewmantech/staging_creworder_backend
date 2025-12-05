@@ -23,7 +23,7 @@ from rest_framework.generics import ListAPIView
 from accounts.models import Department, ExpiringToken as Token, Employees, CustomAuthGroup
 from django.db.models import Q, F, Case, When, OuterRef, Subquery
 import re
-
+from accounts.models import UserStatus
 
 class getChatDetail(APIView):
     serializer_class = ChatSerializer
@@ -943,62 +943,138 @@ class UserListView1(ListAPIView):
 
 
 from django.db import models
+# class RecentChatUserAPIView(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def get(self, request):
+#         user = request.user
+
+#         # Identify other_user using simple queryset (NO annotate here)
+#         user_chats = Chat.objects.filter(
+#             Q(from_user=user) | Q(to_user=user),
+#             type="private"
+#         )
+
+#         # Get only distinct other users
+#         distinct_user_ids = (
+#             user_chats.annotate(
+#                 other_user=Case(
+#                     When(from_user=user, then=F('to_user')),
+#                     default=F('from_user'),
+#                     output_field=models.IntegerField()
+#                 )
+#             )
+#             .values_list("other_user", flat=True)
+#             .distinct()
+#         )
+
+#         # Build list with latest chat timestamps
+#         results = []
+
+#         for uid in distinct_user_ids:
+
+#             # Get latest chat with this user
+#             last_chat = (
+#                 user_chats.filter(
+#                     Q(from_user=uid) | Q(to_user=uid)
+#                 )
+#                 .order_by("-created_at")
+#                 .first()
+#             )
+
+#             if last_chat is None:
+#                 continue
+
+#             other_user = User.objects.get(id=uid)
+#             user_data = UserSerializer(other_user).data
+
+#             results.append({
+#                 "user": user_data,
+#                 "last_chat_time": last_chat.created_at
+#             })
+
+#         # Sort by latest timestamp
+#         results = sorted(results, key=lambda x: x["last_chat_time"], reverse=True)
+
+#         return Response({
+#             "success": True,
+#             "data": results
+#         })
+        
 class RecentChatUserAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         user = request.user
 
-        # Identify other_user using simple queryset (NO annotate here)
+        # All private chats where current user is involved
         user_chats = Chat.objects.filter(
             Q(from_user=user) | Q(to_user=user),
             type="private"
+        ).annotate(
+            other_user=Case(
+                When(from_user=user, then=F('to_user')),
+                default=F('from_user'),
+                output_field=models.IntegerField()
+            )
         )
 
-        # Get only distinct other users
+        # ✅ Only keep chats where other_user is ACTIVE:
+        #   - Django user is_active = True
+        #   - Employee profile status = UserStatus.active
+        active_chats = user_chats.filter(
+            other_user__is_active=True,
+            other_user__profile__status=UserStatus.active
+        )
+
+        # Get only distinct active other users
         distinct_user_ids = (
-            user_chats.annotate(
-                other_user=Case(
-                    When(from_user=user, then=F('to_user')),
-                    default=F('from_user'),
-                    output_field=models.IntegerField()
-                )
-            )
+            active_chats
             .values_list("other_user", flat=True)
             .distinct()
         )
 
-        # Build list with latest chat timestamps
         results = []
 
-        for uid in distinct_user_ids:
+        # Preload active users to avoid N+1 queries
+        users_map = {
+            u.id: u
+            for u in User.objects.filter(
+                id__in=distinct_user_ids,
+                is_active=True,
+                profile__status=UserStatus.active
+            ).select_related("profile")
+        }
 
-            # Get latest chat with this user
+        for uid in distinct_user_ids:
+            other_user = users_map.get(uid)
+            if not other_user:
+                continue
+
+            # Latest chat with this active user (only in active_chats)
             last_chat = (
-                user_chats.filter(
+                active_chats.filter(
                     Q(from_user=uid) | Q(to_user=uid)
                 )
                 .order_by("-created_at")
                 .first()
             )
-
             if last_chat is None:
                 continue
 
-            other_user = User.objects.get(id=uid)
             user_data = UserSerializer(other_user).data
 
             results.append({
                 "user": user_data,
-                "last_chat_time": last_chat.created_at
+                "last_chat_time": last_chat.created_at,
             })
 
-        # Sort by latest timestamp
+        # Sort by latest chat time desc
         results = sorted(results, key=lambda x: x["last_chat_time"], reverse=True)
 
         return Response({
             "success": True,
-            "data": results
+            "data": results,
         })
 
 
