@@ -102,6 +102,7 @@ from services.orders.order_service import (
 from datetime import datetime
 from rest_framework.decorators import action
 from django.db.models import Sum, F
+import re
 
 
 class FilterOrdersPagination(PageNumberPagination):
@@ -4676,3 +4677,65 @@ class OFDListView(GenericAPIView):
             return self.get_paginated_response(page)
 
         return Response({"status": True, "data": list_qs})
+
+
+class CheckPhoneDuplicateAPIView(APIView):
+    permission_classes = [IsAuthenticated]  # remove if you want it public
+
+    def get(self, request, *args, **kwargs):
+        """
+        Check if a phone number already exists in orders_table.
+        Accepts phone with or without +91.
+        Example: GET /check-phone-duplicate/?phone=9876543210
+                 GET /check-phone-duplicate/?phone=+919876543210
+        """
+        phone = request.query_params.get("phone")
+
+        if not phone:
+            return Response(
+                {"Success": False, "message": "Phone number is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Keep only digits
+        digits = re.sub(r"\D", "", phone)
+
+        # Basic validation
+        if len(digits) < 10:
+            return Response(
+                {"Success": False, "message": "Invalid phone number."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Take last 10 digits as the core mobile number
+        core_number = digits[-10:]
+
+        possible_numbers = [
+            core_number,          # 9876543210
+            f"+91{core_number}",  # +919876543210
+        ]
+
+        # Check both primary and alternate phone fields
+        exists = Order_Table.objects.filter(
+            Q(customer_phone__in=possible_numbers) |
+            Q(customer_alter_phone__in=possible_numbers)
+        ).exists()
+
+        if exists:
+            return Response(
+                {
+                    "Success": False,
+                    "number_exists": True,
+                    "message": "This number already exists in orders.",
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        return Response(
+            {
+                "Success": True,
+                "number_exists": False,
+                "message": "This number is not associated with any order.",
+            },
+            status=status.HTTP_200_OK,
+        )
