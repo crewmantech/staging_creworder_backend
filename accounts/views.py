@@ -2876,9 +2876,9 @@ class CSVUserUploadView(APIView):
                         # --- NEW: handle login_allowed from CSV (0/1) ---
                         raw_login_allowed = (row.get("login_allowed") or "").strip()
 
-                        if raw_login_allowed == "1":
+                        if raw_login_allowed == "TRUE":
                             login_allowed = True
-                        elif raw_login_allowed in ("0", ""):
+                        elif raw_login_allowed in ("FALSE", ""):
                             # 0 or empty -> False (default behavior)
                             login_allowed = False
                         else:
