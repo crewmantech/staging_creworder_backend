@@ -297,17 +297,17 @@ class CallServiceViewSet(viewsets.ViewSet):
 
         if lead_id:
             try:
-                phone_number = Lead.objects.get(id=lead_id).customer_phone
+                phone_number = Lead.objects.get(lead_id=lead_id).customer_phone
             except Lead.DoesNotExist:
                 return Response({"error": "Lead not found."}, status=status.HTTP_404_NOT_FOUND)
         elif order_id:
             try:
-                phone_number = Order_Table.objects.get(id=order_id).customer_phone
+                phone_number = Order_Table.objects.get(order_id=order_id).customer_phone
             except Order_Table.DoesNotExist:
                 return Response({"error": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
         elif followup_id:
             try:
-                phone_number = Follow_Up.objects.get(id=followup_id).customer_phone
+                phone_number = Follow_Up.objects.get(followup_id=followup_id).customer_phone
             except Follow_Up.DoesNotExist:
                 return Response({"error": "Follow-up not found."}, status=status.HTTP_404_NOT_FOUND)
         else:
