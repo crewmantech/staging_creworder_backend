@@ -486,13 +486,20 @@ class CallServiceViewSet(viewsets.ViewSet):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            if not phone_number:
-                return Response(
-                    {"error": "phone_number is required for Sanssoftwares call details."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+            # if not phone_number:
+            #     return Response(
+            #         {"error": "phone_number is required for Sanssoftwares call details."},
+            #         status=status.HTTP_400_BAD_REQUEST
+            #     )
 
             sans_service = SansSoftwareService(process_id=process_id)
+            if call_id:
+                details_response = sans_service.get_number(call_id)
+                if details_response.get("code") != 200:
+                    return Response({"error": "Failed to retrieve call details."}, status=status.HTTP_400_BAD_REQUEST)
+                result = details_response.get("result", {})
+                phone_number = result.get("phone_number")
+                
             response_data = sans_service.get_lead_recording(phone_number)
 
             if not response_data:
@@ -627,5 +634,32 @@ class GetNumberAPIView(APIView):
                 "phone_number": result.get("phone_number"),
                 "message": details_response.get("status_message")
             }, status=status.HTTP_200_OK)
+        elif cloud_vendor == 'sansoftwares':
+            # Sanssoft docs only show phone_number + process_id (no date),
+            # so we will primarily use phone_number here.
+            process_id = channel.tenent_id
+            if not process_id:
+                return Response(
+                    {"error": "process_id (stored in tenant_id) is required for Sanssoftwares."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
+            if not call_id:
+                return Response(
+                    {"error": "call_id is required for Sanssoftware ."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            sans_service = SansSoftwareService(process_id=process_id)
+            details_response = sans_service.get_number(call_id)
+
+            if details_response.get("code") != 200:
+                return Response({"error": "Failed to retrieve call details."}, status=status.HTTP_400_BAD_REQUEST)
+
+            result = details_response.get("result", {})
+            return Response({
+                "success": True,
+                "phone_number": result.get("phone_number"),
+                "message": details_response.get("message")
+            }, status=status.HTTP_200_OK)
         return Response({"error": f"{cloud_vendor} is not supported."}, status=status.HTTP_400_BAD_REQUEST)
