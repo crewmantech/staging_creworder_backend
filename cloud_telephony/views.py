@@ -374,7 +374,7 @@ class CallServiceViewSet(viewsets.ViewSet):
 
             response_data = sans_service.click_to_call(
                 agent_name=agent_name,
-                dialed_number=phone_number[-10:]
+                dialed_number=phone_number
             )
             print(response_data,"--------------379")
         else:
