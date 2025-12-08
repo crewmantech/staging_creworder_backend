@@ -475,7 +475,38 @@ class CallServiceViewSet(viewsets.ViewSet):
                     "data": calls,
                     "message": details_response.get("message", "Call details retrieved successfully.")
                 }, status=status.HTTP_200_OK)
-            
+        # ============ SANSOFTWARES ============
+        elif cloud_vendor == 'sansoftwares':
+            # Sanssoft docs only show phone_number + process_id (no date),
+            # so we will primarily use phone_number here.
+            process_id = channel.tenent_id
+            if not process_id:
+                return Response(
+                    {"error": "process_id (stored in tenant_id) is required for Sanssoftwares."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            if not phone_number:
+                return Response(
+                    {"error": "phone_number is required for Sanssoftwares call details."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            sans_service = SansSoftwareService(process_id=process_id)
+            response_data = sans_service.get_lead_recording(phone_number)
+
+            if not response_data:
+                return Response(
+                    {"error": "Failed to retrieve call details from Sanssoftwares."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            return Response({
+                "success": True,
+                "data": response_data,
+                "message": response_data.get("message", "Call details retrieved successfully.")
+            }, status=status.HTTP_200_OK)
+   
 
         return Response({"error": f"{cloud_vendor} is not supported."}, status=status.HTTP_400_BAD_REQUEST)
     
