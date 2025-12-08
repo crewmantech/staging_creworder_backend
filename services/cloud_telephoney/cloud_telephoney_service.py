@@ -433,4 +433,7 @@ class SansSoftwareService:
             "agent_name": agent_name,
             "dialed_number": dialed_number,
         }
-        return self._post_request("caller/Api/ClicktoCall", data)
+        print(data,"-------------------436")
+        res = self._post_request("caller/Api/ClicktoCall", data)
+        print(res,"-----------self._post_request")
+        return res
