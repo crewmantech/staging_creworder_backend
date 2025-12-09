@@ -879,8 +879,8 @@ class TekipostService:
             # )
             try:
                 response = self.Quick_ship(_request_json)
-                UpdateInstance = Order_Table.objects.filter(branch=branch_id, company=company_id, id=order['id'])
-                print(response, "-----------------------------871")
+                UpdateInstance = Order_Table.objects.filter(company=company_id, id=order['id'])
+                print(response, "-----------------------------871",UpdateInstance)
                 response_data1 = response
                 if not response or not isinstance(response, dict):
                     _ResponsesDict.append({"order": f"{order['id']}", "message": "Empty or invalid response from API"})
@@ -1145,18 +1145,21 @@ class NimbuspostAPI:
                 response = self.create_shipment(_request_json)
                 # response = requests.post(api_endpoint, headers=self.headers, json=_request_json)
                 # Process response
+                print(response,"------------------1148")
                 if response.get('status'):
                     response_data1 = response
                     response_data = response.get('data')
                     try:
-                        UpdateInstance = Order_Table.objects.filter(branch=branch_id, company=company_id, id=order['id'])
+                        UpdateInstance = Order_Table.objects.filter( company=company_id, id=order['id'])
                         order_status, created = OrderStatus.objects.get_or_create(
                             name='PICKUP PENDING'
                             # branch=branch_id,
                             # company=company_id
                         )
+                        print(order_status,"------------------order_status")
                         # order_status, created = OrderStatus.objects.get_or_create(name='IN TRANSIT')
                         status_id = order_status.id
+                        print(status_id,"-----------------------")
                         res = UpdateInstance.update(
                             order_wayBill=response_data.get('awb_number', ''),
                             order_ship_by=response_data.get('courier_name', ''),
@@ -1170,6 +1173,11 @@ class NimbuspostAPI:
                             order_status = status_id,
                             shipment_vendor = shipment_vendor
                         )
+                        print(res,"------------------res")
+                        from django.forms.models import model_to_dict
+                        updated_order = Order_Table.objects.get(id=order['id'])
+                        updated_order.refresh_from_db()
+                        print(model_to_dict(updated_order), "------------------updated order")
                         _ResponsesDict.append({"order": f"{order['id']}", "message": "Order Pickup request successfully"})
                         # Log the action
                         _logJson = {
