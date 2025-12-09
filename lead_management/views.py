@@ -315,7 +315,7 @@ class LeadViewSet(viewsets.ModelViewSet):
         customer_city = self.request.query_params.get('city')
         status = self.request.query_params.get('status')
         lead_id = self.request.query_params.get('lead_id')
-        product_id = self.request.query_params.get('product_id')
+        product_id = self.request.query_params.get('product')
 
         if customer_phone:
             queryset = queryset.filter(customer_phone__icontains=customer_phone)
