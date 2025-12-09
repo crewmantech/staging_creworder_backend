@@ -280,7 +280,7 @@ class TataSmartfloService:
         """
         Initiate Click-to-Call Request
         """
-        url = f"{self.BASE_URL}/ClicktoCallDial"
+        url = f"{self.BASE_URL}/click_to_call"
         payload = {
             "agent_number": agent_number,
             "destination_number": destination_number,
@@ -426,7 +426,7 @@ class SansSoftwareService:
     def click_to_call(self, agent_name: str, dialed_number: str):
         """
         Wraps:
-            POST https://bsl.sansoftwares.com/caller/Api/ClicktoCall
+            POST https://bsl.sansoftwares.com/caller/Api/ClicktoCallDial
             Body: { "agent_name": "...", "dialed_number": "..." }
         """
         data = {
@@ -434,6 +434,6 @@ class SansSoftwareService:
             "dialed_number": dialed_number,
         }
         print(data,"-------------------436")
-        res = self._post_request("caller/Api/ClicktoCall", data)
+        res = self._post_request("caller/Api/ClicktoCallDial", data)
         print(res,"-----------self._post_request")
         return res
