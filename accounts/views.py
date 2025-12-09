@@ -2847,7 +2847,7 @@ class ForceLogoutView(APIView):
 class CSVUserUploadView(APIView):
     permission_classes = [IsAuthenticated, IsAdminOrSuperAdmin]
 
-    def clean_value(value):
+    def clean_value(self, value):
         if value in ["", " ", None]:
             return None
         return value
