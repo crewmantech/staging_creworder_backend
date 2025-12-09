@@ -19,7 +19,7 @@ from django.db import transaction
 from django.utils.datastructures import MultiValueDict
 from django.utils.dateparse import parse_date
 import pdb
-
+from django.db.models import Q
 class FollowUpView(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     queryset = Follow_Up.objects.all()
@@ -49,6 +49,28 @@ class FollowUpView(viewsets.ModelViewSet):
         if hasattr(user, 'profile') and user.profile.company:
             queryset = queryset.filter(company=user.profile.company)
         if user.profile.user_type == 'admin':
+            status_id = self.request.query_params.get('status')
+            branch_id = self.request.query_params.get('branch')
+            follow_add_by = self.request.query_params.get('follow_add_by')
+
+            if status_id:
+                queryset = queryset.filter(follow_status_id=status_id)
+
+            if branch_id:
+                queryset = queryset.filter(branch_id=branch_id)
+
+            if follow_add_by:
+                queryset = queryset.filter(follow_add_by_id=follow_add_by)
+            search = self.request.query_params.get('search')
+
+            if search:
+                queryset = queryset.filter(
+                    Q(follow_status__name__icontains=search) |
+                    Q(follow_add_by__first_name__icontains=search) |
+                    Q(follow_add_by__last_name__icontains=search) |
+                    Q(follow_add_by__username__icontains=search) |
+                    Q(customer_phone__icontains=search)
+                )
             return queryset
         else:
             queryset=queryset.filter(branch= user.profile.branch)
