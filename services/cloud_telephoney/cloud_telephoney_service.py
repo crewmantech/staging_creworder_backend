@@ -280,7 +280,7 @@ class TataSmartfloService:
         """
         Initiate Click-to-Call Request
         """
-        url = f"{self.BASE_URL}/click_to_call"
+        url = f"{self.BASE_URL}/ClicktoCallDial"
         payload = {
             "agent_number": agent_number,
             "destination_number": destination_number,
