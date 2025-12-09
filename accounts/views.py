@@ -2906,7 +2906,7 @@ class CSVUserUploadView(APIView):
                             "branch": self.clean_value(row.get("branch")),
                             "designation": self.clean_value(row.get("designation")),
                             "department": self.clean_value(row.get("department")),
-                            "teamlead": self.clean_value(row.get("team_lead")),
+                            "teamlead": self.clean_value(row.get("teamlead")),
                             "manager": self.clean_value(row.get("manager")),
                             "login_allowed": login_allowed,
                         }
