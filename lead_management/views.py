@@ -316,7 +316,8 @@ class LeadViewSet(viewsets.ModelViewSet):
         status = self.request.query_params.get('status')
         lead_id = self.request.query_params.get('lead_id')
         product_id = self.request.query_params.get('product')
-
+        branch = self.request.query_params.get('branch')
+        assign_user = self.request.query_params.get('assign_user')
         if customer_phone:
             queryset = queryset.filter(customer_phone__icontains=customer_phone)
         if customer_email:
@@ -328,7 +329,11 @@ class LeadViewSet(viewsets.ModelViewSet):
         if lead_id:
             queryset = queryset.filter(lead_id__icontains=lead_id)  # allows partial matches like LEAD123
         if product_id:
-            queryset = queryset.filter(product__id=product_id) 
+            queryset = queryset.filter(product__id=product_id)
+        if assign_user:
+            queryset = queryset.filter(assign_user__id =assign_user)
+        if branch:
+            queryset = queryset.filter(branch__id =branch)  
         return queryset
 
 

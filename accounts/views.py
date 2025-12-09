@@ -2847,6 +2847,10 @@ class ForceLogoutView(APIView):
 class CSVUserUploadView(APIView):
     permission_classes = [IsAuthenticated, IsAdminOrSuperAdmin]
 
+    def clean_value(value):
+        if value in ["", " ", None]:
+            return None
+        return value
     def post(self, request, *args, **kwargs):
         if "file" not in request.FILES:
             return Response(
@@ -2894,15 +2898,17 @@ class CSVUserUploadView(APIView):
                         # ------------------------------------------------
 
                         profile_data = {
-                            "gender": row.get("gender"),
-                            "contact_no": row.get("contact_no"),
-                            "marital_status": row.get("marital_status"),
-                            "user_type": row.get("user_type"),
-                            "company": row.get("company"),
-                            "branch": row.get("branch"),
-                            "designation": row.get("designation"),
-                            "department": row.get("department"),
-                            "login_allowed": login_allowed,  # <--- NEW FIELD
+                            "gender": self.clean_value(row.get("gender")),
+                            "contact_no": self.clean_value(row.get("contact_no")),
+                            "marital_status": self.clean_value(row.get("marital_status")),
+                            "user_type": self.clean_value(row.get("user_type")),
+                            "company": self.clean_value(row.get("company")),
+                            "branch": self.clean_value(row.get("branch")),
+                            "designation": self.clean_value(row.get("designation")),
+                            "department": self.clean_value(row.get("department")),
+                            "teamlead": self.clean_value(row.get("team_lead")),
+                            "manager": self.clean_value(row.get("manager")),
+                            "login_allowed": login_allowed,
                         }
 
                         user_data = {
