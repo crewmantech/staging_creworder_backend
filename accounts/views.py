@@ -29,10 +29,10 @@ from services.email.email_service import send_email
 from services.shipment.schedule_orders import ShiprocketScheduleOrder,TekipostService
 from shipment.models import ShipmentModel, ShipmentVendor
 from shipment.serializers import ShipmentSerializer
-from .models import  Agreement, AttendanceSession, CompanyInquiry, CompanyUserAPIKey, Enquiry, InterviewApplication, QcScore, ReminderNotes, StickyNote, User, Company, Package, Employees, Notice1, Branch, FormEnquiry, SupportTicket, Module, \
+from .models import  Agreement, AttendanceSession, CompanyInquiry, CompanySalary, CompanyUserAPIKey, Enquiry, InterviewApplication, QcScore, ReminderNotes, StickyNote, User, Company, Package, Employees, Notice1, Branch, FormEnquiry, SupportTicket, Module, \
     Department, Designation, Leaves, Holiday, Award, Appreciation, ShiftTiming, Attendance, AllowedIP,Shift_Roster,CustomAuthGroup,PickUpPoint, UserStatus,\
     UserTargetsDelails,AdminBankDetails,QcTable,OTPAttempt
-from .serializers import  AgreementSerializer, CompanyInquirySerializer, CompanyUserAPIKeySerializer, CustomPasswordResetSerializer, EnquirySerializer, InterviewApplicationSerializer, NewPasswordSerializer,  QcScoreSerializer, ReminderNotesSerializer, StickyNoteSerializer, UpdateTeamLeadManagerSerializer, UserSerializer, CompanySerializer, PackageSerializer, \
+from .serializers import  AgreementSerializer, CompanyInquirySerializer, CompanySalarySerializer, CompanyUserAPIKeySerializer, CustomPasswordResetSerializer, EnquirySerializer, InterviewApplicationSerializer, NewPasswordSerializer,  QcScoreSerializer, ReminderNotesSerializer, StickyNoteSerializer, UpdateTeamLeadManagerSerializer, UserSerializer, CompanySerializer, PackageSerializer, \
     UserProfileSerializer, NoticeSerializer, BranchSerializer, UserSignupSerializer, FormEnquirySerializer, \
     SupportTicketSerializer, ModuleSerializer, DepartmentSerializer, DesignationSerializer, LeaveSerializer, \
     HolidaySerializer, AwardSerializer, AppreciationSerializer, ShiftSerializer, AttendanceSerializer,ShiftRosterSerializer, \
@@ -4430,4 +4430,23 @@ class InterviewApplicationViewSet(viewsets.ModelViewSet):
                 "errors": errors,
             },
             status=status.HTTP_200_OK,
+        )
+
+
+class CompanySalaryViewSet(viewsets.ModelViewSet):
+    queryset = CompanySalary.objects.all()
+    serializer_class = CompanySalarySerializer
+    permission_classes = [IsAuthenticated]
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(
+            {
+                "message": "Company salary added successfully",
+                "data": serializer.data
+            },
+            status=status.HTTP_201_CREATED
         )

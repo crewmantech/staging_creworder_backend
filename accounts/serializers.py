@@ -12,7 +12,7 @@ from staging_creworder_backend import settings
 from lead_management.models import Lead, LeadSourceModel
 from orders.models import  Products
 from services.email.email_service import send_email
-from .models import  Agreement, AttendanceSession, CompanyInquiry, CompanyUserAPIKey, Enquiry, InterviewApplication, QcScore, ReminderNotes, StickyNote, User, Company, Package,Employees, Notice1, Branch, FormEnquiry, SupportTicket, Module, \
+from .models import  Agreement, AttendanceSession, CompanyInquiry, CompanySalary, CompanyUserAPIKey, Enquiry, InterviewApplication, QcScore, ReminderNotes, StickyNote, User, Company, Package,Employees, Notice1, Branch, FormEnquiry, SupportTicket, Module, \
     Department, Designation, Leaves, Holiday, Award, Appreciation, ShiftTiming, Attendance,Shift_Roster,PackageDetailsModel,CustomAuthGroup,\
     PickUpPoint,UserTargetsDelails,AdminBankDetails,AllowedIP,QcTable
 import string
@@ -847,3 +847,16 @@ class InterviewApplicationSerializer(serializers.ModelSerializer):
         model = InterviewApplication
         fields = "__all__"
         read_only_fields = ("company", "branch", "created_at", "updated_at")
+
+
+class CompanySalarySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CompanySalary
+        fields = "__all__"
+
+    def validate_company(self, company):
+        if CompanySalary.objects.filter(company=company).exists():
+            raise serializers.ValidationError(
+                "Salary already exists for this company"
+            )
+        return company
