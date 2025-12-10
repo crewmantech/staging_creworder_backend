@@ -682,19 +682,24 @@ class NoticeViewSet(viewsets.ModelViewSet):
 
         notified_users = set()
 
-        # Direct users (already User model)
+        # ✅ Direct users selected in notice (already User model)
         notified_users.update(notice.users.all())
 
-        # Branch employees → extract user
+        # ✅ Users from selected branches (Employees → User)
         for branch in notice.branches.all():
-            for employee in branch.employees.all():   # Employees queryset
-                if employee.user:                     # Ensure user exists
-                    notified_users.add(employee.user)
+            employees = Employees.objects.filter(
+                branch=branch,
+                user__isnull=False,
+                status=1  # optional: only active users
+            ).select_related("user")
 
-        # Create notifications
+            for employee in employees:
+                notified_users.add(employee.user)
+
+        # ✅ Create notifications
         for user in notified_users:
             Notification.objects.create(
-                user=user,  # ✅ User instance ONLY
+                user=user,  # ✅ ALWAYS User
                 message=f"You have a new notice: {notice.title}",
                 url="/notice-board",
                 notification_type="chat_message"
