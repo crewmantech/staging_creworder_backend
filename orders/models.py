@@ -288,6 +288,7 @@ class Order_Table(BaseModel):
     # ✅ NEW FIELDS
     course_order_count = models.IntegerField(default=1)   # 1st new column
     is_closed = models.BooleanField(default=False)        # 2nd new column
+    odablock = models.BooleanField(default=False)
     reference_order = models.ForeignKey(                  # 3rd new column
         "self", on_delete=models.SET_NULL, null=True, blank=True, related_name="repeated_orders"
     )
