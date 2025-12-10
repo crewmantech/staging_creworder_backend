@@ -631,6 +631,7 @@ def checkServiceability(branch_id,company_id,data):
             return 1
     eddshortestTime=365
     EddList=[]
+    odablock = False
     for pickUpPinCode in pickUpSerializerData.data:
         EddDataShowDict={}
         for data in serialized_data:
@@ -665,6 +666,8 @@ def checkServiceability(branch_id,company_id,data):
                 cutomerState=''
                 if response.json()['status']==200:
                     for apiData in response.json()['data']['available_courier_companies']:
+                        if apiData['odablock']==True:
+                            odablock = True
                         if int(eddshortestTime)>int(apiData['estimated_delivery_days']):
                             eddshortestTime=int(apiData['estimated_delivery_days'])
                             shortestDayData['courier_name']=apiData['courier_name']
@@ -674,7 +677,7 @@ def checkServiceability(branch_id,company_id,data):
                     EddDataShowDict['eddtime']=eddshortestTime
                     EddDataShowDict['delivery_city']=cutomerCity
                     EddDataShowDict['delivery_state']=cutomerState
-
+                    EddDataShowDict['odablock'] = odablock
                     EddList.append(EddDataShowDict)
                     eddshortestTime=365
                 else:
