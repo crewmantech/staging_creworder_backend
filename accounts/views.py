@@ -4439,9 +4439,21 @@ class CompanySalaryViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def create(self, request, *args, **kwargs):
+        user = request.user
+
+        # ✅ Get company from user profile
+        company = user.profile.company
+
+        if not company:
+            raise ValidationError("User is not linked to any company")
+
+        # ✅ Prevent duplicate salary
+        if CompanySalary.objects.filter(company=company).exists():
+            raise ValidationError("Salary already exists for this company")
+
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        serializer.save(company=company)
 
         return Response(
             {

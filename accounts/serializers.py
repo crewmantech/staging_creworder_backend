@@ -852,11 +852,4 @@ class InterviewApplicationSerializer(serializers.ModelSerializer):
 class CompanySalarySerializer(serializers.ModelSerializer):
     class Meta:
         model = CompanySalary
-        fields = "__all__"
-
-    def validate_company(self, company):
-        if CompanySalary.objects.filter(company=company).exists():
-            raise serializers.ValidationError(
-                "Salary already exists for this company"
-            )
-        return company
+        fields = ["id", "amount", "created_at", "updated_at"]
