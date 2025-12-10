@@ -3,7 +3,7 @@ from .models import Company, ExpiringToken, InterviewApplication, LoginAttempt, 
 from .models import Package
 from .models import PackageDetailsModel
 from .models import Employees
-from .models import Notice
+from .models import Notice1
 from .models import Branch
 from .models import Module
 from .models import FormEnquiry
@@ -30,7 +30,7 @@ admin.site.register(Company)
 admin.site.register(Package)
 admin.site.register(PackageDetailsModel)
 admin.site.register(Employees)
-admin.site.register(Notice)
+admin.site.register(Notice1)
 admin.site.register(Branch)
 admin.site.register(Module)
 admin.site.register(FormEnquiry)

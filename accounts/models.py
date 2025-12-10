@@ -362,7 +362,8 @@ class Employees(BaseModel):
     def __str__(self):
         return self.user.username
     
-class Notice(BaseModel):
+
+class Notice1(BaseModel):
     title = models.CharField(max_length=255)
     description = models.TextField()
     company = models.ForeignKey(
@@ -375,13 +376,13 @@ class Notice(BaseModel):
 
     branches = models.ManyToManyField(
         Branch,
-        related_name="notices",
+        related_name="notices1",
         blank=True
     )
 
     users = models.ManyToManyField(
         User,
-        related_name="notices",
+        related_name="notices1",
         blank=True
     )
 
@@ -392,7 +393,6 @@ class Notice(BaseModel):
 
     def __str__(self):
         return self.title
-
 
 class FormEnquiry(BaseModel):
     class Meta:
