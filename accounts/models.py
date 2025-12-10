@@ -366,9 +366,12 @@ class Notice(BaseModel):
     title = models.CharField(max_length=255)
     description = models.TextField()
     company = models.ForeignKey(
-        Company,on_delete=models.CASCADE,
-        related_name="notices"
-    )
+    Company,
+    on_delete=models.CASCADE,
+    null=True,
+    blank=True
+)
+
 
     branches = models.ManyToManyField(
         Branch,
