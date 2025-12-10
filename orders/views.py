@@ -4040,6 +4040,7 @@ class MainOrderStatusAPIView(APIView):
 
         return Response({"message": "No matching order status found."}, status=status.HTTP_404_NOT_FOUND)
 
+
 STATE_CODE_MAP = {
     'ANDAMAN AND NICOBAR ISLANDS': 'AN', 'ANDHRA PRADESH': 'AP', 'ARUNACHAL PRADESH': 'AR', 'ASSAM': 'AS',
     'BIHAR': 'BR', 'CHANDIGARH': 'CH', 'CHHATTISGARH': 'CG', 'DADRA AND NAGAR HAVELI AND DAMAN AND DIU': 'DH',

@@ -363,12 +363,29 @@ class Employees(BaseModel):
         return self.user.username
     
 class Notice(BaseModel):
-    title = models.CharField(max_length=255, blank=False, null=False)
-    description = models.TextField(blank=False, null=False)
-    created_at = models.DateField(auto_now_add=True)
-    updated_at = models.DateField(auto_now=True)
-    # created_by = models.ForeignKey(User, blank=False, null=False, on_delete=models.PROTECT)
-    users = models.ManyToManyField(User, related_name='notices')
+    title = models.CharField(max_length=255)
+    description = models.TextField()
+    company = models.ForeignKey(
+        Company,on_delete=models.CASCADE,
+        related_name="notices"
+    )
+
+    branches = models.ManyToManyField(
+        Branch,
+        related_name="notices",
+        blank=True
+    )
+
+    users = models.ManyToManyField(
+        User,
+        related_name="notices",
+        blank=True
+    )
+
+    
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.title

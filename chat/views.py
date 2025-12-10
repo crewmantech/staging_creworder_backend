@@ -25,6 +25,7 @@ from django.db.models import Q, F, Case, When, OuterRef, Subquery
 import re
 from accounts.models import UserStatus
 
+
 class getChatDetail(APIView):
     serializer_class = ChatSerializer
     permission_classes = [IsAuthenticated]
@@ -397,6 +398,7 @@ class chat_count(APIView):
                 {"Success": False, "Errors": "Unable to determine chat type"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
 
 class getUserListChat(APIView):
     permission_classes = [IsAuthenticated]

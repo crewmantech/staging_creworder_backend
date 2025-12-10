@@ -675,15 +675,26 @@ class NoticeViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        notice = serializer.save(created_by=self.request.user)
+        notice = serializer.save(
+            created_by=self.request.user,
+            company=self.request.user.profile.company
+        )
 
-        # Create notification for each user in 'users' field
-        for user in serializer.validated_data['users']:
+        notified_users = set()
+
+        # Direct users
+        notified_users.update(notice.users.all())
+
+        # Branch users
+        for branch in notice.branches.all():
+            notified_users.update(branch.users.all())
+
+        for user in notified_users:
             Notification.objects.create(
                 user=user,
                 message=f"You have a new notice: {notice.title}",
-                url=f"/notice-board",  # Adjust as per your frontend route
-                notification_type="chat_message"  # Or a new type like "notice"
+                url="/notice-board",
+                notification_type="chat_message"
             )
 
 # for all permisson given user
@@ -1289,7 +1300,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                     # filters &= Q(branch=branch)
                     # ✅ Allow admin to fetch a specific user's attendance
                     
-                elif not user.has_perm('accounts.view_attendance'):
+                else:
                     filters &= Q(user=user)
                 filters &= (Q(user__profile__status=1) | Q(user__profile__status=0))
 
