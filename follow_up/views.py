@@ -6,6 +6,7 @@ from rest_framework import viewsets,status
 
 from accounts.models import Employees
 from accounts.permissions import HasPermission
+from lead_management.models import Lead
 from .models import Follow_Up
 from .serializers import FollowUpSerializer,NotepadSerializer
 from django.db import transaction
@@ -229,3 +230,54 @@ class FollowUpExportAPIView(APIView):
                 {"Success": False, "Error": "Invalid request for export."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        
+
+class GetPhoneByReferenceAPIView(APIView):
+    """
+    GET phone number using a single reference_id
+    reference_id can be Lead.lead_id OR Follow_Up.followup_id
+    """
+
+    def get(self, request):
+        reference_id = request.query_params.get("reference_id")
+
+        if not reference_id:
+            return Response(
+                {"error": "reference_id query param is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # ✅ Try Lead
+        lead = Lead.objects.filter(
+            lead_id=reference_id
+        ).only("customer_phone").first()
+
+        if lead:
+            return Response(
+                {
+                    "type": "lead",
+                    "reference_id": reference_id,
+                    "customer_phone": lead.customer_phone
+                },
+                status=status.HTTP_200_OK
+            )
+
+        # ✅ Try Follow Up
+        followup = Follow_Up.objects.filter(
+            followup_id=reference_id
+        ).only("customer_phone").first()
+
+        if followup:
+            return Response(
+                {
+                    "type": "followup",
+                    "reference_id": reference_id,
+                    "customer_phone": followup.customer_phone
+                },
+                status=status.HTTP_200_OK
+            )
+
+        return Response(
+            {"error": "No Lead or Follow-up found for this reference_id"},
+            status=status.HTTP_404_NOT_FOUND
+        )
