@@ -2,7 +2,7 @@ from . import views
 from django.urls import path, include
 from rest_framework.views import APIView
 from rest_framework.routers import DefaultRouter
-from .views import CourierServiceView, OrderOperationsViewSet, NDRViewSet, OrderCancellationViewSet, PickupLocationViewSet,ScheduleOrders, ShipmentVendorViewSet, ShipmentViewSet,ShiprocketChannelViewSet,GeneratePickupAPI, TrackOrderAPI, TrackOrderViewSet, WalletBalanceAPI
+from .views import CourierServiceView, OrderOperationsViewSet, NDRViewSet, OrderCancellationViewSet, PickupLocationViewSet,ScheduleOrders, ShipmentVendorViewSet, ShipmentViewSet,ShiprocketChannelViewSet,GeneratePickupAPI, TrackOrderAPI, TrackOrderViewSet, WalletBalanceAPI,NDRActionAPIView,NDRListAPIView,NDRDetailAPIView
 router = DefaultRouter()
 router.register(r'courier-service', CourierServiceView)
 router.register(r'schedule-orders',ScheduleOrders)
@@ -23,4 +23,7 @@ urlpatterns = [
     path('ndr/<str:pk>/', NDRViewSet.as_view({'get': 'retrieve'}), name='ndr-detail'),
     path('pickup/locations/', PickupLocationViewSet.as_view({'get': 'list'}), name='pickup-location-list'),
     path('pickup/location/', PickupLocationViewSet.as_view({'post': 'create'}), name='pickup-location-create'),
+    path("ndr/action/", NDRActionAPIView.as_view(), name="ndr-action"),
+    path("ndr/", NDRListAPIView.as_view(), name="ndr-list"),
+    path("ndr/<str:awb>/", NDRDetailAPIView.as_view(), name="ndr-detail"),
 ]

@@ -14,6 +14,8 @@ from services.shipment.schedule_orders import NimbuspostAPI, ShiprocketScheduleO
 from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
 from rest_framework.decorators import action
+from django.shortcuts import get_object_or_404
+
 
 class ShipmentView(APIView):
     permission_classes = [IsAuthenticated,ShipmentPermissions]
@@ -1121,3 +1123,264 @@ class ShipmentVendorViewSet(viewsets.ModelViewSet):
     queryset = ShipmentVendor.objects.all()
     serializer_class = ShipmentVendorSerializer
     permission_classes = [IsAuthenticated]
+    
+def get_vendor_service(shipment: ShipmentModel):
+    """
+    Return the correct service instance (Shiprocket / Nimbuspost)
+    using the SAME credential pattern as ScheduleOrders.create.
+    """
+    serializer = ShipmentSerializer(shipment)
+    data = serializer.data
+
+    vendor_name = (data["shipment_vendor"]["name"] or "").strip().lower()
+    username = data.get("credential_username")
+    password = data.get("credential_password")
+
+    if not username:
+        raise ValueError("Credential username not configured for this shipment")
+
+    if vendor_name == "shiprocket":
+        return ShiprocketScheduleOrder(username, password)
+
+    if vendor_name == "nimbuspost":
+        return NimbuspostAPI(username, password)
+
+    raise ValueError(f"Unsupported shipment vendor: {data['shipment_vendor']['name']}")
+
+class NDRActionAPIView(APIView):
+    """
+    POST: Perform NDR action based on shipment_vendor_id and awb.
+
+    Common request body (example):
+
+    {
+        "shipment_vendor_id": 1,
+        "awb": "NMBC0002111111",
+        "action": "re-attempt",
+        "comments": "Customer wants re-delivery",  # mainly for Shiprocket
+        "action_data": {                          # mainly for Nimbuspost
+            "re_attempt_date": "2021-06-03"
+        }
+    }
+
+    - For Nimbuspost:
+        -> calls NimbuspostAPI.submit_ndr_action([...])
+    - For Shiprocket:
+        -> calls ShiprocketScheduleOrder.action_ndr(awb, action, comments)
+    """
+
+    def post(self, request, *args, **kwargs):
+        shipment_vendor_id = request.data.get("shipment_vendor_id")
+        awb = request.data.get("awb")
+        action = request.data.get("action")
+        comments = request.data.get("comments", "")
+        action_data = request.data.get("action_data", {})
+
+        if not shipment_vendor_id or not awb or not action:
+            return Response(
+                {
+                    "detail": "shipment_vendor_id, awb, and action are required.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Get vendor
+        vendor = get_object_or_404(ShipmentVendor, id=shipment_vendor_id)
+
+        try:
+            service = get_vendor_service(vendor)
+        except ValueError as e:
+            return Response(
+                {"detail": str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except Exception as e:
+            return Response(
+                {"detail": "Error initializing vendor service", "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        vendor_name = vendor.name.strip().lower()
+
+        try:
+            if vendor_name == "nimbuspost":
+                # Nimbuspost expects a list of actions
+                payload = [
+                    {
+                        "awb": awb,
+                        "action": action,
+                        "action_data": action_data or {},
+                    }
+                ]
+                result = service.submit_ndr_action(payload)
+
+            elif vendor_name == "shiprocket":
+                # Shiprocket expects awb in URL and body with action & comments
+                result = service.action_ndr(
+                    awb=awb,
+                    action=action,
+                    comments=comments,
+                )
+
+            else:
+                return Response(
+                    {"detail": f"Unsupported vendor: {vendor.name}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            return Response(result, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response(
+                {
+                    "detail": "Error while performing NDR action",
+                    "error": str(e),
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class NDRListAPIView(APIView):
+    """
+    GET: List NDR shipments based on vendor.
+
+    Query params:
+      - shipment_vendor_id (required)
+      - awb_number (optional, used for Nimbuspost)
+      - page_no, per_page (optional for Nimbuspost)
+
+    Examples:
+
+    Nimbuspost:
+      GET /api/ndr/?shipment_vendor_id=1&awb_number=1122335577&page_no=1&per_page=50
+
+    Shiprocket:
+      GET /api/ndr/?shipment_vendor_id=2
+      -> calls ShiprocketScheduleOrder.get_all_ndr_shipments()
+    """
+
+    def get(self, request, *args, **kwargs):
+        shipment_vendor_id = request.query_params.get("shipment_vendor_id")
+        if not shipment_vendor_id:
+            return Response(
+                {"detail": "shipment_vendor_id is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        vendor = get_object_or_404(ShipmentVendor, id=shipment_vendor_id)
+
+        try:
+            service = get_vendor_service(vendor)
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.exception("Error initializing vendor service")
+            return Response(
+                {"detail": "Error initializing vendor service", "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        vendor_name = vendor.name.strip().lower()
+
+        try:
+            if vendor_name == "nimbuspost":
+                awb_number = request.query_params.get("awb_number", "")
+                page_no = int(request.query_params.get("page_no", 1))
+                per_page = int(request.query_params.get("per_page", 50))
+
+                result = service.get_ndr_list(
+                    awb_number=awb_number,
+                    page_no=page_no,
+                    per_page=per_page,
+                )
+
+            elif vendor_name == "shiprocket":
+                # Your ShiprocketScheduleOrder.get_all_ndr_shipments()
+                result = service.get_all_ndr_shipments()
+
+            else:
+                return Response(
+                    {"detail": f"Unsupported vendor: {vendor.name}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            return Response(result, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.exception("Error while fetching NDR list")
+            return Response(
+                {"detail": "Error while fetching NDR list", "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class NDRDetailAPIView(APIView):
+    """
+    GET: Get NDR details for a specific AWB based on vendor.
+
+    Path param:
+      - awb (required)
+
+    Query params:
+      - shipment_vendor_id (required)
+
+    Examples:
+
+    Nimbuspost:
+      GET /api/ndr/NMBC0002111111/?shipment_vendor_id=1
+      -> calls NimbuspostAPI.get_ndr_list(awb_number=awb, page_no=1, per_page=1)
+
+    Shiprocket:
+      GET /api/ndr/NMBC0002111111/?shipment_vendor_id=2
+      -> calls ShiprocketScheduleOrder.get_ndr_shipment_details(awb)
+    """
+
+    def get(self, request, awb, *args, **kwargs):
+        shipment_vendor_id = request.query_params.get("shipment_vendor_id")
+        if not shipment_vendor_id:
+            return Response(
+                {"detail": "shipment_vendor_id is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        vendor = get_object_or_404(ShipmentVendor, id=shipment_vendor_id)
+
+        try:
+            service = get_vendor_service(vendor)
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.exception("Error initializing vendor service")
+            return Response(
+                {"detail": "Error initializing vendor service", "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        vendor_name = vendor.name.strip().lower()
+
+        try:
+            if vendor_name == "nimbuspost":
+                # For a single AWB, we can just reuse get_ndr_list with page 1, per_page 1
+                result = service.get_ndr_list(
+                    awb_number=awb,
+                    page_no=1,
+                    per_page=1,
+                )
+
+            elif vendor_name == "shiprocket":
+                result = service.get_ndr_shipment_details(shipment_id=awb)
+
+            else:
+                return Response(
+                    {"detail": f"Unsupported vendor: {vendor.name}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            return Response(result, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.exception("Error while fetching NDR detail")
+            return Response(
+                {"detail": "Error while fetching NDR detail", "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
