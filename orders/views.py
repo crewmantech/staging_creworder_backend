@@ -4691,7 +4691,7 @@ class CheckPhoneDuplicateAPIView(APIView):
                  GET /check-phone-duplicate/?phone=+919876543210
         """
         phone = request.query_params.get("phone")
-
+        company = request.user.profile.company 
         if not phone:
             return Response(
                 {"Success": False, "message": "Phone number is required."},
@@ -4718,8 +4718,11 @@ class CheckPhoneDuplicateAPIView(APIView):
 
         # Check both primary and alternate phone fields
         exists = Order_Table.objects.filter(
-            Q(customer_phone__in=possible_numbers) |
-            Q(customer_alter_phone__in=possible_numbers)
+            (
+                Q(customer_phone__in=possible_numbers) |
+                Q(customer_alter_phone__in=possible_numbers)
+            ),
+            company=company   # or company_id=company_id
         ).exists()
 
         if exists:

@@ -178,7 +178,7 @@ def createOrders(data,user_id):
     serializer = UserProfileSerializer(userData)
     serialized_data = serializer.data
     if int(data['repeat_order'])!=1:
-        repeatMobileNumber = Order_Table.objects.filter(customer_phone=data['customer_phone'],branch=serialized_data["branch"]).first()
+        repeatMobileNumber = Order_Table.objects.filter(customer_phone=data['customer_phone'],customer_alter_phone=data['customer_phone']).first()
         if repeatMobileNumber:
             raise ValueError("Phone number exists")
         

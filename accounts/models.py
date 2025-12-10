@@ -394,6 +394,7 @@ class Notice1(BaseModel):
     def __str__(self):
         return self.title
 
+
 class FormEnquiry(BaseModel):
     class Meta:
         verbose_name_plural = "Form Enquiries"
