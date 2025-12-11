@@ -4465,6 +4465,7 @@ class CompanySalaryViewSet(viewsets.ModelViewSet):
 
 
 class CompanyMonthlySalaryPreviewAPIView(APIView):
+    permission_classes = [IsAuthenticated]
     """
     Preview salary for all users of a company for given month
     No DB write, calculation only
@@ -4564,6 +4565,7 @@ class CompanyMonthlySalaryPreviewAPIView(APIView):
                 monthyear=monthyear,
                 # achieve_target=True
             )
+            print(target_achieved,"---------------4568")
             monthly_amount_target=target_achieved.monthly_amount_target
             amount = self.get_user_monthwise_delivered_amount(
                     user=user,

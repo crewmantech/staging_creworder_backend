@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>New Enquiry Received</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    /* Reset styles for consistent rendering */
+    body, table, td, p {
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+    }
+
+    img {
+      border: 0;
+      display: block;
+      max-width: 100%;
+      height: auto;
+    }
+
+    table {
+      border-collapse: collapse;
+    }
+
+    /* Responsive styles */
+    @media only screen and (max-width: 620px) {
+      .wrapper {
+        width: 100% !important;
+        padding: 10px !important;
+      }
+
+      .content {
+        padding: 20px !important;
+      }
+
+      h2 {
+        font-size: 20px !important;
+      }
+
+      h3 {
+        font-size: 16px !important;
+      }
+
+      p, a {
+        font-size: 14px !important;
+      }
+    }
+  </style>
+</head>
+<body style="background-color: #f9f9f9; color: #333;">
+
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding: 20px;">
+    <tr>
+      <td align="center">
+        <table class="wrapper" width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; border: 1px solid #e0e0e0; width: 600px;">
+          
+          <!-- Header -->
+        <tr>
+            <td class="logo" style="background-color: #f9f9f9; padding: 20px; text-align: center;">
+                <img src="https://app.creworder.com/media/brand_logos/CO-logo2.svg" alt="Creworder Logo" style="max-width: 150px; margin: 0 auto; display: block;">
+            </td>
+        </tr>
+
+          <!-- Body Content -->
+          <tr>
+            <td class="content" style="padding: 30px;">
+              <h2 style="color: #405189; margin-top: 0;">New Customer Enquiry</h2>
+              <p><strong>Date:</strong> {{ created_at }}</p>
+              <p><strong>Enquiry ID:</strong> {{ query_id }}</p>
+
+              <hr style="border: none; border-top: 1px solid #ccc; margin: 20px 0;">
+
+              <h3 style="margin-bottom: 15px; color: #333;">Customer Details:</h3>
+              <div style="background-color: #f8f9fa; padding: 20px; border-radius: 6px; margin-bottom: 20px; border-left: 4px solid #405189;">
+                <table style="width: 100%; border-spacing: 0;">
+                  {% if full_name %}
+                  <tr>
+                    <td style="padding: 5px 0; font-weight: bold; color: #555; width: 35%;">Full Name:</td>
+                    <td style="padding: 5px 0; color: #333;">{{ full_name }}</td>
+                  </tr>
+                  {% endif %}
+                  
+                  {% if email %}
+                  <tr>
+                    <td style="padding: 5px 0; font-weight: bold; color: #555;">Email:</td>
+                    <td style="padding: 5px 0; color: #333;"><a href="mailto:{{ email }}" style="color: #405189; text-decoration: none;">{{ email }}</a></td>
+                  </tr>
+                  {% endif %}
+                  
+                  {% if phone_number %}
+                  <tr>
+                    <td style="padding: 5px 0; font-weight: bold; color: #555;">Phone Number:</td>
+                    <td style="padding: 5px 0; color: #333;">{{ phone_number }}</td>
+                  </tr>
+                  {% endif %}
+                  
+                 
+                  
+                </table>
+              </div>
+
+              <!-- Message Section (if exists) -->
+              {% if message %}
+              <h3 style="margin-top: 25px;">Enquiry Message:</h3>
+              <div style="background-color: #f3f3f3; padding: 15px; border-left: 5px solid #405189; margin-bottom: 20px;">
+                <p>{{ message }}</p>
+              </div>
+              {% endif %}
+
+        
+
+              <p style="margin-top: 30px;">Please respond to this enquiry promptly.</p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #f3f3f3; text-align: center; font-size: 14px; color: #000; padding: 20px;">
+              <p style="margin: 0;">Creworder Admin Notification • © {{ current_year }}</p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>
