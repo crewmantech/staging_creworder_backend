@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from rest_framework.views import APIView
 from accounts.models import Branch, Company
-from orders.models import Order_Table, OrderStatus
+from orders.models import Order_Table, OrderStatus,OrderLogModel
 from orders.perrmissions import ShipmentPermissions
 from services.orders.order_service import getOrderDetails
 from .serializers import ShipmentSerializer,CourierServiceSerializer, ShipmentVendorSerializer
@@ -15,6 +15,8 @@ from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
 from rest_framework.decorators import action
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
+
 
 
 class ShipmentView(APIView):
@@ -1150,23 +1152,14 @@ def get_vendor_service(shipment: ShipmentModel):
 class NDRActionAPIView(APIView):
     """
     POST: Perform NDR action based on shipment_vendor_id and awb.
-
-    Common request body (example):
-
+    Expected body example:
     {
         "shipment_vendor_id": 1,
         "awb": "NMBC0002111111",
         "action": "re-attempt",
-        "comments": "Customer wants re-delivery",  # mainly for Shiprocket
-        "action_data": {                          # mainly for Nimbuspost
-            "re_attempt_date": "2021-06-03"
-        }
+        "comments": "Customer wants re-delivery",
+        "action_data": { "re_attempt_date": "2021-06-03" }
     }
-
-    - For Nimbuspost:
-        -> calls NimbuspostAPI.submit_ndr_action([...])
-    - For Shiprocket:
-        -> calls ShiprocketScheduleOrder.action_ndr(awb, action, comments)
     """
 
     def post(self, request, *args, **kwargs):
@@ -1178,49 +1171,32 @@ class NDRActionAPIView(APIView):
 
         if not shipment_vendor_id or not awb or not action:
             return Response(
-                {
-                    "detail": "shipment_vendor_id, awb, and action are required.",
-                },
+                {"detail": "shipment_vendor_id, awb, and action are required."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Get vendor
+        # fetch ShipmentVendor record
         vendor = get_object_or_404(ShipmentVendor, id=shipment_vendor_id)
+        vendor_name = (vendor.name or "").strip().lower()
 
+        # ALWAYS use your get_vendor_service helper
         try:
             service = get_vendor_service(vendor)
-        except ValueError as e:
-            return Response(
-                {"detail": str(e)},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
         except Exception as e:
+            logger.exception("Error creating vendor service via get_vendor_service")
             return Response(
                 {"detail": "Error initializing vendor service", "error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-        vendor_name = vendor.name.strip().lower()
-
         try:
+            # call vendor API
             if vendor_name == "nimbuspost":
-                # Nimbuspost expects a list of actions
-                payload = [
-                    {
-                        "awb": awb,
-                        "action": action,
-                        "action_data": action_data or {},
-                    }
-                ]
-                result = service.submit_ndr_action(payload)
+                payload = [{"awb": awb, "action": action, "action_data": action_data or {}}]
+                vendor_result = service.submit_ndr_action(payload)
 
             elif vendor_name == "shiprocket":
-                # Shiprocket expects awb in URL and body with action & comments
-                result = service.action_ndr(
-                    awb=awb,
-                    action=action,
-                    comments=comments,
-                )
+                vendor_result = service.action_ndr(awb=awb, action=action, comments=comments)
 
             else:
                 return Response(
@@ -1228,17 +1204,80 @@ class NDRActionAPIView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            return Response(result, status=status.HTTP_200_OK)
+            # Determine success for this AWB
+            api_success = False
+            api_message = ""
+
+            if vendor_name == "nimbuspost":
+                if isinstance(vendor_result, list):
+                    for item in vendor_result:
+                        if str(item.get("awb")) == str(awb):
+                            api_success = bool(item.get("status"))
+                            api_message = item.get("message", "")
+                            break
+                else:
+                    logger.warning("Nimbuspost returned unexpected format: %s", type(vendor_result))
+
+            elif vendor_name == "shiprocket":
+                if isinstance(vendor_result, dict):
+                    api_success = vendor_result.get("status") is True or vendor_result.get("success") is True
+                    api_message = vendor_result.get("message", "") or vendor_result.get("detail", "")
+
+            # Persist to DB if successful
+            saved_to_db = False
+            db_message = ""
+            if api_success:
+                with transaction.atomic():
+                    rendr_status, _ = OrderStatus.objects.get_or_create(
+                        name="ReNDR",
+                        defaults={"description": "Re-attempt / NDR in progress"},
+                    )
+
+                    try:
+                        order = Order_Table.objects.select_for_update().get(order_wayBill=awb)
+                    except Order_Table.DoesNotExist:
+                        order = None
+
+                    if order:
+                        order.order_status = rendr_status
+                        order.ndr_action = action
+                        order.ndr_data = action_data or {}
+                        order.ndr_date = timezone.now()
+                        order.ndr_count = (order.ndr_count or 0) + 1
+                        order.save(update_fields=["order_status", "ndr_action", "ndr_data", "ndr_date", "ndr_count", "updated_at"])
+
+                        action_by = request.user if request.user and request.user.is_authenticated else order.order_created_by
+
+                        OrderLogModel.objects.create(
+                            order=order,
+                            order_status=rendr_status,
+                            action_by=action_by,
+                            remark=api_message or comments or f"NDR action '{action}' submitted.",
+                            action=f"NDR '{action}' sent to {vendor.name} for AWB {awb}",
+                        )
+
+                        saved_to_db = True
+                        db_message = "Order updated and log created."
+                    else:
+                        logger.warning("NDR succeeded in vendor but no order found for AWB=%s", awb)
+                        db_message = "NDR succeeded but order not found in DB."
+
+            # Merge a small DB status with vendor response for clarity
+            response_payload = {
+                "vendor_response": vendor_result,
+                "saved_to_db": saved_to_db,
+                "db_message": db_message,
+                "api_message": api_message,
+            }
+
+            return Response(response_payload, status=status.HTTP_200_OK)
 
         except Exception as e:
+            logger.exception("Error while performing NDR action")
             return Response(
-                {
-                    "detail": "Error while performing NDR action",
-                    "error": str(e),
-                },
+                {"detail": "Error while performing NDR action", "error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-
 
 class NDRListAPIView(APIView):
     """
