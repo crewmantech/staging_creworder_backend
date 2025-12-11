@@ -254,7 +254,7 @@ class UserViewSet(viewsets.ModelViewSet):
             attendance = self.request.query_params.get("attendance")
             if attendance:
                 
-                queryset = queryset.filter(profile__login_allowed=True)
+                queryset = queryset.filter(profile__login_allowed=True,profile__user_type="agent")
             # Only filter active for list/retrieve
             if self.action in ["list", "retrieve"]:
                 queryset = queryset.filter(profile__status=1)
