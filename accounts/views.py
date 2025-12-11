@@ -4566,27 +4566,37 @@ class CompanyMonthlySalaryPreviewAPIView(APIView):
                 # achieve_target=True
             )
             print(target_achieved,"---------------4568")
-            monthly_amount_target=target_achieved.monthly_amount_target
-            amount = self.get_user_monthwise_delivered_amount(
-                    user=user,
-                    monthyear = monthyear
-                )
-            if amount>=monthly_amount_target:
-                salary = per_day_salary * present_days
-                rule = "Full Salary"
+            if target_achieved:
+                monthly_amount_target=target_achieved.monthly_amount_target
+
+                amount = self.get_user_monthwise_delivered_amount(
+                        user=user,
+                        monthyear = monthyear
+                    )
+                if amount>=monthly_amount_target:
+                    salary = per_day_salary * present_days
+                    rule = "Full Salary"
+                else:
+                    salary = (per_day_salary / 2) * present_days
+                    rule = "Half Salary (Target Not Achieved)"
+
+                results.append({
+                    "user_id": user.id,
+                    "username": user.username,
+                    "present_days": present_days,
+                    "target_achieved": target_achieved,
+                    "salary_rule": rule,
+                    "salary": round(float(salary), 2)
+                })
             else:
-                salary = (per_day_salary / 2) * present_days
-                rule = "Half Salary (Target Not Achieved)"
-
-            results.append({
-                "user_id": user.id,
-                "username": user.username,
-                "present_days": present_days,
-                "target_achieved": target_achieved,
-                "salary_rule": rule,
-                "salary": round(float(salary), 2)
-            })
-
+                results.append({
+                    "user_id": user.id,
+                    "username": user.username,
+                    "present_days": present_days,
+                    "target_achieved": target_achieved,
+                    "salary_rule": "",
+                    "salary": 0
+                })
         return Response(
             {
                 "company": company,
