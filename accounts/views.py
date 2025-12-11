@@ -4585,22 +4585,25 @@ class CompanyMonthlySalaryPreviewAPIView(APIView):
                 rule = "Half Salary (Target Not Achieved)"
 
             results.append({
-                "user_id": user.id,
-                "username": user.username,
-                "present_days": present_days,
-                "target_achieved": target_achieved,
-                "salary_rule": rule,
-                "salary": round(float(salary), 2)
-            })
+                    "user_id": user.id,
+                    "username": user.username,
+                    "present_days": present_days,
+                    "target_achieved": monthly_amount_target,  # FIXED
+                    "salary_rule": rule,
+                    "salary": round(float(salary), 2)
+                })
 
         return Response(
-            {
-                "company": company,
-                "month": monthyear,
-                "annual_salary": float(annual_salary),
-                "per_day_salary": round(float(per_day_salary), 2),
-                "salary_preview": True,
-                "employees": results
-            },
-            status=status.HTTP_200_OK
-        )
+                {
+                    "company": {
+                        "id": company.id,
+                        "name": company.name
+                    },
+                    "month": monthyear,
+                    "annual_salary": float(annual_salary),
+                    "per_day_salary": round(float(per_day_salary), 2),
+                    "salary_preview": True,
+                    "employees": results
+                },
+                status=status.HTTP_200_OK
+            )
