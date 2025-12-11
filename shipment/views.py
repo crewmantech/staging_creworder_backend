@@ -1149,16 +1149,99 @@ def get_vendor_service(shipment: ShipmentModel):
 
     raise ValueError(f"Unsupported shipment vendor: {data['shipment_vendor']['name']}")
 
+def build_vendor_payload_for_ndr(vendor_name: str, awb: str, action: str, comments: str, action_data: dict, extra_top_level: dict):
+    """
+    Build vendor-specific payload from a universal request body.
+
+    Returns tuple: (payload, call_style)
+      - payload: for NimbusPost -> a list; for Shiprocket -> dict of kwargs
+      - call_style: "nimbus" or "shiprocket"
+    """
+    # Normalize names to lower-case vendor
+    vendor_name = (vendor_name or "").strip().lower()
+
+    # Merge top-level extras like phone into action_data (client convenience)
+    merged = {}
+    if action_data:
+        merged.update(action_data)
+    if extra_top_level:
+        # only add non-empty values
+        for k, v in (extra_top_level.items() if extra_top_level else ()):
+            if v is not None and v != "":
+                merged[k] = v
+
+    if vendor_name == "nimbuspost":
+        # NimbusPost expects a list of objects
+        payload = [{"awb": awb, "action": action, "action_data": merged or {}}]
+        return payload, "nimbus"
+
+    if vendor_name == "shiprocket":
+        # Shiprocket expects awb, action, comments, and other optional fields.
+        # We'll map action_data keys to allowed shiprocket kwargs (normalize address_1 -> address1 etc.)
+        ship_kwargs = {
+            "awb": awb,
+            "action": action,
+            "comments": comments or "",
+        }
+
+        # Allowed keys for Shiprocket (according to your docs)
+        allowed = ["phone", "proof_audio", "proof_image", "remarks", "address1", "address2", "deferred_date"]
+
+        # Map common variants to shiprocket expected names
+        mapping_variants = {
+            "address_1": "address1",
+            "address_2": "address2",
+            "re_attempt_date": "deferred_date",  # if client provides re_attempt_date, map to deferred_date
+        }
+
+        # Add mapped values
+        for src_key, value in merged.items():
+            # direct allow
+            if src_key in allowed:
+                ship_kwargs[src_key] = value
+                continue
+
+            # variant mapping
+            if src_key in mapping_variants:
+                mapped_key = mapping_variants[src_key]
+                if mapped_key in allowed:
+                    ship_kwargs[mapped_key] = value
+                    continue
+
+            # fallback: sometimes client sent address1 as address_1 etc.
+            if src_key.replace("_", "") in [k.replace("_", "") for k in allowed]:
+                # convert snake to camel-ish allowed name (address_1 -> address1)
+                normalized = src_key.replace("_", "")
+                # find allowed with same normalized
+                for a in allowed:
+                    if a.replace("_", "") == normalized:
+                        ship_kwargs[a] = value
+                        break
+
+        return ship_kwargs, "shiprocket"
+
+    raise ValueError(f"Unsupported vendor for mapping: {vendor_name}")
+
+
 class NDRActionAPIView(APIView):
     """
     POST: Perform NDR action based on shipment_vendor_id and awb.
-    Expected body example:
+    Universal request body (examples):
     {
         "shipment_vendor_id": 1,
         "awb": "NMBC0002111111",
         "action": "re-attempt",
         "comments": "Customer wants re-delivery",
-        "action_data": { "re_attempt_date": "2021-06-03" }
+        "phone": "9876543210",            # optional top-level convenience
+        "action_data": {
+            "re_attempt_date": "2025-02-10",
+            "name": "Customer Name",
+            "address_1": "U-56, sector-23",
+            "address_2": "Near Park",
+            "proof_audio": "https://..",
+            "proof_image": "https://..",
+            "remarks": "Left note"
+        }
     }
     """
 
@@ -1167,7 +1250,10 @@ class NDRActionAPIView(APIView):
         awb = request.data.get("awb")
         action = request.data.get("action")
         comments = request.data.get("comments", "")
-        action_data = request.data.get("action_data", {})
+        action_data = request.data.get("action_data", {}) or {}
+
+        # top-level convenience fields
+        phone = request.data.get("phone")
 
         if not shipment_vendor_id or not awb or not action:
             return Response(
@@ -1189,15 +1275,32 @@ class NDRActionAPIView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
+        # Build vendor-specific payload
         try:
-            # call vendor API
-            if vendor_name == "nimbuspost":
-                payload = [{"awb": awb, "action": action, "action_data": action_data or {}}]
+            extra_top_level = {"phone": phone}
+            payload, call_style = build_vendor_payload_for_ndr(
+                vendor_name=vendor_name,
+                awb=awb,
+                action=action,
+                comments=comments,
+                action_data=action_data,
+                extra_top_level=extra_top_level,
+            )
+        except Exception as e:
+            logger.exception("Error building vendor payload")
+            return Response(
+                {"detail": "Error building vendor payload", "error": str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            # Call vendor API
+            if call_style == "nimbus":
+                # payload is a list for NimbusPost
                 vendor_result = service.submit_ndr_action(payload)
-
-            elif vendor_name == "shiprocket":
-                vendor_result = service.action_ndr(awb=awb, action=action, comments=comments)
-
+            elif call_style == "shiprocket":
+                # payload is a dict of kwargs for Shiprocket; ensure service.action_ndr accepts kwargs
+                vendor_result = service.action_ndr(**payload)
             else:
                 return Response(
                     {"detail": f"Unsupported vendor: {vendor.name}"},
@@ -1217,6 +1320,10 @@ class NDRActionAPIView(APIView):
                             break
                 else:
                     logger.warning("Nimbuspost returned unexpected format: %s", type(vendor_result))
+                    # attempt to interpret single-object success as fallback
+                    if isinstance(vendor_result, dict):
+                        api_success = vendor_result.get("status") is True or vendor_result.get("success") is True
+                        api_message = vendor_result.get("message", "") or vendor_result.get("detail", "")
 
             elif vendor_name == "shiprocket":
                 if isinstance(vendor_result, dict):
@@ -1241,6 +1348,7 @@ class NDRActionAPIView(APIView):
                     if order:
                         order.order_status = rendr_status
                         order.ndr_action = action
+                        # store the merged action data we sent (explicitly)
                         order.ndr_data = action_data or {}
                         order.ndr_date = timezone.now()
                         order.ndr_count = (order.ndr_count or 0) + 1
@@ -1262,7 +1370,7 @@ class NDRActionAPIView(APIView):
                         logger.warning("NDR succeeded in vendor but no order found for AWB=%s", awb)
                         db_message = "NDR succeeded but order not found in DB."
 
-            # Merge a small DB status with vendor response for clarity
+            # Response payload
             response_payload = {
                 "vendor_response": vendor_result,
                 "saved_to_db": saved_to_db,
