@@ -4566,37 +4566,33 @@ class CompanyMonthlySalaryPreviewAPIView(APIView):
                 # achieve_target=True
             )
             print(target_achieved,"---------------4568")
-            if target_achieved:
-                monthly_amount_target=target_achieved.monthly_amount_target
+            try:
+                target_achieved = UserTargetsDelails.objects.get(user=user, monthyear=monthyear)
+                monthly_amount_target = target_achieved.monthly_amount_target
+            except UserTargetsDelails.DoesNotExist:
+                monthly_amount_target = 0
+            # monthly_amount_target=target_achieved.monthly_amount_target
 
-                amount = self.get_user_monthwise_delivered_amount(
-                        user=user,
-                        monthyear = monthyear
-                    )
-                if amount>=monthly_amount_target:
-                    salary = per_day_salary * present_days
-                    rule = "Full Salary"
-                else:
-                    salary = (per_day_salary / 2) * present_days
-                    rule = "Half Salary (Target Not Achieved)"
-
-                results.append({
-                    "user_id": user.id,
-                    "username": user.username,
-                    "present_days": present_days,
-                    "target_achieved": target_achieved,
-                    "salary_rule": rule,
-                    "salary": round(float(salary), 2)
-                })
+            amount = self.get_user_monthwise_delivered_amount(
+                    user=user,
+                    monthyear = monthyear
+                )
+            if amount>=monthly_amount_target:
+                salary = per_day_salary * present_days
+                rule = "Full Salary"
             else:
-                results.append({
-                    "user_id": user.id,
-                    "username": user.username,
-                    "present_days": present_days,
-                    "target_achieved": target_achieved,
-                    "salary_rule": "",
-                    "salary": 0
-                })
+                salary = (per_day_salary / 2) * present_days
+                rule = "Half Salary (Target Not Achieved)"
+
+            results.append({
+                "user_id": user.id,
+                "username": user.username,
+                "present_days": present_days,
+                "target_achieved": target_achieved,
+                "salary_rule": rule,
+                "salary": round(float(salary), 2)
+            })
+
         return Response(
             {
                 "company": company,
