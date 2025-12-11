@@ -16,6 +16,8 @@ from django.db import transaction
 from rest_framework.decorators import action
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from typing import Tuple, Any, Dict
+
 
 
 
@@ -1127,6 +1129,10 @@ class ShipmentVendorViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     
 def get_vendor_service(shipment_or_vendor):
+    """
+    Given a ShipmentModel instance or a vendor-like object/dict, return the vendor service instance.
+    Raises ValueError on missing data.
+    """
     vendor_name = None
     username = None
     password = None
@@ -1172,7 +1178,7 @@ def get_vendor_service(shipment_or_vendor):
     raise ValueError(f"Unsupported shipment vendor: {vendor_name}")
 
 
-def normalize_vendor_response(vendor_name: str, vendor_result, awb: str = None, http_status: int = None):
+def normalize_vendor_response(vendor_name: str, vendor_result, awb: str = None, http_status: int = None) -> Tuple[bool, str, Dict]:
     """
     Normalize various vendor responses into a consistent shape.
 
@@ -1214,52 +1220,43 @@ def normalize_vendor_response(vendor_name: str, vendor_result, awb: str = None, 
 
     # Shiprocket -> example: { "status": "Data Updated Sucessfully" } and HTTP 202
     elif vendor_name == "shiprocket":
-        # If vendor_result is dict, look for several patterns
         if isinstance(vendor_result, dict):
             val = vendor_result.get("status", None)
-            # status might be boolean True/False or a string message
             if isinstance(val, bool):
                 normalized["success"] = val is True
                 normalized["message"] = vendor_result.get("message", "") or ""
             elif isinstance(val, str):
-                # treat common success words as success (case-insensitive)
                 if "success" in val.lower() or "updated" in val.lower() or "ok" == val.lower():
                     normalized["success"] = True
                 else:
-                    # if status is a string but not clearly success, we still set message to it
                     normalized["success"] = False
                 normalized["message"] = val or vendor_result.get("message", "") or vendor_result.get("detail", "")
             else:
-                # fallback: check other keys
                 normalized["success"] = vendor_result.get("success") is True
                 normalized["message"] = vendor_result.get("message", "") or vendor_result.get("detail", "")
-
         else:
-            # non-dict response; fallback to http_status if provided
             if http_status and int(http_status) in (200, 201, 202):
                 normalized["success"] = True
                 normalized["message"] = f"HTTP {http_status}"
             else:
                 normalized["message"] = "Unexpected Shiprocket response shape"
 
-        # lastly, if http_status hints success, and we don't yet have success True, use it as fallback
         if not normalized["success"] and http_status and int(http_status) in (200, 201, 202):
             normalized["success"] = True
             if not normalized["message"]:
                 normalized["message"] = f"HTTP {http_status}"
 
     else:
-        # Generic vendor - attempt some heuristics
+        # Generic heuristics
+        s = ""
         if isinstance(vendor_result, dict):
             if vendor_result.get("status") is True or vendor_result.get("success") is True:
                 normalized["success"] = True
             else:
-                # if status is a string that looks successful, treat as success
                 s = str(vendor_result.get("status", "")).lower()
                 if "success" in s or "updated" in s or "ok" in s:
                     normalized["success"] = True
             normalized["message"] = vendor_result.get("message", "") or vendor_result.get("detail", "") or s
-
         elif isinstance(vendor_result, list):
             normalized["message"] = "List response from vendor"
         else:
@@ -1289,42 +1286,57 @@ def build_vendor_payload_for_ndr(vendor_name: str, awb: str, action: str, commen
             if v is not None and v != "":
                 merged[k] = v
 
+    # NIMBUSPOST: expects list of objects, with action_data keys like re_attempt_date, address_1, phone etc.
     if vendor_name == "nimbuspost":
-        # NimbusPost expects a list of objects
         payload = [{"awb": awb, "action": action, "action_data": merged or {}}]
         return payload, "nimbus", merged
 
+    # SHIPROCKET: expects a dict with explicit keys; comments is required by docs
     if vendor_name == "shiprocket":
-        # Shiprocket expects awb, action, comments, and other optional fields.
         ship_kwargs = {
             "awb": awb,
             "action": action,
             "comments": comments or "",
         }
 
-        allowed = ["phone", "proof_audio", "proof_image", "remarks", "address1", "address2", "deferred_date"]
+        # allowed shiprocket keys (per docs)
+        allowed = {"phone", "proof_audio", "proof_image", "remarks", "address1", "address2", "deferred_date"}
 
+        # mapping variants from common universal keys -> shiprocket keys
         mapping_variants = {
             "address_1": "address1",
             "address_2": "address2",
             "re_attempt_date": "deferred_date",
+            "reattempt_date": "deferred_date",
         }
 
-        for src_key, value in merged.items():
+        for src_key, value in (merged.items() if merged else ()):
+            if value is None or value == "":
+                continue
+
+            # mapping (map re_attempt_date -> deferred_date) but only include deferred_date for re-attempt action
+            if src_key in mapping_variants:
+                mapped = mapping_variants[src_key]
+                if mapped == "deferred_date" and (action or "").strip().lower() != "re-attempt".lower():
+                    # skip deferred_date for actions other than re-attempt
+                    continue
+                if mapped in allowed:
+                    ship_kwargs[mapped] = value
+                    continue
+
+            # direct allowed
             if src_key in allowed:
+                if src_key == "deferred_date" and (action or "").strip().lower() != "re-attempt".lower():
+                    continue
                 ship_kwargs[src_key] = value
                 continue
 
-            if src_key in mapping_variants:
-                mapped_key = mapping_variants[src_key]
-                if mapped_key in allowed:
-                    ship_kwargs[mapped_key] = value
-                    continue
-
-            # fallback: normalize underscores (address_1 -> address1)
+            # fallback: try normalized underscore removal (address_1 -> address1)
             normalized = src_key.replace("_", "")
             for a in allowed:
                 if a.replace("_", "") == normalized:
+                    if a == "deferred_date" and (action or "").strip().lower() != "re-attempt".lower():
+                        break
                     ship_kwargs[a] = value
                     break
 
@@ -1347,6 +1359,12 @@ class NDRActionAPIView(APIView):
     }
     """
 
+    # Allowed actions per vendor (your business rule: never send fake-attempt to shiprocket)
+    ALLOWED_ACTIONS = {
+        "nimbuspost": {"re-attempt", "change_address", "change_phone"},
+        "shiprocket": {"re-attempt", "return", "change_address", "change_phone"},
+    }
+
     def post(self, request, *args, **kwargs):
         shipment_vendor_id = request.data.get("shipment_vendor_id")
         awb = request.data.get("awb")
@@ -1365,12 +1383,28 @@ class NDRActionAPIView(APIView):
         vendor = get_object_or_404(ShipmentVendor, id=shipment_vendor_id)
         vendor_name = (vendor.name or "").strip().lower()
 
-        # Fetch ANY ShipmentModel linked with this vendor
-        # No provider_priority / no sorting logic needed.
+        # vendor-specific action validation (enforce business rules)
+        allowed_for_vendor = self.ALLOWED_ACTIONS.get(vendor_name)
+        if allowed_for_vendor is None:
+            return Response(
+                {"detail": f"Unsupported shipment vendor: {vendor.name}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if (action or "").strip().lower() not in {a.lower() for a in allowed_for_vendor}:
+            return Response(
+                {
+                    "detail": "Action not allowed for this vendor",
+                    "error": f"Action '{action}' is not permitted for vendor '{vendor.name}'."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Fetch ANY ShipmentModel linked with this vendor (pick latest config)
         shipment = (
             ShipmentModel.objects
             .filter(shipment_vendor=vendor)
-            .order_by("-id")  # pick latest shipment configuration
+            .order_by("-id")
             .first()
         )
 
@@ -1418,11 +1452,35 @@ class NDRActionAPIView(APIView):
         try:
             # Call vendor API
             if call_style == "nimbus":
+                # Nimbuspost expects a list of objects in the request body
                 vendor_result = service.submit_ndr_action(payload)
             elif call_style == "shiprocket":
-                # IMPORTANT: ensure ShiprocketScheduleOrder.action_ndr accepts kwargs:
-                # def action_ndr(self, awb, action, comments="", **kwargs): ...
-                vendor_result = service.action_ndr(**payload)
+                # Shiprocket expects a single JSON object and the client method action_ndr(awb=..., action=..., comments=..., ...)
+                # Try normal call; if the client raises TypeError due to unexpected kwargs, retry with only allowed keys.
+                try:
+                    vendor_result = service.action_ndr(**payload)
+                except TypeError as te:
+                    msg = str(te)
+                    logger.warning("Shiprocket action_ndr TypeError: %s. Attempting defensive retry...", msg)
+
+                    allowed_keys = {"awb", "action", "comments", "phone", "proof_audio", "proof_image", "remarks", "address1", "address2", "deferred_date"}
+                    stripped_payload = {k: v for k, v in payload.items() if k in allowed_keys}
+                    # ensure required keys present after stripping
+                    if "comments" not in stripped_payload:
+                        stripped_payload["comments"] = comments or ""
+
+                    removed = [k for k in payload.keys() if k not in stripped_payload]
+                    if removed:
+                        logger.info("Retrying Shiprocket.action_ndr without keys: %s", removed)
+                        try:
+                            vendor_result = service.action_ndr(**stripped_payload)
+                        except TypeError as te2:
+                            logger.exception("Retry after removing unknown keys failed: %s", te2)
+                            # re-raise to be handled below
+                            raise
+                    else:
+                        logger.exception("TypeError but no unknown keys could be removed; re-raising")
+                        raise
             else:
                 return Response(
                     {"detail": f"Unsupported vendor: {vendor.name}"},
