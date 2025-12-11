@@ -3255,7 +3255,7 @@ class EnquiryViewSet(viewsets.ModelViewSet):
         Send email to customer when admin_message is updated.
         """
         try:
-            subject = "New Enquiry mail On Creworder"
+            subject = "Welcome to Creworder"
             template = "emails/enquiry_notification.html"  # Your HTML email template
             context = {
                 'full_name': instance.full_name,
