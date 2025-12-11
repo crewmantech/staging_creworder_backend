@@ -1137,7 +1137,6 @@ def get_vendor_service(shipment_or_vendor):
     username = None
     password = None
 
-    # Fast duck-typed path: treat as ShipmentModel if it has credential_username
     if hasattr(shipment_or_vendor, "credential_username"):
         shipment = shipment_or_vendor
         vendor_name = (getattr(shipment, "shipment_vendor").name if getattr(shipment, "shipment_vendor", None) else None) or ""
@@ -1145,7 +1144,6 @@ def get_vendor_service(shipment_or_vendor):
         username = getattr(shipment, "credential_username", None)
         password = getattr(shipment, "credential_password", None)
     else:
-        # Fallback: try serializer (for dict-like or other inputs), but log failures explicitly
         try:
             serializer = ShipmentSerializer(shipment_or_vendor)
             data = serializer.data
@@ -1181,17 +1179,12 @@ def get_vendor_service(shipment_or_vendor):
 def normalize_vendor_response(vendor_name: str, vendor_result, awb: str = None, http_status: int = None) -> Tuple[bool, str, Dict]:
     """
     Normalize various vendor responses into a consistent shape.
-
-    Returns: (api_success: bool, api_message: str, normalized: dict)
-    normalized includes fields: vendor (vendor_name), awb (if known), success (bool), message (str), raw (vendor_result), http_status
     """
     vendor_name = (vendor_name or "").strip().lower()
     normalized = {"vendor": vendor_name, "awb": awb, "success": False, "message": "", "raw": vendor_result, "http_status": http_status}
 
-    # Nimbuspost -> typical response: list of objects [{ "status": true, "awb": "...", "message": "..."}, ...]
     if vendor_name == "nimbuspost":
         if isinstance(vendor_result, list):
-            # find matching awb
             if awb is not None:
                 for item in vendor_result:
                     if str(item.get("awb")) == str(awb):
@@ -1199,26 +1192,20 @@ def normalize_vendor_response(vendor_name: str, vendor_result, awb: str = None, 
                         normalized["message"] = item.get("message", "") or item.get("detail", "")
                         normalized["raw"] = vendor_result
                         break
-
-                # If AWB not found in list
                 if normalized["message"] == "" and len(vendor_result) > 0:
                     first = vendor_result[0]
                     normalized["success"] = first.get("status") is True
                     normalized["message"] = first.get("message", "") or first.get("detail", "")
             else:
-                # no awb provided; use first element as fallback
                 first = vendor_result[0] if vendor_result else {}
                 normalized["success"] = bool(first.get("status")) is True
                 normalized["message"] = first.get("message", "") or first.get("detail", "")
         elif isinstance(vendor_result, dict):
-            # Defensive: sometimes SDK wraps single object
             normalized["success"] = vendor_result.get("status") is True or vendor_result.get("success") is True
             normalized["message"] = vendor_result.get("message", "") or vendor_result.get("detail", "")
         else:
-            # unknown shape -> leave success False but include raw
             normalized["message"] = "Unexpected NimbusPost response shape"
 
-    # Shiprocket -> example: { "status": "Data Updated Sucessfully" } and HTTP 202
     elif vendor_name == "shiprocket":
         if isinstance(vendor_result, dict):
             val = vendor_result.get("status", None)
@@ -1247,7 +1234,6 @@ def normalize_vendor_response(vendor_name: str, vendor_result, awb: str = None, 
                 normalized["message"] = f"HTTP {http_status}"
 
     else:
-        # Generic heuristics
         s = ""
         if isinstance(vendor_result, dict):
             if vendor_result.get("status") is True or vendor_result.get("success") is True:
@@ -1269,74 +1255,62 @@ def build_vendor_payload_for_ndr(vendor_name: str, awb: str, action: str, commen
     """
     Build vendor-specific payload from a universal request body.
 
-    Returns tuple: (payload, call_style, merged_action_data)
-      - payload: for NimbusPost -> a list; for Shiprocket -> dict of kwargs
-      - call_style: "nimbus" or "shiprocket"
-      - merged_action_data: merged action_data with top-level extras (for DB saving)
+    Important: Do NOT map or send any 'deferred_date' to Shiprocket (user requirement).
+    Nimbuspost will receive `re_attempt_date` inside action_data as-is.
     """
     vendor_name = (vendor_name or "").strip().lower()
 
-    # Merge top-level extras like phone into action_data (client convenience)
     merged = {}
     if action_data:
         merged.update(action_data)
     if extra_top_level:
-        # only add non-empty values
         for k, v in (extra_top_level.items() if extra_top_level else ()):
             if v is not None and v != "":
                 merged[k] = v
 
-    # NIMBUSPOST: expects list of objects, with action_data keys like re_attempt_date, address_1, phone etc.
     if vendor_name == "nimbuspost":
+        # Nimbuspost expects a list of objects and that action_data may contain re_attempt_date etc.
         payload = [{"awb": awb, "action": action, "action_data": merged or {}}]
         return payload, "nimbus", merged
 
-    # SHIPROCKET: expects a dict with explicit keys; comments is required by docs
     if vendor_name == "shiprocket":
+        # Shiprocket: we will NOT send any 'deferred_date' or mapped re_attempt_date.
         ship_kwargs = {
             "awb": awb,
             "action": action,
             "comments": comments or "",
         }
 
-        # allowed shiprocket keys (per docs)
-        allowed = {"phone", "proof_audio", "proof_image", "remarks", "address1", "address2", "deferred_date"}
+        # allowed fields for Shiprocket (explicit); no deferred_date included
+        allowed = {"phone", "proof_audio", "proof_image", "remarks", "address1", "address2"}
 
-        # mapping variants from common universal keys -> shiprocket keys
+        # mapping variants: map address_1/address_2 -> address1/address2 only
         mapping_variants = {
             "address_1": "address1",
             "address_2": "address2",
-            "re_attempt_date": "deferred_date",
-            "reattempt_date": "deferred_date",
+            # re_attempt_date intentionally omitted — we DO NOT send any date
         }
 
         for src_key, value in (merged.items() if merged else ()):
             if value is None or value == "":
                 continue
 
-            # mapping (map re_attempt_date -> deferred_date) but only include deferred_date for re-attempt action
+            # address mapping
             if src_key in mapping_variants:
                 mapped = mapping_variants[src_key]
-                if mapped == "deferred_date" and (action or "").strip().lower() != "re-attempt".lower():
-                    # skip deferred_date for actions other than re-attempt
-                    continue
                 if mapped in allowed:
                     ship_kwargs[mapped] = value
                     continue
 
             # direct allowed
             if src_key in allowed:
-                if src_key == "deferred_date" and (action or "").strip().lower() != "re-attempt".lower():
-                    continue
                 ship_kwargs[src_key] = value
                 continue
 
-            # fallback: try normalized underscore removal (address_1 -> address1)
+            # fallback normalization (address_1 -> address1)
             normalized = src_key.replace("_", "")
             for a in allowed:
                 if a.replace("_", "") == normalized:
-                    if a == "deferred_date" and (action or "").strip().lower() != "re-attempt".lower():
-                        break
                     ship_kwargs[a] = value
                     break
 
@@ -1348,18 +1322,8 @@ def build_vendor_payload_for_ndr(vendor_name: str, awb: str, action: str, commen
 class NDRActionAPIView(APIView):
     """
     POST: Perform NDR action based on shipment_vendor_id and awb.
-    Universal request body:
-    {
-      "shipment_vendor_id": 1,
-      "awb": "NMBC0002111111",
-      "action": "re-attempt",
-      "comments": "Customer wants re-delivery",
-      "phone": "9876543210",
-      "action_data": { ... }
-    }
     """
-
-    # Allowed actions per vendor (your business rule: never send fake-attempt to shiprocket)
+    # Allowed actions per vendor (fake-attempt NOT allowed on Shiprocket)
     ALLOWED_ACTIONS = {
         "nimbuspost": {"re-attempt", "change_address", "change_phone"},
         "shiprocket": {"re-attempt", "return", "change_address", "change_phone"},
@@ -1379,11 +1343,9 @@ class NDRActionAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # fetch ShipmentVendor record
         vendor = get_object_or_404(ShipmentVendor, id=shipment_vendor_id)
         vendor_name = (vendor.name or "").strip().lower()
 
-        # vendor-specific action validation (enforce business rules)
         allowed_for_vendor = self.ALLOWED_ACTIONS.get(vendor_name)
         if allowed_for_vendor is None:
             return Response(
@@ -1400,7 +1362,6 @@ class NDRActionAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Fetch ANY ShipmentModel linked with this vendor (pick latest config)
         shipment = (
             ShipmentModel.objects
             .filter(shipment_vendor=vendor)
@@ -1414,14 +1375,12 @@ class NDRActionAPIView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        # Ensure shipment has credentials
         if not shipment.credential_username:
             return Response(
                 {"detail": "Shipment is missing credential_username."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Now get the vendor service using the ShipmentModel
         try:
             service = get_vendor_service(shipment)
         except Exception as e:
@@ -1431,7 +1390,6 @@ class NDRActionAPIView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-        # Build payload and merged action_data
         try:
             extra_top_level = {"phone": phone}
             payload, call_style, merged_action_data = build_vendor_payload_for_ndr(
@@ -1450,22 +1408,20 @@ class NDRActionAPIView(APIView):
             )
 
         try:
-            # Call vendor API
             if call_style == "nimbus":
-                # Nimbuspost expects a list of objects in the request body
+                # Nimbuspost expects list of objects; send merged action_data (may include re_attempt_date)
                 vendor_result = service.submit_ndr_action(payload)
             elif call_style == "shiprocket":
-                # Shiprocket expects a single JSON object and the client method action_ndr(awb=..., action=..., comments=..., ...)
-                # Try normal call; if the client raises TypeError due to unexpected kwargs, retry with only allowed keys.
+                # Shiprocket: try direct call; if client rejects unknown keys, retry only with explicit allowed keys (no deferred_date)
                 try:
                     vendor_result = service.action_ndr(**payload)
                 except TypeError as te:
                     msg = str(te)
-                    logger.warning("Shiprocket action_ndr TypeError: %s. Attempting defensive retry...", msg)
+                    logger.warning("Shiprocket action_ndr TypeError: %s. Attempting defensive retry without unknown keys...", msg)
 
-                    allowed_keys = {"awb", "action", "comments", "phone", "proof_audio", "proof_image", "remarks", "address1", "address2", "deferred_date"}
+                    # allowed keys for Shiprocket — NOTE: no deferred_date here
+                    allowed_keys = {"awb", "action", "comments", "phone", "proof_audio", "proof_image", "remarks", "address1", "address2"}
                     stripped_payload = {k: v for k, v in payload.items() if k in allowed_keys}
-                    # ensure required keys present after stripping
                     if "comments" not in stripped_payload:
                         stripped_payload["comments"] = comments or ""
 
@@ -1476,7 +1432,6 @@ class NDRActionAPIView(APIView):
                             vendor_result = service.action_ndr(**stripped_payload)
                         except TypeError as te2:
                             logger.exception("Retry after removing unknown keys failed: %s", te2)
-                            # re-raise to be handled below
                             raise
                     else:
                         logger.exception("TypeError but no unknown keys could be removed; re-raising")
@@ -1494,7 +1449,6 @@ class NDRActionAPIView(APIView):
             else:
                 http_status = getattr(vendor_result, "status_code", None) if hasattr(vendor_result, "status_code") else None
 
-            # Normalize vendor response
             api_success, api_message, normalized = normalize_vendor_response(
                 vendor_name=vendor_name,
                 vendor_result=vendor_result,
@@ -1502,7 +1456,6 @@ class NDRActionAPIView(APIView):
                 http_status=http_status,
             )
 
-            # Persist to DB if successful
             saved_to_db = False
             db_message = ""
             if api_success:
@@ -1520,7 +1473,6 @@ class NDRActionAPIView(APIView):
                     if order:
                         order.order_status = rendr_status
                         order.ndr_action = action
-                        # save the merged action data (includes phone if provided)
                         order.ndr_data = merged_action_data or {}
                         order.ndr_date = timezone.now()
                         order.ndr_count = (order.ndr_count or 0) + 1
@@ -1542,7 +1494,6 @@ class NDRActionAPIView(APIView):
                         logger.warning("NDR succeeded in vendor but no order found for AWB=%s", awb)
                         db_message = "NDR succeeded but order not found in DB."
 
-            # Response payload
             response_payload = {
                 "vendor_response": normalized.get("raw", vendor_result),
                 "normalized": normalized,
