@@ -419,32 +419,67 @@ class ShiprocketScheduleOrder:
             logger.error(f"Error fetching NDR shipment details: {e}")
             return {"status": "error", "message": str(e)}
 
-    def action_ndr(self, awb: str, action: str, comments: str = None):
+    def action_ndr(
+    self,
+    awb: str,
+    action: str,
+    comments: str = None,
+    phone: str = None,
+    proof_audio: str = None,
+    proof_image: str = None,
+    remarks: str = None,
+    address1: str = None,
+    address2: str = None,
+    deferred_date: str = None,
+    **kwargs
+    ):
         """
-        Perform an action on an NDR shipment.
+        Perform an NDR action for Shiprocket, supporting ALL documented parameters.
+        Unknown kwargs are ignored safely.
+        """
 
-        :param awb: The AWB (Air Waybill) number of the shipment.
-        :param action: The action to perform (e.g., "reschedule_delivery", "cancel", etc.).
-        :param comments: Optional comments for the action.
-        :return: Response from the API.
-        """
-        # Construct the URL with the AWB
         url = f"{self.NDR_ACTION_URL}/{awb}/action"
 
-        # Prepare the payload
+        # Base payload required by Shiprocket
         payload = {
             "action": action,
-            "comments": comments if comments else "",  # Include comments if provided
+            "comments": comments or "",
         }
 
+        # Optional documented Shiprocket fields (only include if provided)
+        if phone:
+            payload["phone"] = phone
+        if proof_audio:
+            payload["proof_audio"] = proof_audio
+        if proof_image:
+            payload["proof_image"] = proof_image
+        if remarks:
+            payload["remarks"] = remarks
+        if address1:
+            payload["address1"] = address1
+        if address2:
+            payload["address2"] = address2
+        if deferred_date:
+            payload["deferred_date"] = deferred_date
+
+        # Ignore unknown kwargs but log them
+        if kwargs:
+            logger.debug(f"Ignored unsupported kwargs in Shiprocket.action_ndr: {kwargs}")
+
         try:
-            # Make the POST request
             response = requests.post(url, headers=self.headers, json=payload)
-            # response.raise_for_status()  # Raise an error for bad status codes
-            return response.json()
+
+            # Return BOTH body and status code (important for your API view)
+            try:
+                body = response.json()
+            except Exception:
+                body = {"message": response.text}
+
+            return body, response.status_code
+
         except requests.RequestException as e:
             logger.error(f"Error performing action on NDR shipment: {e}")
-            return {"status": "error", "message": str(e)}
+            return {"status": "error", "message": str(e)}, 500
     # def action_ndr(self, shipment_id: str, action: str, date: str = None):
     #     """
     #     Perform an action on an NDR shipment.
@@ -1274,8 +1309,15 @@ class NimbuspostAPI:
         return response.json()
 
     def submit_ndr_action(self, actions):
+        """
+        Submit NDR actions to Nimbuspost.
+
+        :param actions: list of action objects per Nimbuspost docs
+        :return: tuple (body, status_code)
+        """
         if not self.token:
-            return {"status": False, "message": "Unauthorized: Please login first."}
+            # return consistent tuple with 401 status
+            return {"status": False, "message": "Unauthorized: Please login first."}, 401
 
         url = f"{self.BASE_URL}/ndr/action"
         headers = {
@@ -1283,8 +1325,19 @@ class NimbuspostAPI:
             "Authorization": f"Bearer {self.token}"
         }
 
-        response = requests.post(url, json=actions, headers=headers)
-        return response.json()
+        try:
+            response = requests.post(url, json=actions, headers=headers, timeout=30)
+        except requests.RequestException as exc:
+            logger.exception("Nimbuspost submit_ndr_action request failed: %s", exc)
+            return {"status": False, "message": f"Request error: {str(exc)}"}, 502
+
+        # Try to parse JSON body; fall back to text if invalid JSON
+        try:
+            body = response.json()
+        except ValueError:
+            body = {"message": response.text or "No response body"}
+
+        return body, response.status_code
 
 
 # class NimbuspostView(View):
