@@ -3267,9 +3267,9 @@ class EnquiryViewSet(viewsets.ModelViewSet):
             html_message = render_to_string(template, context)
             recipient_list = ["lakhansharma1june@gmail.com"]
             a = send_email(subject, html_message, recipient_list,"default")
-            logger.info(f"Email sent successfully to {"lakhansharma1june@gmail.com"}")
+            logger.info(f"Email sent successfully to {'lakhansharma1june@gmail.com'}")
         except Exception as email_error:
-            logger.error(f"Error sending email to {"lakhansharma1june@gmail.com"}: {email_error}")
+            logger.error(f"Error sending email to {'lakhansharma1june@gmail.com'}: {email_error}")
     
 
 
