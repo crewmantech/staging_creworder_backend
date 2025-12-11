@@ -151,13 +151,13 @@ from django.core.exceptions import ObjectDoesNotExist
 #     print(response,"----------------------150")
 #     return response
 def send_email(subject, message, recipient_list, email_type="default"):
-
+    cc_list = ["crewmansolution@gmail.com"]
     # Import inside the function to avoid early execution errors
     from superadmin_assets.models import EmailCredentials
-    try:
-        recipient_list.appned('lakhanssharma.crewman@gmail.com')
-    except:
-        pass
+    # try:
+    #     recipient_list.appned('lakhanssharma.crewman@gmail.com')
+    # except:
+    #     pass
     # Get primary email credentials
     try:
         primary_credentials = EmailCredentials.objects.filter(use_for=email_type).first()
@@ -175,6 +175,7 @@ def send_email(subject, message, recipient_list, email_type="default"):
             msg = MIMEMultipart()
             msg['From'] = smtp_user
             msg['To'] = ', '.join(recipient_list)
+            msg['Cc'] = ', '.join(cc_list) 
             msg['Subject'] = subject
             msg.attach(MIMEText(message, 'html'))
 
