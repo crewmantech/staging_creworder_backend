@@ -118,3 +118,25 @@ class UserMailSetup(BaseModel):
 
     def __str__(self):
         return f"{self.name} | {self.email} | {self.company.name} | {self.branch.name}"
+
+
+class CallRecording(BaseModel):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE)
+
+    agent_username = models.CharField(max_length=255)
+    number = models.CharField(max_length=20)
+    duration = models.CharField(max_length=50)
+    call_datetime = models.DateTimeField()
+
+    recording_file = models.FileField(upload_to="call_recordings/")
+    recording_original_url = models.TextField()
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "call_recording_table"
+
+    def __str__(self):
+        return f"Recording - {self.agent_username} - {self.number}"

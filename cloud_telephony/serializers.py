@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import (
+    CallRecording,
     CloudTelephonyVendor, 
     CloudTelephonyChannel, 
     CloudTelephonyChannelAssign, 
@@ -42,3 +43,10 @@ class UserMailSetupSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'password': {'write_only': True}  # Password security
         }
+
+
+class CallRecordingModelSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CallRecording
+        fields = "__all__"
+
