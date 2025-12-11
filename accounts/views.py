@@ -4534,7 +4534,7 @@ class CompanyMonthlySalaryPreviewAPIView(APIView):
     def get(self, request):
         user = request.user
         monthyear = request.query_params.get("monthyear")  # YYYY-MM
-        branch_id = request.query_params.get("branch")
+        branch_id = request.query_params.get("branch_id")
         if not hasattr(user, "profile") or not user.profile.company:
             return Response(
                 {"error": "User is not linked to any company"},
