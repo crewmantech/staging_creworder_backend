@@ -3203,7 +3203,8 @@ class EnquiryViewSet(viewsets.ModelViewSet):
         """
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()  # Save data to the database
+            instance = serializer.save()  # Save data to the database
+            self._send_new_enquiry_mail(instance)
             return Response({"message": "Enquiry submitted successfully."}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -3249,6 +3250,27 @@ class EnquiryViewSet(viewsets.ModelViewSet):
         except Exception as email_error:
             logger.error(f"Error sending email to {instance.email}: {email_error}")
 
+    def _send_new_enquiry_mail(self, instance):
+        """
+        Send email to customer when admin_message is updated.
+        """
+        try:
+            subject = "New Enquiry mail On Creworder"
+            template = "emails/enquiry_notification.html"  # Your HTML email template
+            context = {
+                'full_name': instance.full_name,
+                'message': instance.message,
+                'email': instance.email,
+                'query_id': instance.id,
+                "phone_number":instance.phone_number
+            }
+            html_message = render_to_string(template, context)
+            recipient_list = ["lakhansharma1june@gmail.com"]
+            a = send_email(subject, html_message, recipient_list,"default")
+            logger.info(f"Email sent successfully to {"lakhansharma1june@gmail.com"}")
+        except Exception as email_error:
+            logger.error(f"Error sending email to {"lakhansharma1june@gmail.com"}: {email_error}")
+    
 
 
 class CompanyUserViewSet(viewsets.ViewSet):
@@ -4511,12 +4533,17 @@ class CompanyMonthlySalaryPreviewAPIView(APIView):
     def get(self, request):
         user = request.user
         monthyear = request.query_params.get("monthyear")  # YYYY-MM
+        branch_id = request.query_params.get("branch")
         if not hasattr(user, "profile") or not user.profile.company:
             return Response(
                 {"error": "User is not linked to any company"},
                 status=status.HTTP_400_BAD_REQUEST
             )
-
+        if not branch_id:
+            return Response(
+                {"error": "Please select a branch"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         company = user.profile.company
         # if not monthyear:
         #     return Response(
@@ -4535,6 +4562,7 @@ class CompanyMonthlySalaryPreviewAPIView(APIView):
                 {"error": "Invalid monthyear format"},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        
 
         # ✅ Company salary (annual)
         try:
@@ -4552,7 +4580,8 @@ class CompanyMonthlySalaryPreviewAPIView(APIView):
 
         users = User.objects.filter(
             profile__company=company,
-            is_active=True
+            is_active=True,
+            profile__branch_id=branch_id
         )
 
         results = []
@@ -4565,33 +4594,34 @@ class CompanyMonthlySalaryPreviewAPIView(APIView):
                 monthyear=monthyear,
                 # achieve_target=True
             )
-            print(target_achieved,"---------------4568")
-            try:
-                target_achieved = UserTargetsDelails.objects.get(user=user, monthyear=monthyear)
-                monthly_amount_target = target_achieved.monthly_amount_target
-            except UserTargetsDelails.DoesNotExist:
-                monthly_amount_target = 0
-            # monthly_amount_target=target_achieved.monthly_amount_target
+            if target_achieved:
+                print(target_achieved,"---------------4568")
+                try:
+                    target_achieved = UserTargetsDelails.objects.get(user=user, monthyear=monthyear)
+                    monthly_amount_target = target_achieved.monthly_amount_target
+                except UserTargetsDelails.DoesNotExist:
+                    monthly_amount_target = 0
+                # monthly_amount_target=target_achieved.monthly_amount_target
 
-            amount = self.get_user_monthwise_delivered_amount(
-                    user=user,
-                    monthyear = monthyear
-                )
-            if amount>=monthly_amount_target:
-                salary = per_day_salary * present_days
-                rule = "Full Salary"
-            else:
-                salary = (per_day_salary / 2) * present_days
-                rule = "Half Salary (Target Not Achieved)"
+                amount = self.get_user_monthwise_delivered_amount(
+                        user=user,
+                        monthyear = monthyear
+                    )
+                if amount>=monthly_amount_target:
+                    salary = per_day_salary * present_days
+                    rule = "Full Salary"
+                else:
+                    salary = (per_day_salary / 2) * present_days
+                    rule = "Half Salary (Target Not Achieved)"
 
-            results.append({
-                    "user_id": user.id,
-                    "username": user.username,
-                    "present_days": present_days,
-                    "target_achieved": monthly_amount_target,  # FIXED
-                    "salary_rule": rule,
-                    "salary": round(float(salary), 2)
-                })
+                results.append({
+                        "user_id": user.id,
+                        "username": user.username,
+                        "present_days": present_days,
+                        "target_achieved": monthly_amount_target,  # FIXED
+                        "salary_rule": rule,
+                        "salary": round(float(salary), 2)
+                    })
 
         return Response(
                 {
