@@ -3,7 +3,8 @@ from .models import (
     CallRecording,
     CloudTelephonyVendor, 
     CloudTelephonyChannel, 
-    CloudTelephonyChannelAssign, 
+    CloudTelephonyChannelAssign,
+    SecretKey, 
     UserMailSetup
 )
 
@@ -45,8 +46,32 @@ class UserMailSetupSerializer(serializers.ModelSerializer):
         }
 
 
+class CallRecordingInputSerializer(serializers.Serializer):
+    secret_key = serializers.CharField(required=True)
+    recording_url = serializers.URLField(required=True)
+    agent_username = serializers.CharField(required=True)
+    datetime = serializers.DateTimeField(required=True)
+    duration = serializers.CharField(required=True)
+    number = serializers.CharField(required=True)
+
+
 class CallRecordingModelSerializer(serializers.ModelSerializer):
     class Meta:
         model = CallRecording
         fields = "__all__"
 
+class SecretKeySerializer(serializers.ModelSerializer):
+    vendor_name = serializers.CharField(source="cloudtelephony_vendor.name", read_only=True)
+
+    class Meta:
+        model = SecretKey
+        fields = [
+            "id",
+            "cloudtelephony_vendor",
+            "vendor_name",
+            "secret_key",
+            "is_active",
+            "created_at",
+            "deactivated_at"
+        ]
+        read_only_fields = ["id", "secret_key", "created_at", "deactivated_at"]

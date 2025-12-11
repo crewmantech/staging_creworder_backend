@@ -15,7 +15,9 @@ from .views import (
     CloudTelephonyVendorViewSet, 
     CloudTelephonyChannelViewSet, 
     CloudTelephonyChannelAssignViewSet,
-    GetNumberAPIView, 
+    GetNumberAPIView,
+    SaveCallRecordingAPIView,
+    SecretKeyViewSet, 
     UserMailSetupViewSet
 )
 router = DefaultRouter()
@@ -24,10 +26,12 @@ router.register(r'telephony-channels', CloudTelephonyChannelViewSet, basename='c
 router.register(r'telephony-channel-assigns', CloudTelephonyChannelAssignViewSet, basename='channel-assign')
 router.register(r'telephony-user-mail-setup', UserMailSetupViewSet, basename='mail-setup')
 router.register(r'callservice',CallServiceViewSet,basename='for-call')
+router.register(r'vendor-secret-keys', SecretKeyViewSet, basename='vendor-secret-keys')
 # router.register(r'user-mail-setup',UserMailSetupView,basename='user-mail-setup')
 urlpatterns = [
     path("", include(router.urls)),
-     path('callservice/get-number/', GetNumberAPIView.as_view(), name='get-number'),
+    path('callservice/get-number/', GetNumberAPIView.as_view(), name='get-number'),
+    path("telephony/save-recording/", SaveCallRecordingAPIView.as_view(), name="save-recording"),
     # path(
     #     "createCloudTelephoneyChannel/",
     #     CreateCloudTelephoneyChannel.as_view(),

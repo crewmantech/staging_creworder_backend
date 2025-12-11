@@ -140,3 +140,39 @@ class CallRecording(BaseModel):
 
     def __str__(self):
         return f"Recording - {self.agent_username} - {self.number}"
+
+import secrets
+class SecretKey(models.Model):
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
+
+    cloudtelephony_vendor = models.ForeignKey(
+        CloudTelephonyVendor,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="vendor_secret_keys"
+    )
+
+    secret_key = models.CharField(max_length=255, unique=True)
+    is_active = models.BooleanField(default=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    deactivated_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "cloudtelephony_vendor_secret_key"
+        ordering = ["-created_at"]
+
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_unique_id(SecretKey, prefix="SVK")  # Secret Vendor Key
+
+        if not self.secret_key:
+            # Auto generate 64-character secure key
+            self.secret_key = secrets.token_hex(32)
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        status = "ACTIVE" if self.is_active else "INACTIVE"
+        return f"{self.cloudtelephony_vendor.name} - {status}"

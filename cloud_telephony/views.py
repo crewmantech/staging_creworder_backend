@@ -205,14 +205,17 @@ from .models import (
     CallRecording,
     CloudTelephonyVendor, 
     CloudTelephonyChannel, 
-    CloudTelephonyChannelAssign, 
+    CloudTelephonyChannelAssign,
+    SecretKey, 
     UserMailSetup
 )
 from .serializers import (
+    CallRecordingInputSerializer,
     CallRecordingModelSerializer,
     CloudTelephonyVendorSerializer, 
     CloudTelephonyChannelSerializer, 
-    CloudTelephonyChannelAssignSerializer, 
+    CloudTelephonyChannelAssignSerializer,
+    SecretKeySerializer, 
     UserMailSetupSerializer
 )
 import requests
@@ -672,44 +675,51 @@ class GetNumberAPIView(APIView):
 class SaveCallRecordingAPIView(APIView):
     def post(self, request):
         # Validate Request Body
-        serializer = CallRecordingModelSerializer(data=request.data)
+        serializer = CallRecordingInputSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+        secret_key = serializer.validated_data["secret_key"]
         recording_url = serializer.validated_data["recording_url"]
         agent_username = serializer.validated_data["agent_username"]
         call_datetime = serializer.validated_data["datetime"]
         duration = serializer.validated_data["duration"]
         number = serializer.validated_data["number"]
 
-        # 1️⃣ Find agent → user → company → branch
+        # 1️⃣ VALIDATE SECRET KEY
+        try:
+            key_obj = SecretKey.objects.select_related("cloudtelephony_vendor").get(
+                secret_key=secret_key,
+                is_active=True
+            )
+            vendor = key_obj.cloudtelephony_vendor
+        except SecretKey.DoesNotExist:
+            return Response({"error": "Invalid or inactive secret key"}, status=401)
+
+        # 2️⃣ Find agent → user → company → branch for this vendor
         try:
             assign = CloudTelephonyChannelAssign.objects.select_related(
                 "user", "company", "branch"
-            ).get(agent_username=agent_username)
+            ).get(agent_username=agent_username, vendor=vendor)
         except CloudTelephonyChannelAssign.DoesNotExist:
-            return Response(
-                {"error": "Agent username not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({"error": "Agent not found for this vendor"}, status=404)
 
         user = assign.user
         company = assign.company
         branch = assign.branch
 
-        # 2️⃣ Download recording file
+        # 3️⃣ Download recording file
         try:
             file_response = requests.get(recording_url)
             if file_response.status_code != 200:
-                return Response({"error": "Failed to download recording"},
-                                status=status.HTTP_400_BAD_REQUEST)
+                return Response({"error": "Failed to download recording"}, status=400)
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": str(e)}, status=400)
 
-        # 3️⃣ Prepare filename
+        # 4️⃣ Prepare filename
         filename = f"{agent_username}_{number}_{int(call_datetime.timestamp())}.mp3"
 
-        # 4️⃣ Create DB object (using model serializer fields)
+        # 5️⃣ Save Recording Model
         recording_obj = CallRecording(
             user=user,
             company=company,
@@ -721,18 +731,62 @@ class SaveCallRecordingAPIView(APIView):
             recording_original_url=recording_url
         )
 
-        # Save File
         recording_obj.recording_file.save(
             filename,
             ContentFile(file_response.content)
         )
-
         recording_obj.save()
 
-        # 5️⃣ Return response using ModelSerializer
-        output = CallRecording(recording_obj).data
+        # 6️⃣ Return response
+        output = CallRecordingModelSerializer(recording_obj).data
 
         return Response({
             "message": "Recording saved successfully",
             "data": output
         }, status=status.HTTP_201_CREATED)
+
+
+
+
+class SecretKeyViewSet(viewsets.ModelViewSet):
+    queryset = SecretKey.objects.select_related("cloudtelephony_vendor").all()
+    serializer_class = SecretKeySerializer
+    permission_classes = [IsAuthenticated]
+    # Auto-generate secret key in serializer.save()
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        vendor_id = serializer.validated_data["cloudtelephony_vendor"].id
+
+        # Create a new record → secret key auto-generates in model.save()
+        secret_key_obj = SecretKey.objects.create(
+            cloudtelephony_vendor_id=vendor_id,
+        )
+
+        return Response(
+            SecretKeySerializer(secret_key_obj).data,
+            status=status.HTTP_201_CREATED
+        )
+
+    # Custom action to activate key
+    @action(detail=True, methods=["post"])
+    def activate(self, request, pk=None):
+        key_obj = self.get_object()
+        key_obj.is_active = True
+        key_obj.deactivated_at = None
+        key_obj.save()
+
+        return Response({"message": "Key activated successfully"})
+
+    # Custom action to deactivate key
+    @action(detail=True, methods=["post"])
+    def deactivate(self, request, pk=None):
+        key_obj = self.get_object()
+        key_obj.is_active = False
+        key_obj.deactivated_at = timezone.now()
+        key_obj.save()
+
+        return Response({"message": "Key deactivated successfully"})
