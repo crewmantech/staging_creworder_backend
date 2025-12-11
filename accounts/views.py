@@ -4608,7 +4608,7 @@ class CompanyMonthlySalaryPreviewAPIView(APIView):
                         user=user,
                         monthyear = monthyear
                     )
-                if amount>=monthly_amount_target:
+                if amount>=50000:
                     salary = per_day_salary * present_days
                     rule = "Full Salary"
                 else:
@@ -4618,8 +4618,11 @@ class CompanyMonthlySalaryPreviewAPIView(APIView):
                 results.append({
                         "user_id": user.id,
                         "username": user.username,
+                        "full_name":"",
                         "present_days": present_days,
-                        "target_achieved": monthly_amount_target,  # FIXED
+                        "target_achieved": amount,  # FIXED
+                        "mintarget":50000,
+                        "monthly_target":monthly_amount_target,
                         "salary_rule": rule,
                         "salary": round(float(salary), 2)
                     })
