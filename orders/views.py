@@ -13,6 +13,7 @@ from django.db.models import Sum, Count
 from accounts.models import Attendance, Branch, CompanyUserAPIKey, Employees, UserTargetsDelails
 from accounts.permissions import CanCreateAndDeleteCustomerState, CanCreateOrDeletePaymentStatus, IsSuperAdmin
 from cloud_telephony.models import CloudTelephonyChannel, CloudTelephonyChannelAssign
+from follow_up.models import Follow_Up
 from lead_management.models import Lead
 from orders.perrmissions import CategoryPermissions, OrderPermissions
 from services.cloud_telephoney.cloud_telephoney_service import CloudConnectService
@@ -120,10 +121,25 @@ class OrderAPIView(APIView):
             lead_id = request.data.get('lead_id')
             if lead_id:
                 try:
+                    # 1️⃣ Try to fetch from Lead
                     lead = Lead.objects.get(lead_id=lead_id)
-                    request.data['customer_phone'] =  lead.customer_phone
+                    request.data['customer_phone'] = lead.customer_phone
+
                 except Lead.DoesNotExist:
-                    return f"No number found for lead ID: {lead_id}"
+                    # 2️⃣ If NOT in Lead, check in FollowUp
+                    followup = Follow_Up.objects.filter(
+                        followup_id=lead_id
+                    ).only("customer_phone").first()
+
+                    if followup:
+                        request.data['customer_phone'] = followup.customer_phone
+                    else:
+                        # 3️⃣ If neither found → return DRF Response (not string)
+                        return Response(
+                            {"error": f"No customer phone found for Lead ID {lead_id} or FollowUp ID {lead_id}"},
+                            status=status.HTTP_404_NOT_FOUND
+                        )
+
             else:
                 request.data['lead_id'] = None
             repeat_order = request.data.get("repeat_order")
