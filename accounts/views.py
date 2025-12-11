@@ -4618,7 +4618,7 @@ class CompanyMonthlySalaryPreviewAPIView(APIView):
                 results.append({
                         "user_id": user.id,
                         "username": user.username,
-                        "full_name":"",
+                        "full_name":user.get_full_name(),
                         "present_days": present_days,
                         "target_achieved": amount,  # FIXED
                         "mintarget":50000,
