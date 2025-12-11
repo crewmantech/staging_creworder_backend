@@ -1149,6 +1149,102 @@ def get_vendor_service(shipment: ShipmentModel):
 
     raise ValueError(f"Unsupported shipment vendor: {data['shipment_vendor']['name']}")
 
+def normalize_vendor_response(vendor_name: str, vendor_result, awb: str = None, http_status: int = None):
+    """
+    Normalize various vendor responses into a consistent shape.
+
+    Returns: (api_success: bool, api_message: str, normalized: dict)
+    normalized includes fields: vendor (vendor_name), awb (if known), success (bool), message (str), raw (vendor_result), http_status
+    """
+    vendor_name = (vendor_name or "").strip().lower()
+    normalized = {"vendor": vendor_name, "awb": awb, "success": False, "message": "", "raw": vendor_result, "http_status": http_status}
+
+    # Nimbuspost -> typical response: list of objects [{ "status": true, "awb": "...", "message": "..."}, ...]
+    if vendor_name == "nimbuspost":
+        if isinstance(vendor_result, list):
+            # find matching awb
+            if awb is not None:
+                for item in vendor_result:
+                    if str(item.get("awb")) == str(awb):
+                        normalized["success"] = item.get("status") is True
+                        normalized["message"] = item.get("message", "") or item.get("detail", "")
+                        normalized["raw"] = vendor_result
+                        break
+
+                # If AWB not found in list
+                if normalized["message"] == "" and len(vendor_result) > 0:
+                    first = vendor_result[0]
+                    normalized["success"] = first.get("status") is True
+                    normalized["message"] = first.get("message", "") or first.get("detail", "")
+            else:
+                # no awb provided; use first element as fallback
+                first = vendor_result[0] if vendor_result else {}
+                normalized["success"] = bool(first.get("status")) is True
+                normalized["message"] = first.get("message", "") or first.get("detail", "")
+        elif isinstance(vendor_result, dict):
+            # Defensive: sometimes SDK wraps single object
+            normalized["success"] = vendor_result.get("status") is True or vendor_result.get("success") is True
+            normalized["message"] = vendor_result.get("message", "") or vendor_result.get("detail", "")
+        else:
+            # unknown shape -> leave success False but include raw
+            normalized["message"] = "Unexpected NimbusPost response shape"
+
+    # Shiprocket -> example: { "status": "Data Updated Sucessfully" } and HTTP 202
+    elif vendor_name == "shiprocket":
+        # If vendor_result is dict, look for several patterns
+        if isinstance(vendor_result, dict):
+            val = vendor_result.get("status", None)
+            # status might be boolean True/False or a string message
+            if isinstance(val, bool):
+                normalized["success"] = val is True
+                normalized["message"] = vendor_result.get("message", "") or ""
+            elif isinstance(val, str):
+                # treat common success words as success (case-insensitive)
+                if "success" in val.lower() or "updated" in val.lower() or "ok" == val.lower():
+                    normalized["success"] = True
+                else:
+                    # if status is a string but not clearly success, we still set message to it
+                    normalized["success"] = False
+                normalized["message"] = val or vendor_result.get("message", "") or vendor_result.get("detail", "")
+            else:
+                # fallback: check other keys
+                normalized["success"] = vendor_result.get("success") is True
+                normalized["message"] = vendor_result.get("message", "") or vendor_result.get("detail", "")
+
+        else:
+            # non-dict response; fallback to http_status if provided
+            if http_status and int(http_status) in (200, 201, 202):
+                normalized["success"] = True
+                normalized["message"] = f"HTTP {http_status}"
+            else:
+                normalized["message"] = "Unexpected Shiprocket response shape"
+
+        # lastly, if http_status hints success, and we don't yet have success True, use it as fallback
+        if not normalized["success"] and http_status and int(http_status) in (200, 201, 202):
+            normalized["success"] = True
+            if not normalized["message"]:
+                normalized["message"] = f"HTTP {http_status}"
+
+    else:
+        # Generic vendor - attempt some heuristics
+        if isinstance(vendor_result, dict):
+            if vendor_result.get("status") is True or vendor_result.get("success") is True:
+                normalized["success"] = True
+            else:
+                # if status is a string that looks successful, treat as success
+                s = str(vendor_result.get("status", "")).lower()
+                if "success" in s or "updated" in s or "ok" in s:
+                    normalized["success"] = True
+            normalized["message"] = vendor_result.get("message", "") or vendor_result.get("detail", "") or s
+
+        elif isinstance(vendor_result, list):
+            normalized["message"] = "List response from vendor"
+        else:
+            normalized["message"] = "Unknown vendor response shape"
+
+    return normalized["success"], (normalized["message"] or ""), normalized
+
+
 def build_vendor_payload_for_ndr(vendor_name: str, awb: str, action: str, comments: str, action_data: dict, extra_top_level: dict):
     """
     Build vendor-specific payload from a universal request body.
@@ -1226,22 +1322,14 @@ def build_vendor_payload_for_ndr(vendor_name: str, awb: str, action: str, commen
 class NDRActionAPIView(APIView):
     """
     POST: Perform NDR action based on shipment_vendor_id and awb.
-    Universal request body (examples):
+    Universal request body:
     {
-        "shipment_vendor_id": 1,
-        "awb": "NMBC0002111111",
-        "action": "re-attempt",
-        "comments": "Customer wants re-delivery",
-        "phone": "9876543210",            # optional top-level convenience
-        "action_data": {
-            "re_attempt_date": "2025-02-10",
-            "name": "Customer Name",
-            "address_1": "U-56, sector-23",
-            "address_2": "Near Park",
-            "proof_audio": "https://..",
-            "proof_image": "https://..",
-            "remarks": "Left note"
-        }
+      "shipment_vendor_id": 1,
+      "awb": "NMBC0002111111",
+      "action": "re-attempt",
+      "comments": "Customer wants re-delivery",
+      "phone": "9876543210",
+      "action_data": { ... }
     }
     """
 
@@ -1251,8 +1339,6 @@ class NDRActionAPIView(APIView):
         action = request.data.get("action")
         comments = request.data.get("comments", "")
         action_data = request.data.get("action_data", {}) or {}
-
-        # top-level convenience fields
         phone = request.data.get("phone")
 
         if not shipment_vendor_id or not awb or not action:
@@ -1265,7 +1351,7 @@ class NDRActionAPIView(APIView):
         vendor = get_object_or_404(ShipmentVendor, id=shipment_vendor_id)
         vendor_name = (vendor.name or "").strip().lower()
 
-        # ALWAYS use your get_vendor_service helper
+        # get vendor client
         try:
             service = get_vendor_service(vendor)
         except Exception as e:
@@ -1275,10 +1361,10 @@ class NDRActionAPIView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-        # Build vendor-specific payload
+        # Build payload and merged action_data
         try:
             extra_top_level = {"phone": phone}
-            payload, call_style = build_vendor_payload_for_ndr(
+            payload, call_style, merged_action_data = build_vendor_payload_for_ndr(
                 vendor_name=vendor_name,
                 awb=awb,
                 action=action,
@@ -1296,10 +1382,10 @@ class NDRActionAPIView(APIView):
         try:
             # Call vendor API
             if call_style == "nimbus":
-                # payload is a list for NimbusPost
                 vendor_result = service.submit_ndr_action(payload)
             elif call_style == "shiprocket":
-                # payload is a dict of kwargs for Shiprocket; ensure service.action_ndr accepts kwargs
+                # IMPORTANT: ensure ShiprocketScheduleOrder.action_ndr accepts kwargs:
+                # def action_ndr(self, awb, action, comments="", **kwargs): ...
                 vendor_result = service.action_ndr(**payload)
             else:
                 return Response(
@@ -1307,28 +1393,20 @@ class NDRActionAPIView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            # Determine success for this AWB
-            api_success = False
-            api_message = ""
+            # Capture http status if vendor client returned tuple (body, status_code) or Response-like object
+            http_status = None
+            if isinstance(vendor_result, tuple) and len(vendor_result) == 2:
+                vendor_result, http_status = vendor_result
+            else:
+                http_status = getattr(vendor_result, "status_code", None) if hasattr(vendor_result, "status_code") else None
 
-            if vendor_name == "nimbuspost":
-                if isinstance(vendor_result, list):
-                    for item in vendor_result:
-                        if str(item.get("awb")) == str(awb):
-                            api_success = bool(item.get("status"))
-                            api_message = item.get("message", "")
-                            break
-                else:
-                    logger.warning("Nimbuspost returned unexpected format: %s", type(vendor_result))
-                    # attempt to interpret single-object success as fallback
-                    if isinstance(vendor_result, dict):
-                        api_success = vendor_result.get("status") is True or vendor_result.get("success") is True
-                        api_message = vendor_result.get("message", "") or vendor_result.get("detail", "")
-
-            elif vendor_name == "shiprocket":
-                if isinstance(vendor_result, dict):
-                    api_success = vendor_result.get("status") is True or vendor_result.get("success") is True
-                    api_message = vendor_result.get("message", "") or vendor_result.get("detail", "")
+            # Normalize vendor response
+            api_success, api_message, normalized = normalize_vendor_response(
+                vendor_name=vendor_name,
+                vendor_result=vendor_result,
+                awb=awb,
+                http_status=http_status,
+            )
 
             # Persist to DB if successful
             saved_to_db = False
@@ -1348,8 +1426,8 @@ class NDRActionAPIView(APIView):
                     if order:
                         order.order_status = rendr_status
                         order.ndr_action = action
-                        # store the merged action data we sent (explicitly)
-                        order.ndr_data = action_data or {}
+                        # save the merged action data (includes phone if provided)
+                        order.ndr_data = merged_action_data or {}
                         order.ndr_date = timezone.now()
                         order.ndr_count = (order.ndr_count or 0) + 1
                         order.save(update_fields=["order_status", "ndr_action", "ndr_data", "ndr_date", "ndr_count", "updated_at"])
@@ -1372,7 +1450,8 @@ class NDRActionAPIView(APIView):
 
             # Response payload
             response_payload = {
-                "vendor_response": vendor_result,
+                "vendor_response": normalized.get("raw", vendor_result),
+                "normalized": normalized,
                 "saved_to_db": saved_to_db,
                 "db_message": db_message,
                 "api_message": api_message,
@@ -1386,7 +1465,7 @@ class NDRActionAPIView(APIView):
                 {"detail": "Error while performing NDR action", "error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-
+            
 class NDRListAPIView(APIView):
     """
     GET: List NDR shipments based on vendor.
