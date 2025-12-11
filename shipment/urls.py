@@ -23,8 +23,8 @@ urlpatterns = [
     path('ndr/<str:pk>/', NDRViewSet.as_view({'get': 'retrieve'}), name='ndr-detail'),
     path('pickup/locations/', PickupLocationViewSet.as_view({'get': 'list'}), name='pickup-location-list'),
     path('pickup/location/', PickupLocationViewSet.as_view({'post': 'create'}), name='pickup-location-create'),
-    path("ndr/action/", NDRActionAPIView.as_view(), name="ndr-action"),
-    path("ndr/", NDRListAPIView.as_view(), name="ndr-list"),
-    path("ndr/<str:awb>/", NDRDetailAPIView.as_view(), name="ndr-detail"),
+    path("ndr-action/", NDRActionAPIView.as_view(), name="ndr-action"),
+    path("ndr-list/", NDRListAPIView.as_view(), name="ndr-list"),
+    path("ndr-list/<str:awb>/", NDRDetailAPIView.as_view(), name="ndr-detail"),
     
 ]
