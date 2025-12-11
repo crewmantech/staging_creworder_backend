@@ -1126,28 +1126,51 @@ class ShipmentVendorViewSet(viewsets.ModelViewSet):
     serializer_class = ShipmentVendorSerializer
     permission_classes = [IsAuthenticated]
     
-def get_vendor_service(shipment: ShipmentModel):
-    """
-    Return the correct service instance (Shiprocket / Nimbuspost)
-    using the SAME credential pattern as ScheduleOrders.create.
-    """
-    serializer = ShipmentSerializer(shipment)
-    data = serializer.data
+def get_vendor_service(shipment_or_vendor):
+    vendor_name = None
+    username = None
+    password = None
 
-    vendor_name = (data["shipment_vendor"]["name"] or "").strip().lower()
-    username = data.get("credential_username")
-    password = data.get("credential_password")
+    # Fast duck-typed path: treat as ShipmentModel if it has credential_username
+    if hasattr(shipment_or_vendor, "credential_username"):
+        shipment = shipment_or_vendor
+        vendor_name = (getattr(shipment, "shipment_vendor").name if getattr(shipment, "shipment_vendor", None) else None) or ""
+        vendor_name = vendor_name.strip().lower()
+        username = getattr(shipment, "credential_username", None)
+        password = getattr(shipment, "credential_password", None)
+    else:
+        # Fallback: try serializer (for dict-like or other inputs), but log failures explicitly
+        try:
+            serializer = ShipmentSerializer(shipment_or_vendor)
+            data = serializer.data
+            vendor_name = (data.get("shipment_vendor", {}).get("name") or "").strip().lower()
+            username = data.get("credential_username") or data.get("shipment_vendor", {}).get("credential_username")
+            password = data.get("credential_password") or data.get("shipment_vendor", {}).get("credential_password")
+        except Exception as exc:
+            logger.debug("ShipmentSerializer failed in get_vendor_service: %s; falling back to attribute access", exc)
+            vendor = shipment_or_vendor
+            name = getattr(vendor, "name", None) or (vendor.get("name") if isinstance(vendor, dict) else None)
+            vendor_name = (name or "").strip().lower()
+            username = getattr(vendor, "credential_username", None) or (vendor.get("credential_username") if isinstance(vendor, dict) else None)
+            password = getattr(vendor, "credential_password", None) or (vendor.get("credential_password") if isinstance(vendor, dict) else None)
+            if not username:
+                cred = getattr(vendor, "credentials", None) or (vendor.get("credentials") if isinstance(vendor, dict) else None)
+                if isinstance(cred, dict):
+                    username = username or cred.get("username")
+                    password = password or cred.get("password")
+
+    if not vendor_name:
+        raise ValueError("Shipment/vendor name not found to determine vendor service")
 
     if not username:
-        raise ValueError("Credential username not configured for this shipment")
+        raise ValueError("Credential username not configured for this shipment/vendor")
 
     if vendor_name == "shiprocket":
         return ShiprocketScheduleOrder(username, password)
-
     if vendor_name == "nimbuspost":
         return NimbuspostAPI(username, password)
+    raise ValueError(f"Unsupported shipment vendor: {vendor_name}")
 
-    raise ValueError(f"Unsupported shipment vendor: {data['shipment_vendor']['name']}")
 
 def normalize_vendor_response(vendor_name: str, vendor_result, awb: str = None, http_status: int = None):
     """
@@ -1249,11 +1272,11 @@ def build_vendor_payload_for_ndr(vendor_name: str, awb: str, action: str, commen
     """
     Build vendor-specific payload from a universal request body.
 
-    Returns tuple: (payload, call_style)
+    Returns tuple: (payload, call_style, merged_action_data)
       - payload: for NimbusPost -> a list; for Shiprocket -> dict of kwargs
       - call_style: "nimbus" or "shiprocket"
+      - merged_action_data: merged action_data with top-level extras (for DB saving)
     """
-    # Normalize names to lower-case vendor
     vendor_name = (vendor_name or "").strip().lower()
 
     # Merge top-level extras like phone into action_data (client convenience)
@@ -1269,52 +1292,43 @@ def build_vendor_payload_for_ndr(vendor_name: str, awb: str, action: str, commen
     if vendor_name == "nimbuspost":
         # NimbusPost expects a list of objects
         payload = [{"awb": awb, "action": action, "action_data": merged or {}}]
-        return payload, "nimbus"
+        return payload, "nimbus", merged
 
     if vendor_name == "shiprocket":
         # Shiprocket expects awb, action, comments, and other optional fields.
-        # We'll map action_data keys to allowed shiprocket kwargs (normalize address_1 -> address1 etc.)
         ship_kwargs = {
             "awb": awb,
             "action": action,
             "comments": comments or "",
         }
 
-        # Allowed keys for Shiprocket (according to your docs)
         allowed = ["phone", "proof_audio", "proof_image", "remarks", "address1", "address2", "deferred_date"]
 
-        # Map common variants to shiprocket expected names
         mapping_variants = {
             "address_1": "address1",
             "address_2": "address2",
-            "re_attempt_date": "deferred_date",  # if client provides re_attempt_date, map to deferred_date
+            "re_attempt_date": "deferred_date",
         }
 
-        # Add mapped values
         for src_key, value in merged.items():
-            # direct allow
             if src_key in allowed:
                 ship_kwargs[src_key] = value
                 continue
 
-            # variant mapping
             if src_key in mapping_variants:
                 mapped_key = mapping_variants[src_key]
                 if mapped_key in allowed:
                     ship_kwargs[mapped_key] = value
                     continue
 
-            # fallback: sometimes client sent address1 as address_1 etc.
-            if src_key.replace("_", "") in [k.replace("_", "") for k in allowed]:
-                # convert snake to camel-ish allowed name (address_1 -> address1)
-                normalized = src_key.replace("_", "")
-                # find allowed with same normalized
-                for a in allowed:
-                    if a.replace("_", "") == normalized:
-                        ship_kwargs[a] = value
-                        break
+            # fallback: normalize underscores (address_1 -> address1)
+            normalized = src_key.replace("_", "")
+            for a in allowed:
+                if a.replace("_", "") == normalized:
+                    ship_kwargs[a] = value
+                    break
 
-        return ship_kwargs, "shiprocket"
+        return ship_kwargs, "shiprocket", merged
 
     raise ValueError(f"Unsupported vendor for mapping: {vendor_name}")
 
@@ -1351,9 +1365,31 @@ class NDRActionAPIView(APIView):
         vendor = get_object_or_404(ShipmentVendor, id=shipment_vendor_id)
         vendor_name = (vendor.name or "").strip().lower()
 
-        # get vendor client
+        # Fetch ANY ShipmentModel linked with this vendor
+        # No provider_priority / no sorting logic needed.
+        shipment = (
+            ShipmentModel.objects
+            .filter(shipment_vendor=vendor)
+            .order_by("-id")  # pick latest shipment configuration
+            .first()
+        )
+
+        if not shipment:
+            return Response(
+                {"detail": "No shipment configuration found for this shipment_vendor_id."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Ensure shipment has credentials
+        if not shipment.credential_username:
+            return Response(
+                {"detail": "Shipment is missing credential_username."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Now get the vendor service using the ShipmentModel
         try:
-            service = get_vendor_service(vendor)
+            service = get_vendor_service(shipment)
         except Exception as e:
             logger.exception("Error creating vendor service via get_vendor_service")
             return Response(
