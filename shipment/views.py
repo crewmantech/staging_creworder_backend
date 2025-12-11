@@ -1482,8 +1482,34 @@ class NDRActionAPIView(APIView):
                         db_message = "NDR succeeded but order not found in DB."
 
             # Build simplified response
-            final_data = normalized.get("raw") if isinstance(normalized.get("raw"), (dict, list)) else normalized.get("raw") or {}
-            return self._simple_response(bool(api_success), api_message or "", final_data, status.HTTP_200_OK)
+            final_raw = normalized.get("raw", {}) if normalized else {}
+            final_data = final_raw if isinstance(final_raw, (dict, list)) else {}
+
+            # Prefer explicit http_status captured from vendor_result tuple / Response-like object
+            response_status = None
+            try:
+                # http_status variable was set earlier when capturing vendor_result
+                if isinstance(http_status, int) and http_status > 0:
+                    response_status = int(http_status)
+                else:
+                    # try to get status_code out of vendor raw payload
+                    if isinstance(final_raw, dict):
+                        sc = final_raw.get("status_code") or final_raw.get("status")
+                        # sometimes vendors put status in `status` as int or dict
+                        if isinstance(sc, int) and sc > 0:
+                            response_status = int(sc)
+            except Exception:
+                response_status = None
+
+            # Fallback logic when vendor didn't provide a numeric status code
+            if response_status is None:
+                # If vendor reported success -> 200, else -> 400 (client-like) to let frontend show error
+                response_status = status.HTTP_200_OK if api_success else status.HTTP_400_BAD_REQUEST
+
+            # Ensure we don't accidentally return 2xx for clearly unauthorized vendor response:
+            # If vendor raw contains status_code >= 400, prefer that (already handled above).
+            # Now return the simplified response shape with the chosen HTTP status.
+            return self._simple_response(bool(api_success), api_message or "", final_data, http_status=response_status)
 
         except Exception as e:
             logger.exception("Error while performing NDR action")
