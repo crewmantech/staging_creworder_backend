@@ -4462,3 +4462,137 @@ class CompanySalaryViewSet(viewsets.ModelViewSet):
             },
             status=status.HTTP_201_CREATED
         )
+
+
+class CompanyMonthlySalaryPreviewAPIView(APIView):
+    """
+    Preview salary for all users of a company for given month
+    No DB write, calculation only
+    """
+    def get_present_days(self,user, year, month):
+        attendances = Attendance.objects.filter(
+            user=user,
+            date__year=year,
+            date__month=month,
+            attendance="P"
+        )
+
+        present_days = sum(
+            1 for a in attendances if a.date.weekday() != 6
+        )
+        return present_days
+
+    def get_user_monthwise_delivered_amount(self,user, monthyear):
+        """
+        Returns total delivered order amount for a user in a given month
+        monthyear format: YYYY-MM
+        """
+
+        try:
+            year, month = map(int, monthyear.split("-"))
+        except ValueError:
+            return 0
+
+        total_amount = (
+            Order_Table.objects.filter(
+                order_created_by=user,
+                company=user.profile.company,      # ✅ company safe
+                order_status__name="DELIVERED",
+                created_at__year=year,
+                created_at__month=month,
+                is_deleted=False
+            )
+            .aggregate(total=Sum("total_amount"))
+            .get("total")
+        )
+
+        return total_amount or 0
+    def get(self, request):
+        user = request.user
+        monthyear = request.query_params.get("monthyear")  # YYYY-MM
+        if not hasattr(user, "profile") or not user.profile.company:
+            return Response(
+                {"error": "User is not linked to any company"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        company = user.profile.company
+        # if not monthyear:
+        #     return Response(
+        #         {"error": "monthyear is required (YYYY-MM)"},
+        #         status=status.HTTP_400_BAD_REQUEST
+        #     )
+        if not monthyear:
+            today = date.today()
+            monthyear = f"{today.year}-{today.month:02d}"
+
+
+        try:
+            year, month = map(int, monthyear.split("-"))
+        except ValueError:
+            return Response(
+                {"error": "Invalid monthyear format"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # ✅ Company salary (annual)
+        try:
+            company_salary = CompanySalary.objects.get(
+                company=company
+            )
+        except CompanySalary.DoesNotExist:
+            return Response(
+                {"error": "Company salary not set"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        annual_salary = company_salary.amount
+        per_day_salary = annual_salary / 365
+
+        users = User.objects.filter(
+            profile__company=company,
+            is_active=True
+        )
+
+        results = []
+
+        for user in users:
+            present_days = self.get_present_days(user, year, month)
+
+            target_achieved = UserTargetsDelails.objects.filter(
+                user=user,
+                monthyear=monthyear,
+                # achieve_target=True
+            )
+            monthly_amount_target=target_achieved.monthly_amount_target
+            amount = self.get_user_monthwise_delivered_amount(
+                    user=user,
+                    monthyear = monthyear
+                )
+            if amount>=monthly_amount_target:
+                salary = per_day_salary * present_days
+                rule = "Full Salary"
+            else:
+                salary = (per_day_salary / 2) * present_days
+                rule = "Half Salary (Target Not Achieved)"
+
+            results.append({
+                "user_id": user.id,
+                "username": user.username,
+                "present_days": present_days,
+                "target_achieved": target_achieved,
+                "salary_rule": rule,
+                "salary": round(float(salary), 2)
+            })
+
+        return Response(
+            {
+                "company": company,
+                "month": monthyear,
+                "annual_salary": float(annual_salary),
+                "per_day_salary": round(float(per_day_salary), 2),
+                "salary_preview": True,
+                "employees": results
+            },
+            status=status.HTTP_200_OK
+        )
