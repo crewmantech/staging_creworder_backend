@@ -1226,7 +1226,11 @@ def normalize_vendor_response(vendor_name: str, vendor_result, awb: str = None, 
                 normalized["success"] = True
                 normalized["message"] = f"HTTP {http_status}"
             else:
-                normalized["message"] = "Unexpected Shiprocket response shape"
+                # try to extract a message if vendor_result is a Response-like object
+                if hasattr(vendor_result, "text"):
+                    normalized["message"] = getattr(vendor_result, "text")
+                else:
+                    normalized["message"] = "Unexpected Shiprocket response shape"
 
         if not normalized["success"] and http_status and int(http_status) in (200, 201, 202):
             normalized["success"] = True
@@ -1255,7 +1259,7 @@ def build_vendor_payload_for_ndr(vendor_name: str, awb: str, action: str, commen
     """
     Build vendor-specific payload from a universal request body.
 
-    Important: Do NOT map or send any 'deferred_date' to Shiprocket (user requirement).
+    Important: Do NOT map or send any 'deferred_date' or 'phone' to Shiprocket (user requirement).
     Nimbuspost will receive `re_attempt_date` inside action_data as-is.
     """
     vendor_name = (vendor_name or "").strip().lower()
@@ -1269,22 +1273,20 @@ def build_vendor_payload_for_ndr(vendor_name: str, awb: str, action: str, commen
                 merged[k] = v
 
     if vendor_name == "nimbuspost":
-        # Nimbuspost expects a list of objects and that action_data may contain re_attempt_date etc.
         payload = [{"awb": awb, "action": action, "action_data": merged or {}}]
         return payload, "nimbus", merged
 
     if vendor_name == "shiprocket":
-        # Shiprocket: we will NOT send any 'deferred_date' or mapped re_attempt_date.
+        # Shiprocket: DO NOT pass phone or deferred_date to the shiprocket client
         ship_kwargs = {
             "awb": awb,
             "action": action,
             "comments": comments or "",
         }
 
-        # allowed fields for Shiprocket (explicit); no deferred_date included
-        allowed = {"phone", "proof_audio", "proof_image", "remarks", "address1", "address2"}
+        # allowed fields for Shiprocket (explicit) - NOTE: phone excluded on purpose
+        allowed = {"proof_audio", "proof_image", "remarks", "address1", "address2"}
 
-        # mapping variants: map address_1/address_2 -> address1/address2 only
         mapping_variants = {
             "address_1": "address1",
             "address_2": "address2",
@@ -1295,19 +1297,16 @@ def build_vendor_payload_for_ndr(vendor_name: str, awb: str, action: str, commen
             if value is None or value == "":
                 continue
 
-            # address mapping
             if src_key in mapping_variants:
                 mapped = mapping_variants[src_key]
                 if mapped in allowed:
                     ship_kwargs[mapped] = value
                     continue
 
-            # direct allowed
             if src_key in allowed:
                 ship_kwargs[src_key] = value
                 continue
 
-            # fallback normalization (address_1 -> address1)
             normalized = src_key.replace("_", "")
             for a in allowed:
                 if a.replace("_", "") == normalized:
@@ -1329,6 +1328,13 @@ class NDRActionAPIView(APIView):
         "shiprocket": {"re-attempt", "return", "change_address", "change_phone"},
     }
 
+    def _simple_response(self, success: bool, message: str, data: Any = None, http_status: int = status.HTTP_200_OK):
+        """Helper to return the simplified response shape."""
+        return Response(
+            {"success": bool(success), "message": message or "", "data": data or {}},
+            status=http_status,
+        )
+
     def post(self, request, *args, **kwargs):
         shipment_vendor_id = request.data.get("shipment_vendor_id")
         awb = request.data.get("awb")
@@ -1338,29 +1344,17 @@ class NDRActionAPIView(APIView):
         phone = request.data.get("phone")
 
         if not shipment_vendor_id or not awb or not action:
-            return Response(
-                {"detail": "shipment_vendor_id, awb, and action are required."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return self._simple_response(False, "shipment_vendor_id, awb, and action are required.", {}, status.HTTP_400_BAD_REQUEST)
 
         vendor = get_object_or_404(ShipmentVendor, id=shipment_vendor_id)
         vendor_name = (vendor.name or "").strip().lower()
 
         allowed_for_vendor = self.ALLOWED_ACTIONS.get(vendor_name)
         if allowed_for_vendor is None:
-            return Response(
-                {"detail": f"Unsupported shipment vendor: {vendor.name}"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return self._simple_response(False, f"Unsupported shipment vendor: {vendor.name}", {}, status.HTTP_400_BAD_REQUEST)
 
         if (action or "").strip().lower() not in {a.lower() for a in allowed_for_vendor}:
-            return Response(
-                {
-                    "detail": "Action not allowed for this vendor",
-                    "error": f"Action '{action}' is not permitted for vendor '{vendor.name}'."
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return self._simple_response(False, f"Action '{action}' is not permitted for vendor '{vendor.name}'.", {}, status.HTTP_400_BAD_REQUEST)
 
         shipment = (
             ShipmentModel.objects
@@ -1370,25 +1364,16 @@ class NDRActionAPIView(APIView):
         )
 
         if not shipment:
-            return Response(
-                {"detail": "No shipment configuration found for this shipment_vendor_id."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            return self._simple_response(False, "No shipment configuration found for this shipment_vendor_id.", {}, status.HTTP_404_NOT_FOUND)
 
         if not shipment.credential_username:
-            return Response(
-                {"detail": "Shipment is missing credential_username."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return self._simple_response(False, "Shipment is missing credential_username.", {}, status.HTTP_400_BAD_REQUEST)
 
         try:
             service = get_vendor_service(shipment)
         except Exception as e:
             logger.exception("Error creating vendor service via get_vendor_service")
-            return Response(
-                {"detail": "Error initializing vendor service", "error": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            return self._simple_response(False, "Error initializing vendor service", {}, status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         try:
             extra_top_level = {"phone": phone}
@@ -1402,53 +1387,53 @@ class NDRActionAPIView(APIView):
             )
         except Exception as e:
             logger.exception("Error building vendor payload")
-            return Response(
-                {"detail": "Error building vendor payload", "error": str(e)},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return self._simple_response(False, f"Error building vendor payload: {str(e)}", {}, status.HTTP_400_BAD_REQUEST)
 
         try:
+            # Call vendor API
+            vendor_result = None
+            http_status = None
+
             if call_style == "nimbus":
                 # Nimbuspost expects list of objects; send merged action_data (may include re_attempt_date)
                 vendor_result = service.submit_ndr_action(payload)
             elif call_style == "shiprocket":
-                # Shiprocket: try direct call; if client rejects unknown keys, retry only with explicit allowed keys (no deferred_date)
+                # Shiprocket: DO NOT send phone or deferred_date to client.
+                # payload produced by build_vendor_payload_for_ndr will not include phone.
                 try:
                     vendor_result = service.action_ndr(**payload)
                 except TypeError as te:
+                    # Defensive retry: remove any keys not explicitly allowed (we exclude phone here)
                     msg = str(te)
                     logger.warning("Shiprocket action_ndr TypeError: %s. Attempting defensive retry without unknown keys...", msg)
 
-                    # allowed keys for Shiprocket — NOTE: no deferred_date here
-                    allowed_keys = {"awb", "action", "comments", "phone", "proof_audio", "proof_image", "remarks", "address1", "address2"}
-                    stripped_payload = {k: v for k, v in payload.items() if k in allowed_keys}
+                    allowed_keys = {"awb", "action", "comments", "proof_audio", "proof_image", "remarks", "address1", "address2"}
+                    stripped_payload = {k: v for k, v in (payload.items() if isinstance(payload, dict) else {}) if k in allowed_keys}
                     if "comments" not in stripped_payload:
                         stripped_payload["comments"] = comments or ""
 
-                    removed = [k for k in payload.keys() if k not in stripped_payload]
+                    removed = [k for k in (payload.keys() if isinstance(payload, dict) else []) if k not in stripped_payload]
                     if removed:
                         logger.info("Retrying Shiprocket.action_ndr without keys: %s", removed)
                         try:
                             vendor_result = service.action_ndr(**stripped_payload)
                         except TypeError as te2:
                             logger.exception("Retry after removing unknown keys failed: %s", te2)
-                            raise
+                            # return simplified error response
+                            return self._simple_response(False, f"Shiprocket client error: {str(te2)}", {}, status.HTTP_500_INTERNAL_SERVER_ERROR)
                     else:
                         logger.exception("TypeError but no unknown keys could be removed; re-raising")
-                        raise
+                        return self._simple_response(False, f"Shiprocket client error: {str(te)}", {}, status.HTTP_500_INTERNAL_SERVER_ERROR)
             else:
-                return Response(
-                    {"detail": f"Unsupported vendor: {vendor.name}"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+                return self._simple_response(False, f"Unsupported vendor: {vendor.name}", {}, status.HTTP_400_BAD_REQUEST)
 
             # Capture http status if vendor client returned tuple (body, status_code) or Response-like object
-            http_status = None
             if isinstance(vendor_result, tuple) and len(vendor_result) == 2:
                 vendor_result, http_status = vendor_result
             else:
                 http_status = getattr(vendor_result, "status_code", None) if hasattr(vendor_result, "status_code") else None
 
+            # Normalize vendor response
             api_success, api_message, normalized = normalize_vendor_response(
                 vendor_name=vendor_name,
                 vendor_result=vendor_result,
@@ -1456,6 +1441,7 @@ class NDRActionAPIView(APIView):
                 http_status=http_status,
             )
 
+            # Persist to DB if successful
             saved_to_db = False
             db_message = ""
             if api_success:
@@ -1473,6 +1459,7 @@ class NDRActionAPIView(APIView):
                     if order:
                         order.order_status = rendr_status
                         order.ndr_action = action
+                        # save the merged action data (includes phone if present) into DB
                         order.ndr_data = merged_action_data or {}
                         order.ndr_date = timezone.now()
                         order.ndr_count = (order.ndr_count or 0) + 1
@@ -1494,22 +1481,13 @@ class NDRActionAPIView(APIView):
                         logger.warning("NDR succeeded in vendor but no order found for AWB=%s", awb)
                         db_message = "NDR succeeded but order not found in DB."
 
-            response_payload = {
-                "vendor_response": normalized.get("raw", vendor_result),
-                "normalized": normalized,
-                "saved_to_db": saved_to_db,
-                "db_message": db_message,
-                "api_message": api_message,
-            }
-
-            return Response(response_payload, status=status.HTTP_200_OK)
+            # Build simplified response
+            final_data = normalized.get("raw") if isinstance(normalized.get("raw"), (dict, list)) else normalized.get("raw") or {}
+            return self._simple_response(bool(api_success), api_message or "", final_data, status.HTTP_200_OK)
 
         except Exception as e:
             logger.exception("Error while performing NDR action")
-            return Response(
-                {"detail": "Error while performing NDR action", "error": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            return self._simple_response(False, "Error while performing NDR action", {}, status.HTTP_500_INTERNAL_SERVER_ERROR)
             
 class NDRListAPIView(APIView):
     """
