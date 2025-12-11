@@ -292,7 +292,10 @@ class Order_Table(BaseModel):
     reference_order = models.ForeignKey(                  # 3rd new column
         "self", on_delete=models.SET_NULL, null=True, blank=True, related_name="repeated_orders"
     )
-
+    ndr_count = models.IntegerField(default=0)  
+    ndr_action = models.CharField(max_length=255, null=True, blank=True)  
+    ndr_data = models.JSONField(null=True, blank=True)  
+    ndr_date = models.DateTimeField(null=True, blank=True, default=None)
     class Meta:
         db_table = 'orders_table'
     def save(self, *args, **kwargs):
