@@ -26,4 +26,5 @@ urlpatterns = [
     path("ndr/action/", NDRActionAPIView.as_view(), name="ndr-action"),
     path("ndr/", NDRListAPIView.as_view(), name="ndr-list"),
     path("ndr/<str:awb>/", NDRDetailAPIView.as_view(), name="ndr-detail"),
+    
 ]

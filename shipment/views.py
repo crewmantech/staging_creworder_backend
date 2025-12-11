@@ -1384,3 +1384,4 @@ class NDRDetailAPIView(APIView):
                 {"detail": "Error while fetching NDR detail", "error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+            
