@@ -4510,29 +4510,70 @@ class CompanyMonthlySalaryPreviewAPIView(APIView):
         return present_days
 
     def get_user_monthwise_delivered_amount(self, user, monthyear):
-        print(f"[DEBUG] Fetching delivered amount for User={user.id}, monthyear={monthyear}")
+        print(f"\n{'='*60}")
+        print(f"[DEBUG] START: get_user_monthwise_delivered_amount")
+        print(f"[DEBUG] Input Parameters:")
+        print(f"  - User ID: {user.id}")
+        print(f"  - User: {user}")
+        print(f"  - Month-Year: {monthyear}")
+        print(f"{'='*60}\n")
 
+        # Parse monthyear
         try:
             year, month = map(int, monthyear.split("-"))
-        except ValueError:
-            print("[ERROR] Invalid monthyear format")
+            print(f"[DEBUG] Parsed date successfully:")
+            print(f"  - Year: {year}")
+            print(f"  - Month: {month}")
+        except ValueError as e:
+            print(f"[ERROR] Invalid monthyear format: {monthyear}")
+            print(f"[ERROR] Exception details: {e}")
+            print(f"[ERROR] Expected format: YYYY-MM")
             return 0
 
-        total_amount = (
-            Order_Table.objects.filter(
-                order_created_by=user,
-                # company=user.profile.company,
-                order_status__name__iexact='Delivered',
-                created_at__year=year,
-                created_at__month=month,
-                is_deleted=False
-            )
-            .aggregate(total=Sum("total_amount"))
-            .get("total")
-        )
+        # Build query filters
+        print(f"\n[DEBUG] Building query filters...")
+        filters = {
+            'order_created_by': user,
+            'order_status__name__iexact': 'Delivered',
+            'created_at__year': year,
+            'created_at__month': month,
+            'is_deleted': False
+        }
+        print(f"[DEBUG] Query filters:")
+        for key, value in filters.items():
+            print(f"  - {key}: {value}")
 
-        print(f"[DEBUG] Total delivered amount = {total_amount}")
-        return total_amount or 0
+        # Execute query
+        print(f"\n[DEBUG] Executing database query...")
+        queryset = Order_Table.objects.filter(**filters)
+        
+        print(f"[DEBUG] Queryset count: {queryset.count()}")
+        print(f"[DEBUG] SQL Query: {queryset.query}")
+        
+        # Show sample orders if any exist
+        if queryset.exists():
+            print(f"\n[DEBUG] Sample orders (first 5):")
+            for i, order in enumerate(queryset[:5], 1):
+                print(f"  {i}. Order ID: {order.id}, Amount: {order.total_amount}, Status: {order.order_status.name if order.order_status else 'N/A'}")
+        else:
+            print(f"[DEBUG] No orders found matching the criteria")
+
+        # Aggregate total
+        print(f"\n[DEBUG] Calculating aggregate sum...")
+        aggregate_result = queryset.aggregate(total=Sum("total_amount"))
+        print(f"[DEBUG] Aggregate result: {aggregate_result}")
+        
+        total_amount = aggregate_result.get("total")
+        print(f"[DEBUG] Extracted total amount: {total_amount}")
+        print(f"[DEBUG] Total amount type: {type(total_amount)}")
+        
+        # Final result
+        final_result = total_amount or 0
+        print(f"\n[DEBUG] Final returned value: {final_result}")
+        print(f"[DEBUG] END: get_user_monthwise_delivered_amount")
+        print(f"{'='*60}\n")
+        
+        return final_result
 
     def get(self, request):
         print("[DEBUG] Salary Preview API STARTED")
