@@ -9,6 +9,7 @@ urlpatterns = [
     path('', include(router.urls)),
     path("user-dashboard-tiles/",views.GetUserDashboardtiles.as_view(),name="user-dashboard-tiles"),
     path("user-dashboard-tiles1/",views.GetUserDashboardtiles1.as_view(),name="user-dashboard-tiles1"),
+    path("user-home-tiles/",views.GetUserHometiles.as_view(),name="user-home-tiles"),
     path("user-dashboard-team-order-list/",views.TeamOrderListForDashboard.as_view(),name="user-dashboard-team-order-list"),
     path("top-shelling-product-list/",views.TopShellingProduct.as_view(),name="top-shelling-product-list"),
     path("top-selling-product-list1/",views.TopShellingProduct1.as_view(),name="top-shelling-product-list1"),

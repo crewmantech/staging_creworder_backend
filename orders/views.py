@@ -3157,7 +3157,7 @@ class FilterOrdersCreatedView(viewsets.ViewSet):
 
 from django.utils.dateparse import parse_date
 class FilteredOrderViewSet(viewsets.ViewSet):
-
+    permission_classes = [IsAuthenticated]
     def list(self, request):
         status_name = request.query_params.get('status')       # filter by status name (not ID)
         from_date = request.query_params.get('from_date')      # YYYY-MM-DD
