@@ -595,12 +595,29 @@ class CallServiceViewSet(viewsets.ViewSet):
                     {"error": "Failed to retrieve call details from Sanssoftwares."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
+            if response_data.get("code") != 200:
+                    return Response({"error": "Failed to retrieve call recording."}, status=status.HTTP_400_BAD_REQUEST)
+               
+            data = response_data.get("result", {})
+            
+            calls = []
+
+            # Loop over all keys that are digits (i.e., actual call entries)
+            for key, value in data.items():
+                if key.isdigit():
+                    value['file_path'] = value.get("recording_path")
+                    calls.append(value)
 
             return Response({
                 "success": True,
-                "data": response_data,
+                "data": calls,
                 "message": response_data.get("message", "Call details retrieved successfully.")
             }, status=status.HTTP_200_OK)
+            # return Response({
+            #     "success": True,
+            #     "data": response_data,
+            #     "message": response_data.get("message", "Call details retrieved successfully.")
+            # }, status=status.HTTP_200_OK)
 
         return Response(
             {"error": f"{cloud_vendor} is not supported."},
