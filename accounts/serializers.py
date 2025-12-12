@@ -251,11 +251,18 @@ class UserSerializer(serializers.ModelSerializer):
     role = serializers.SerializerMethodField()
     activity = serializers.SerializerMethodField()
     branch_name = serializers.SerializerMethodField() 
+    department_name = serializers.SerializerMethodField()
+    designation_name = serializers.SerializerMethodField()
+    last_login = serializers.SerializerMethodField()  # override to format safely
     
     class Meta:
         model = User
-        fields = ['id', 'username', 'password',  'first_name', 'last_name', 'email', 'last_login', 'date_joined',
-                  'is_staff', 'profile','role','activity','branch_name']
+        fields = [
+            'id', 'username', 'password', 'first_name', 'last_name', 'email',
+            'last_login', 'date_joined', 'is_staff', 'profile',
+            'role', 'activity', 'branch_name',
+            'department_name', 'designation_name'
+        ]
         extra_kwargs = {
             'password': {'write_only': True}
         }
@@ -273,6 +280,33 @@ class UserSerializer(serializers.ModelSerializer):
 
         # Serialize using your CustomAuthGroupSerializer
         return CustomAuthGroupSerializer(custom_groups, many=True, context=self.context).data
+    
+    def get_department_name(self, user):
+        try:
+            # ensure profile exists and department is not null
+            return user.profile.department.name if user.profile and user.profile.department else None
+        except Exception:
+            return None
+
+    def get_designation_name(self, user):
+        try:
+            return user.profile.designation.name if user.profile and user.profile.designation else None
+        except Exception:
+            return None
+
+    def get_last_login(self, user):
+        """
+        Return ISO-format local datetime string for last_login, or None.
+        Using localtime() so it is readable and consistent.
+        """
+        try:
+            if not user.last_login:
+                return None
+            # Convert to localtime then isoformat (eg: "2025-12-12T12:34:56+05:30")
+            local_dt = timezone.localtime(user.last_login)
+            return local_dt.isoformat()
+        except Exception:
+            return None
     
     def get_activity(self, user):
         token = Token.objects.filter(user=user).first()
