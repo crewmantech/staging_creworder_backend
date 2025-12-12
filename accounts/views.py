@@ -4491,8 +4491,6 @@ class CompanyMonthlySalaryPreviewAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get_present_days(self, user, year, month):
-        print(f"[DEBUG] Calculating present days for User={user.id}, Year={year}, Month={month}")
-
         attendances = Attendance.objects.filter(
             user=user,
             date__year=year,
@@ -4500,48 +4498,21 @@ class CompanyMonthlySalaryPreviewAPIView(APIView):
             attendance="P"
         )
 
-        print(f"[DEBUG] Total attendance records fetched: {attendances.count()}")
-
         present_days = sum(
             1 for a in attendances if a.date.weekday() != 6
         )
-
-        print(f"[DEBUG] Present days after excluding Sundays: {present_days}")
         return present_days
 
     def get_user_monthwise_delivered_amount(self, user, monthyear):
-        print(f"\n{'='*60}")
-        print(f"[DEBUG] START: get_user_monthwise_delivered_amount")
-        print(f"[DEBUG] Input Parameters:")
-        print(f"  - User ID: {user.id}")
-        print(f"  - User: {user}")
-        print(f"  - Month-Year: {monthyear}")
-        print(f"{'='*60}\n")
-
-        # Parse monthyear
         try:
             year, month = map(int, monthyear.split("-"))
-            print(f"[DEBUG] Parsed date successfully:")
-            print(f"  - Year: {year}")
-            print(f"  - Month: {month}")
-        except ValueError as e:
-            print(f"[ERROR] Invalid monthyear format: {monthyear}")
-            print(f"[ERROR] Exception details: {e}")
-            print(f"[ERROR] Expected format: YYYY-MM")
+        except ValueError:
             return 0
 
-        # Calculate date range (matching UserMonthlyPerformanceAPIView logic)
-        print(f"\n[DEBUG] Calculating date range...")
         _, last_day_num = calendar.monthrange(year, month)
         start_date = timezone.make_aware(datetime(year, month, 1, 0, 0, 0))
         end_date = timezone.make_aware(datetime(year, month, last_day_num, 23, 59, 59))
-        
-        print(f"[DEBUG] Date range:")
-        print(f"  - Start date: {start_date}")
-        print(f"  - End date: {end_date}")
 
-        # Build query filters (using date range instead of year/month)
-        print(f"\n[DEBUG] Building query filters...")
         filters = {
             'order_created_by': user,
             'company': user.profile.company,
@@ -4549,125 +4520,67 @@ class CompanyMonthlySalaryPreviewAPIView(APIView):
             'created_at__range': (start_date, end_date),
             'is_deleted': False
         }
-        print(f"[DEBUG] Query filters:")
-        for key, value in filters.items():
-            print(f"  - {key}: {value}")
 
-        # Execute query
-        print(f"\n[DEBUG] Executing database query...")
         queryset = Order_Table.objects.filter(**filters)
-        
-        print(f"[DEBUG] Queryset count: {queryset.count()}")
-        # print(f"[DEBUG] SQL Query: {queryset.query}")
-        
-        # Show sample orders if any exist
-        if queryset.exists():
-            print(f"\n[DEBUG] Sample orders (first 5):")
-            for i, order in enumerate(queryset[:5], 1):
-                print(f"  {i}. Order ID: {order.id}, Amount: {order.total_amount}, "
-                    f"Status: {order.order_status.name if order.order_status else 'N/A'}, "
-                    f"Created: {order.created_at}")
-        else:
-            print(f"[DEBUG] No orders found matching the criteria")
-
-        # Aggregate total (matching UserMonthlyPerformanceAPIView logic)
-        print(f"\n[DEBUG] Calculating aggregate sum...")
         aggregate_result = queryset.aggregate(total=Sum("total_amount"))
-        print(f"[DEBUG] Aggregate result: {aggregate_result}")
-        
         total_amount = aggregate_result.get("total")
-        print(f"[DEBUG] Extracted total amount: {total_amount}")
-        print(f"[DEBUG] Total amount type: {type(total_amount)}")
-        
-        # Final result
-        final_result = total_amount or 0
-        print(f"\n[DEBUG] Final returned value: {final_result}")
-        print(f"[DEBUG] END: get_user_monthwise_delivered_amount")
-        print(f"{'='*60}\n")
-        
-        return final_result
+
+        return total_amount or 0
 
     def get(self, request):
-        print("[DEBUG] Salary Preview API STARTED")
-
         user = request.user
         monthyear = request.query_params.get("monthyear")
         branch_id = request.query_params.get("branch_id")
 
-        print(f"[DEBUG] Request User={user.id}, monthyear={monthyear}, branch_id={branch_id}")
-
         if not hasattr(user, "profile") or not user.profile.company:
-            print("[ERROR] User has no company linked")
             return Response({"error": "User is not linked to any company"}, status=400)
 
         if not branch_id:
-            print("[ERROR] Branch not selected")
             return Response({"error": "Please select a branch"}, status=400)
 
         company = user.profile.company
-        print(f"[DEBUG] Company Found: {company.id} - {company.name}")
 
         if not monthyear:
             today = date.today()
             monthyear = f"{today.year}-{today.month:02d}"
-            print(f"[DEBUG] No monthyear provided. Defaulting to {monthyear}")
 
         try:
             year, month = map(int, monthyear.split("-"))
-            print(f"[DEBUG] Parsed monthyear: Year={year}, Month={month}")
         except ValueError:
-            print("[ERROR] Invalid monthyear format")
             return Response({"error": "Invalid monthyear format"}, status=400)
 
-        # Company salary fetch
-        print("[DEBUG] Fetching Company Salary...")
         try:
             company_salary = CompanySalary.objects.get(company=company)
         except CompanySalary.DoesNotExist:
-            print("[ERROR] Company salary not set")
             return Response({"error": "Company salary not set"}, status=404)
 
         annual_salary = company_salary.amount
         per_day_salary = annual_salary / 365
-        print(f"[DEBUG] annual_salary={annual_salary}, per_day_salary={per_day_salary}")
 
-        # Fetching users
-        print("[DEBUG] Fetching users belonging to branch_id=", branch_id)
         users = User.objects.filter(
             profile__company=company,
             is_active=True,
             profile__branch_id=branch_id
         )
 
-        print(f"[DEBUG] Total users found: {users.count()}")
-
         results = []
 
         for user in users:
-            print(f"\n[DEBUG] ------------------ Processing User={user.id} ------------------")
-
             present_days = self.get_present_days(user, year, month)
 
-            print("[DEBUG] Fetching user target details...")
             target_achieved_qs = UserTargetsDelails.objects.filter(
                 user=user,
                 monthyear=monthyear,
             )
-            print(f"[DEBUG] Target records count: {target_achieved_qs.count()}")
 
             if target_achieved_qs.exists():
-                print("[DEBUG] Target record exists. Fetching...")
                 try:
                     target_obj = UserTargetsDelails.objects.get(user=user, monthyear=monthyear)
                     monthly_amount_target = target_obj.monthly_amount_target
-                    print(f"[DEBUG] monthly_amount_target={monthly_amount_target}")
                 except UserTargetsDelails.DoesNotExist:
-                    print("[ERROR] Target record disappeared during get()")
                     monthly_amount_target = 0
 
                 amount = self.get_user_monthwise_delivered_amount(user, monthyear)
-
-                print(f"[DEBUG] Delivered Amount={amount}")
 
                 if amount >= 50000:
                     rule = "Full Salary"
@@ -4675,8 +4588,6 @@ class CompanyMonthlySalaryPreviewAPIView(APIView):
                 else:
                     rule = "Half Salary (Target Not Achieved)"
                     salary = (per_day_salary / 2) * present_days
-
-                print(f"[DEBUG] Salary rule={rule}, Salary={salary}")
 
                 results.append({
                     "user_id": user.id,
@@ -4689,8 +4600,6 @@ class CompanyMonthlySalaryPreviewAPIView(APIView):
                     "salary_rule": rule,
                     "salary": round(float(salary), 2),
                 })
-
-        print("[DEBUG] Salary preview generation completed.")
 
         return Response(
             {
