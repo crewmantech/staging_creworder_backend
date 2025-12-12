@@ -63,7 +63,7 @@ class FollowUpView(viewsets.ModelViewSet):
             return resp.get("result", {}).get("phone_number")
 
         # Sanssoftware
-        elif vendor == "sanssoftwares":
+        elif vendor == "sansoftwares":
             # from telephony.sans_service import SansSoftwareService
             service = SansSoftwareService(process_id=tenent)
             resp = service.get_number(call_id)
