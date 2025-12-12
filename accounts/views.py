@@ -4521,7 +4521,7 @@ class CompanyMonthlySalaryPreviewAPIView(APIView):
         total_amount = (
             Order_Table.objects.filter(
                 order_created_by=user,
-                company=user.profile.company,
+                # company=user.profile.company,
                 order_status__name__iexact='Delivered',
                 created_at__year=year,
                 created_at__month=month,
