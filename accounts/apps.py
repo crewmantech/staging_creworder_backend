@@ -173,7 +173,12 @@ class AccountsConfig(AppConfig):
                     monthyear=current_monthyear
                 ).exists():
                     continue
-
+                users = Employees.objects.filter(
+                    user=target.user,
+                    status__in=[0, 1]
+                ).exists()
+                if not users:
+                    continue
                 # Create auto new target
                 UserTargetsDelails.objects.create(
                     user=target.user,
