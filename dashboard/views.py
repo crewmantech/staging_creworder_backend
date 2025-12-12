@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from dashboard.models import PermissionSetup
 from orders.models import Order_Table,OrderDetail,Customer_State
 from orders.serializers import OrderDetailSerializer,OrderTableSerializer
-from accounts.models import Employees,UserTargetsDelails,User
+from accounts.models import Branch, Employees,UserTargetsDelails,User
 from accounts.serializers import UserProfileSerializer,UserSerializer
 from .serializers import PermissionSetupSerializer, UserDetailForDashboard,OrderSerializerDashboard
 from django.db.models import Count, OuterRef, Subquery, Sum, F
@@ -1470,6 +1470,13 @@ class GetUserHometiles(APIView):
         is_admin = request.user.profile.user_type == 'admin'
         start_dt, end_dt, mgr, tl, own = self._branch_and_user_ids(request)
         company = request.user.profile.company
+        count = Branch.objects.filter(company_id=company.id).count()
+        if count<1:
+            return Response(
+            {"status": True, "message": "Data fetched successfully", "data": [], "errors": None},
+            status=status.HTTP_200_OK,
+        )
+
         tiles = {}
         permission = request.user.has_perm('accounts.edit_order_others')
         for key, (status_name, suffix) in self.TILES.items():
