@@ -6,7 +6,9 @@ from rest_framework import viewsets,status
 
 from accounts.models import Employees
 from accounts.permissions import HasPermission
+from cloud_telephony.models import CloudTelephonyChannelAssign
 from lead_management.models import Lead
+from services.cloud_telephoney.cloud_telephoney_service import CloudConnectService, SansSoftwareService
 from .models import Follow_Up
 from .serializers import FollowUpSerializer,NotepadSerializer
 from django.db import transaction
@@ -25,6 +27,50 @@ class FollowUpView(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     queryset = Follow_Up.objects.all()
     serializer_class = FollowUpSerializer
+    def resolve_phone_number(self,call_id, phone_number, user):
+        """
+        Resolves the phone number from Lead or using external API.
+        """
+        if phone_number and "*" not in phone_number:
+            return phone_number  # Already clean
+
+        # -------- Try finding number in Lead Model --------
+        try:
+            lead = Lead.objects.get(call_id=call_id)
+            if lead.customer_phone:
+                return lead.customer_phone
+        except Lead.DoesNotExist:
+            pass
+
+        # -------- Try external API: GetNumberAPIView logic --------
+        try:
+            channel_assign = CloudTelephonyChannelAssign.objects.get(user_id=user.id)
+            channel = channel_assign.cloud_telephony_channel
+        except CloudTelephonyChannelAssign.DoesNotExist:
+            return None
+
+        vendor = channel.cloudtelephony_vendor.name.lower()
+        tenent = channel.tenent_id
+        token = channel.token
+
+        # Cloud Connect
+        if vendor == "cloud connect":
+            # from telephony.cloud_connect import CloudConnectService
+            service = CloudConnectService(token, tenent)
+            resp = service.call_details(call_id)
+            if resp.get("code") == 200:
+                return resp.get("result", {}).get("phone_number")
+
+        # Sanssoftware
+        if vendor == "sansoftwares":
+            # from telephony.sans_service import SansSoftwareService
+            service = SansSoftwareService(process_id=tenent)
+            resp = service.get_number(call_id)
+            if resp.get("code") == 200:
+                return resp.get("result", {}).get("phone_number")
+
+        return None
+
     def get_permissions(self):
         permission_map = {
             'create': ['superadmin_assets.show_submenusmodel_follow_up', 'superadmin_assets.add_submenusmodel'],
@@ -110,31 +156,48 @@ class FollowUpView(viewsets.ModelViewSet):
     @transaction.atomic
     def create(self, request, *args, **kwargs):
         user = request.user
-        mutable_data = request.data.copy()
-        if 'branch' not in mutable_data:
-            mutable_data['branch'] = request.user.profile.branch.id
-        mutable_data['company'] = user.profile.company.id
-        request._full_data = mutable_data
+        data = request.data.copy()
 
+        # Auto-assign company/branch if missing
+        data.setdefault('branch', user.profile.branch.id)
+        data.setdefault('company', user.profile.company.id)
+
+        # Resolve phone number
+        call_id = data.get("call_id")
+        customer_phone = data.get("customer_phone")
+
+        if call_id and (not customer_phone or "*" in customer_phone):
+            resolved_number = self.resolve_phone_number(call_id, customer_phone, user)
+            if resolved_number:
+                data["customer_phone"] = resolved_number
+
+        request._full_data = data
         return super().create(request, *args, **kwargs)
     
     @transaction.atomic
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
         user = request.user
+        data = request.data.copy()
 
-        mutable_data = request.data.copy()
+        data.setdefault('branch', user.profile.branch.id)
+        data.setdefault('company', user.profile.company.id)
 
-        if 'branch' not in mutable_data:
-            mutable_data['branch'] = request.user.profile.branch.id
-        if 'company' not in mutable_data:
-            mutable_data['company'] = request.user.profile.company.id
-        
-        serializer = self.get_serializer(instance, data=mutable_data, partial=True)
+        # Resolve phone number
+        call_id = data.get("call_id") or instance.call_id
+        customer_phone = data.get("customer_phone") or instance.customer_phone
+
+        if call_id and (not customer_phone or "*" in customer_phone):
+            resolved_number = resolve_phone_number(call_id, customer_phone, user)
+            if resolved_number:
+                data["customer_phone"] = resolved_number
+
+        serializer = self.get_serializer(instance, data=data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
 
         return Response(serializer.data)
+
 
 class NotepadCreateOrUpdate(APIView):
     permission_classes = [IsAuthenticated]
