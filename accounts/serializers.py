@@ -170,28 +170,51 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
 class UserProfileCreateSerializer(serializers.ModelSerializer):
     contact_no = serializers.CharField(max_length=15)
+    department_name = serializers.SerializerMethodField()
+    designation_name = serializers.SerializerMethodField()
+
     class Meta:
         model = Employees
-        exclude = ['user']
+        exclude = ["user"]  # keep existing behaviour, extra SerializerMethodFields will be included
+
     def validate_contact_no(self, value):
         """
         Validate the phone number and normalize it to E.164 format.
+        If user provided number without country code, assume India (+91).
         """
-        phone_number_str = str(value)  # Convert to string if not already
+        phone_number_str = str(value).strip()
 
-        # Add "+91" if the phone number does not start with "+"
+        # If it doesn't start with +, assume Indian number and prepend +91
         if not phone_number_str.startswith("+"):
+            # remove any leading zeros / spaces before prefixing
+            phone_number_str = phone_number_str.lstrip("0").replace(" ", "")
             phone_number_str = f"+91{phone_number_str}"
 
         try:
-            # Parse and validate the phone number
             parsed_phone = parse(phone_number_str, "IN")
             if not is_valid_number(parsed_phone):
                 raise serializers.ValidationError("The phone number entered is not valid.")
-            # Return formatted phone number in E.164 format
             return format_number(parsed_phone, PhoneNumberFormat.E164)
         except NumberParseException:
             raise serializers.ValidationError("The phone number entered is not valid.")
+
+    def get_department_name(self, obj):
+        try:
+            if obj and getattr(obj, "department", None):
+                dept = obj.department
+                return getattr(dept, "name", dept)  # return name if FK, else raw value
+            return None
+        except Exception:
+            return None
+
+    def get_designation_name(self, obj):
+        try:
+            if obj and getattr(obj, "designation", None):
+                desg = obj.designation
+                return getattr(desg, "name", desg)
+            return None
+        except Exception:
+            return None
 class TeamUserProfile(serializers.ModelSerializer):
     user_id = serializers.IntegerField(source="user.id")  # Fetch User ID from User table
     first_name = serializers.SerializerMethodField()
@@ -251,18 +274,11 @@ class UserSerializer(serializers.ModelSerializer):
     role = serializers.SerializerMethodField()
     activity = serializers.SerializerMethodField()
     branch_name = serializers.SerializerMethodField() 
-    department_name = serializers.SerializerMethodField()
-    designation_name = serializers.SerializerMethodField()
-    last_login = serializers.SerializerMethodField()  # override to format safely
     
     class Meta:
         model = User
-        fields = [
-            'id', 'username', 'password', 'first_name', 'last_name', 'email',
-            'last_login', 'date_joined', 'is_staff', 'profile',
-            'role', 'activity', 'branch_name',
-            'department_name', 'designation_name'
-        ]
+        fields = ['id', 'username', 'password',  'first_name', 'last_name', 'email', 'last_login', 'date_joined',
+                  'is_staff', 'profile','role','activity','branch_name']
         extra_kwargs = {
             'password': {'write_only': True}
         }
@@ -280,33 +296,6 @@ class UserSerializer(serializers.ModelSerializer):
 
         # Serialize using your CustomAuthGroupSerializer
         return CustomAuthGroupSerializer(custom_groups, many=True, context=self.context).data
-    
-    def get_department_name(self, user):
-        try:
-            # ensure profile exists and department is not null
-            return user.profile.department.name if user.profile and user.profile.department else None
-        except Exception:
-            return None
-
-    def get_designation_name(self, user):
-        try:
-            return user.profile.designation.name if user.profile and user.profile.designation else None
-        except Exception:
-            return None
-
-    def get_last_login(self, user):
-        """
-        Return ISO-format local datetime string for last_login, or None.
-        Using localtime() so it is readable and consistent.
-        """
-        try:
-            if not user.last_login:
-                return None
-            # Convert to localtime then isoformat (eg: "2025-12-12T12:34:56+05:30")
-            local_dt = timezone.localtime(user.last_login)
-            return local_dt.isoformat()
-        except Exception:
-            return None
     
     def get_activity(self, user):
         token = Token.objects.filter(user=user).first()
