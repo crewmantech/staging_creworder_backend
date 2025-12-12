@@ -71,6 +71,7 @@ class FollowUpView(viewsets.ModelViewSet):
 
             # Correct structure handling
             result = resp.get("result", [])
+            print(result,"--------------74")
             if isinstance(result, list) and len(result) > 0:
                 return result[0].get("Phone_number")
 
