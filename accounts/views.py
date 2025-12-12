@@ -4560,6 +4560,7 @@ class CompanyMonthlySalaryPreviewAPIView(APIView):
         users = User.objects.filter(
             profile__company=company,
             is_active=True,
+            profile__status =1,
             profile__branch_id=branch_id
         )
 
