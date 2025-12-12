@@ -58,8 +58,8 @@ class FollowUpView(viewsets.ModelViewSet):
             # from telephony.cloud_connect import CloudConnectService
             service = CloudConnectService(token, tenent)
             resp = service.call_details(call_id)
-            if resp.get("code") == 200:
-                return resp.get("result", {}).get("phone_number")
+            # if resp.get("code") == 200:
+            return resp.get("result", {}).get("phone_number")
 
         # Sanssoftware
         if vendor == "sansoftwares":
@@ -67,8 +67,8 @@ class FollowUpView(viewsets.ModelViewSet):
             service = SansSoftwareService(process_id=tenent)
             resp = service.get_number(call_id)
             print(resp,"--------------69")
-            if resp.get("code") == 200:
-                return resp.get("result", {}).get("phone_number")
+            # if resp.get("code") == 200:
+            return resp.get("result", {}).get("phone_number")
 
         return None
 
