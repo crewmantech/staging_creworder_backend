@@ -4530,13 +4530,22 @@ class CompanyMonthlySalaryPreviewAPIView(APIView):
             print(f"[ERROR] Expected format: YYYY-MM")
             return 0
 
-        # Build query filters
+        # Calculate date range (matching UserMonthlyPerformanceAPIView logic)
+        print(f"\n[DEBUG] Calculating date range...")
+        _, last_day_num = calendar.monthrange(year, month)
+        start_date = timezone.make_aware(datetime(year, month, 1, 0, 0, 0))
+        end_date = timezone.make_aware(datetime(year, month, last_day_num, 23, 59, 59))
+        
+        print(f"[DEBUG] Date range:")
+        print(f"  - Start date: {start_date}")
+        print(f"  - End date: {end_date}")
+
+        # Build query filters (using date range instead of year/month)
         print(f"\n[DEBUG] Building query filters...")
         filters = {
             'order_created_by': user,
             'order_status__name__iexact': 'Delivered',
-            'created_at__year': year,
-            'created_at__month': month,
+            'created_at__range': (start_date, end_date),
             'is_deleted': False
         }
         print(f"[DEBUG] Query filters:")
@@ -4554,11 +4563,13 @@ class CompanyMonthlySalaryPreviewAPIView(APIView):
         if queryset.exists():
             print(f"\n[DEBUG] Sample orders (first 5):")
             for i, order in enumerate(queryset[:5], 1):
-                print(f"  {i}. Order ID: {order.id}, Amount: {order.total_amount}, Status: {order.order_status.name if order.order_status else 'N/A'}")
+                print(f"  {i}. Order ID: {order.id}, Amount: {order.total_amount}, "
+                    f"Status: {order.order_status.name if order.order_status else 'N/A'}, "
+                    f"Created: {order.created_at}")
         else:
             print(f"[DEBUG] No orders found matching the criteria")
 
-        # Aggregate total
+        # Aggregate total (matching UserMonthlyPerformanceAPIView logic)
         print(f"\n[DEBUG] Calculating aggregate sum...")
         aggregate_result = queryset.aggregate(total=Sum("total_amount"))
         print(f"[DEBUG] Aggregate result: {aggregate_result}")
