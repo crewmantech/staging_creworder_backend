@@ -1471,7 +1471,7 @@ class GetUserHometiles(APIView):
         start_dt, end_dt, mgr, tl, own = self._branch_and_user_ids(request)
         company = request.user.profile.company
         count = Branch.objects.filter(company_id=company.id).count()
-        if count>1:
+        if count<1:
             return Response(
             {"status": True, "message": "Data fetched successfully", "data": [], "errors": None},
             status=status.HTTP_200_OK,
