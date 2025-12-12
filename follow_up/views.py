@@ -169,6 +169,7 @@ class FollowUpView(viewsets.ModelViewSet):
 
         if call_id and (not customer_phone or "*" in customer_phone):
             resolved_number = self.resolve_phone_number(call_id, customer_phone, user)
+            print(resolved_number,"-------------172")
             if resolved_number:
                 data["customer_phone"] = resolved_number
 
