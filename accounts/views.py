@@ -4518,22 +4518,111 @@ class CompanyMonthlySalaryPreviewAPIView(APIView):
             print("[ERROR] Invalid monthyear format")
             return 0
 
-        total_amount = (
+        # 1) Strict (your current) filter
+        strict_qs = Order_Table.objects.filter(
+            order_created_by=user,
+            company=user.profile.company,
+            order_status__name="DELIVERED",
+            created_at__year=year,
+            created_at__month=month,
+            is_deleted=False
+        )
+        print("[DEBUG] strict_qs count:", strict_qs.count())
+        if strict_qs.exists():
+            total = strict_qs.aggregate(total=Sum("total_amount")).get("total")
+            print("[DEBUG] strict total delivered amount =", total)
+            print("[DEBUG] strict SQL:", str(strict_qs.query))
+            return total or 0
+
+        # 2) Show orders created in that month (sample) + their statuses/company/is_deleted
+        created_sample = list(
             Order_Table.objects.filter(
                 order_created_by=user,
-                company=user.profile.company,
-                order_status__name="DELIVERED",
                 created_at__year=year,
-                created_at__month=month,
-                is_deleted=False
-            )
-            .aggregate(total=Sum("total_amount"))
-            .get("total")
+                created_at__month=month
+            ).values('id','order_status__name','company_id','is_deleted','created_at')[:50]
         )
+        print("[DEBUG] Orders CREATED in month (sample):", created_sample)
+        print("[DEBUG] created count:", Order_Table.objects.filter(
+            order_created_by=user, created_at__year=year, created_at__month=month).count())
 
-        print(f"[DEBUG] Total delivered amount = {total_amount}")
-        return total_amount or 0
+        # 3) Try case-insensitive status (covers Delivered/DELIVERED/Delivered By Vendor)
+        ci_qs = Order_Table.objects.filter(
+            order_created_by=user,
+            company=user.profile.company,
+            order_status__name__icontains="deliver",
+            created_at__year=year,
+            created_at__month=month,
+        )
+        print("[DEBUG] ci_qs count (created_at, icontains 'deliver'):", ci_qs.count())
+        if ci_qs.exists():
+            total_ci = ci_qs.aggregate(total=Sum("total_amount")).get("total")
+            print("[DEBUG] ci total delivered amount =", total_ci)
+            print("[DEBUG] ci SQL:", str(ci_qs.query))
+            return total_ci or 0
 
+        # 4) Maybe delivered this month but created earlier: use updated_at
+        upd_qs = Order_Table.objects.filter(
+            order_created_by=user,
+            company=user.profile.company,
+            order_status__name__icontains="deliver",
+            updated_at__year=year,
+            updated_at__month=month,
+        )
+        print("[DEBUG] upd_qs count (updated_at based):", upd_qs.count())
+        if upd_qs.exists():
+            total_up = upd_qs.aggregate(total=Sum("total_amount")).get("total")
+            print("[DEBUG] updated_at total delivered amount =", total_up)
+            print("[DEBUG] upd SQL:", str(upd_qs.query))
+            return total_up or 0
+
+        # 5) Maybe you track delivery via estimated_delivery_date
+        est_qs = Order_Table.objects.filter(
+            order_created_by=user,
+            company=user.profile.company,
+            estimated_delivery_date__year=year,
+            estimated_delivery_date__month=month,
+        )
+        print("[DEBUG] est_qs count (estimated_delivery_date):", est_qs.count())
+        if est_qs.exists():
+            total_est = est_qs.aggregate(total=Sum("total_amount")).get("total")
+            print("[DEBUG] estimated_delivery_date total =", total_est)
+            print("[DEBUG] est SQL:", str(est_qs.query))
+            return total_est or 0
+
+        # 6) Check whether orders for that user-month exist but company differs or is_deleted True
+        loose = list(Order_Table.objects.filter(
+            order_created_by=user,
+            created_at__year=year,
+            created_at__month=month
+        ).values('id','company_id','is_deleted','order_status__name')[:50])
+        print("[DEBUG] loose sample (created this month):", loose)
+
+        # 7) Check whether there are DELIVERED orders but created in other months (maybe created earlier)
+        delivered_any_month = Order_Table.objects.filter(
+            order_created_by=user,
+            company=user.profile.company,
+            order_status__name="DELIVERED",
+        ).values('id','created_at','updated_at')[:50]
+        print("[DEBUG] DELIVERED orders for user-company (any month) sample:", list(delivered_any_month))
+        print("[DEBUG] Total DELIVERED orders (any month):", Order_Table.objects.filter(
+            order_created_by=user, company=user.profile.company, order_status__name="DELIVERED").count())
+
+        # 8) If still nothing, maybe order_created_by is not the right field: show some orders where user appears in other fields (debug)
+        alt_fields_sample = list(Order_Table.objects.filter(
+            Q(order_created_by=user) | Q(order_ship_by__icontains=str(user.id))  # adjust if you store user differently
+        ).values('id','order_created_by_id','order_ship_by')[:50])
+        print("[DEBUG] alt_fields_sample:", alt_fields_sample)
+
+        # 9) Show OrderStatus table values to double-check
+        try:
+            status_names = list(OrderStatus.objects.values_list('id','name'))
+            print("[DEBUG] OrderStatus rows:", status_names)
+        except Exception as e:
+            print("[DEBUG] Could not fetch OrderStatus rows:", e)
+
+        print("[DEBUG] No delivered orders matched the applied filters for month; returning 0")
+        return 0
     def get(self, request):
         print("[DEBUG] Salary Preview API STARTED")
 
