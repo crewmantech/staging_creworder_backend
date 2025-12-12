@@ -514,11 +514,11 @@ class CallServiceViewSet(viewsets.ViewSet):
                     {"error": "Failed to retrieve call details from Sanssoftwares."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            if response_data.get("code") != 200:
-                    return Response({"error": "Failed to retrieve call recording."}, status=status.HTTP_400_BAD_REQUEST)
+            # if response_data.get("code") != 200:
+            #         return Response({"error": "Failed to retrieve call recording."}, status=status.HTTP_400_BAD_REQUEST)
                
             data = response_data.get("result", {})
-            
+            print(data,"--------------------------521")
             calls = []
 
             # Loop over all keys that are digits (i.e., actual call entries)
