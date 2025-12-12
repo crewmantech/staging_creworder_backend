@@ -399,12 +399,23 @@ class SansSoftwareService:
         }
         return self._post_request("api/getNumber", data)
 
-    def get_all_call_log_detail(self, phone_number: str, process_id: Optional[str] = None):
+    def get_all_call_log_detail(self, phone_number: str, start_date_str: str,to_date_str: str, process_id: Optional[str] = None):
         """
         Wraps:
             POST https://bsl.sansoftwares.com/api/getAllCallLogDetail
             Body: { "Phone_number": "...", "process_id": "..." }
         """
+        selected_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+        selected_date = datetime.strptime(to_date_str, "%Y-%m-%d").date()
+        from_date = f"{selected_date} 00:00:00"
+        to_date = f"{selected_date} 23:59:59"
+
+        data = {
+            "Phone_number": phone_number,
+            "process_id": process_id or self.process_id,
+            "from_date": from_date,
+            "to_date": to_date,
+        }
         data = {
             "Phone_number": phone_number,
             "process_id": process_id or self.process_id,

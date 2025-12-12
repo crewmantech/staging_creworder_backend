@@ -507,7 +507,7 @@ class CallServiceViewSet(viewsets.ViewSet):
                 result = details_response.get("result", {})
                 phone_number = result.get("phone_number")
               
-            response_data = sans_service.get_lead_recording(phone_number,date,date)
+            response_data = sans_service.get_all_call_log_detail(phone_number,date,date)
 
             if not response_data:
                 return Response(
