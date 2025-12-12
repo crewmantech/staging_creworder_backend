@@ -506,8 +506,8 @@ class CallServiceViewSet(viewsets.ViewSet):
                     return Response({"error": "Failed to retrieve call details."}, status=status.HTTP_400_BAD_REQUEST)
                 result = details_response.get("result", {})
                 phone_number = result.get("phone_number")
-                
-            response_data = sans_service.get_lead_recording(phone_number)
+              
+            response_data = sans_service.get_lead_recording(phone_number,date,date)
 
             if not response_data:
                 return Response(
