@@ -4522,7 +4522,7 @@ class CompanyMonthlySalaryPreviewAPIView(APIView):
             Order_Table.objects.filter(
                 order_created_by=user,
                 company=user.profile.company,
-                order_status__name="DELIVERED",
+                order_status__name__iexact='Delivered',
                 created_at__year=year,
                 created_at__month=month,
                 is_deleted=False
