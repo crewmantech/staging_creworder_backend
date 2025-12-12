@@ -522,11 +522,11 @@ class CallServiceViewSet(viewsets.ViewSet):
             calls = []
 
             # Loop over all keys that are digits (i.e., actual call entries)
-            for key, value in data.items():
-                if key.isdigit():
-                    value['file_path'] = value.get("reco_file")
-                    calls.append(value)
-
+            for value in data:
+                # if key.isdigit():
+                value['file_path'] = value.get("reco_file")
+                calls.append(value)
+            # print(calles)
             return Response({
                 "success": True,
                 "data": calls,
