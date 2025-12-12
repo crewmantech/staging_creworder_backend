@@ -52,7 +52,7 @@ class FollowUpView(viewsets.ModelViewSet):
         vendor = channel.cloudtelephony_vendor.name.lower()
         tenent = channel.tenent_id
         token = channel.token
-
+        print(vendor,"-----------------55")
         # Cloud Connect
         if vendor == "cloud connect":
             # from telephony.cloud_connect import CloudConnectService

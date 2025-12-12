@@ -397,6 +397,7 @@ class SansSoftwareService:
             "Lead_ID": lead_id,
             "process_id": process_id or self.process_id,
         }
+        print(data,"------------400")
         return self._post_request("api/getNumber", data)
 
     def get_all_call_log_detail(self, phone_number: str, start_date_str: str,to_date_str: str, process_id: Optional[str] = None):
