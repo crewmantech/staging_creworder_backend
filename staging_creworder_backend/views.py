@@ -224,6 +224,8 @@ class CustomLoginView(LoginView):
             
             # Create new token
             token = Token.objects.create(user=user)
+            user.last_login = timezone.now()
+            user.save(update_fields=["last_login"])
             LoginLog.objects.create(
                 user=user,
                 ip_address=client_ip,
@@ -287,6 +289,8 @@ class VerifyOTPView(APIView):
             otp_instance.delete()
             # Create new token
             token = Token.objects.create(user=user)
+            user.last_login = timezone.now()
+            user.save(update_fields=["last_login"])
             LoginLog.objects.create(
                     user=user,
                     ip_address=" ",
