@@ -508,7 +508,7 @@ class CallServiceViewSet(viewsets.ViewSet):
                 phone_number = result.get("phone_number")
               
             response_data = sans_service.get_all_call_log_detail(phone_number,date,date)
-
+            print(response_data,"--------------511")
             if not response_data:
                 return Response(
                     {"error": "Failed to retrieve call details from Sanssoftwares."},

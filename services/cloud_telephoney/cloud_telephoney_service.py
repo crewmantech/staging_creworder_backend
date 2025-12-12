@@ -416,10 +416,11 @@ class SansSoftwareService:
             "from_date": from_date,
             "to_date": to_date,
         }
-        data = {
-            "Phone_number": phone_number,
-            "process_id": process_id or self.process_id,
-        }
+        # data = {
+        #     "Phone_number": phone_number,
+        #     "process_id": process_id or self.process_id,
+        # }
+        print(data,"-----------342")
         return self._post_request("api/getAllCallLogDetail", data)
 
     def get_lead_recording(self, phone_number: str, start_date_str: str,to_date_str: str, process_id: Optional[str] = None):
