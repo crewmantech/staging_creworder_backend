@@ -1258,9 +1258,7 @@ class LeadformViewSet(viewsets.ModelViewSet):
 
 
 class LeadsViewSet(viewsets.ReadOnlyModelViewSet):
-    """
-    Public API to list all leads with pagination (no authentication required).
-    """
+   
     queryset = Lead.objects.all().order_by('-created_at')
     serializer_class = LeadNewSerializer
     pagination_class = LeadPagination
