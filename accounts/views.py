@@ -4544,6 +4544,7 @@ class CompanyMonthlySalaryPreviewAPIView(APIView):
         print(f"\n[DEBUG] Building query filters...")
         filters = {
             'order_created_by': user,
+            'company': user.profile.company,
             'order_status__name__iexact': 'Delivered',
             'created_at__range': (start_date, end_date),
             'is_deleted': False
@@ -4557,7 +4558,7 @@ class CompanyMonthlySalaryPreviewAPIView(APIView):
         queryset = Order_Table.objects.filter(**filters)
         
         print(f"[DEBUG] Queryset count: {queryset.count()}")
-        print(f"[DEBUG] SQL Query: {queryset.query}")
+        # print(f"[DEBUG] SQL Query: {queryset.query}")
         
         # Show sample orders if any exist
         if queryset.exists():
