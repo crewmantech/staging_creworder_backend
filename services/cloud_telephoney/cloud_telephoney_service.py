@@ -111,7 +111,7 @@
 import requests
 import hashlib
 from typing import Optional
-
+from datetime import datetime
 class CloudConnectService:
     BASE_URL = "https://crm5.cloud-connect.in/CCC_api/v1.4"
 
@@ -411,16 +411,24 @@ class SansSoftwareService:
         }
         return self._post_request("api/getAllCallLogDetail", data)
 
-    def get_lead_recording(self, phone_number: str, process_id: Optional[str] = None):
+    def get_lead_recording(self, phone_number: str, start_date_str: str,to_date_str: str, process_id: Optional[str] = None):
         """
-        Wraps:
-            POST https://bsl.sansoftwares.com/api/getLeadrecording
-            Body: { "Phone_number": "...", "process_id": "..." }
+        Fetch lead recording for a single date.
+        Converts 'YYYY-MM-DD' → full-day time range.
         """
+        # Parse incoming date
+        selected_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+        selected_date = datetime.strptime(to_date_str, "%Y-%m-%d").date()
+        from_date = f"{selected_date} 00:00:00"
+        to_date = f"{selected_date} 23:59:59"
+
         data = {
             "Phone_number": phone_number,
             "process_id": process_id or self.process_id,
+            "from_date": from_date,
+            "to_date": to_date,
         }
+
         return self._post_request("api/getLeadrecording", data)
 
     def click_to_call(self, agent_name: str, dialed_number: str):
