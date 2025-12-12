@@ -59,6 +59,7 @@ class FollowUpView(viewsets.ModelViewSet):
             service = CloudConnectService(token, tenent)
             resp = service.call_details(call_id)
             # if resp.get("code") == 200:
+            print(resp,"==========62")
             return resp.get("result", {}).get("phone_number")
 
         # Sanssoftware
