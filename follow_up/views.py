@@ -63,13 +63,16 @@ class FollowUpView(viewsets.ModelViewSet):
             return resp.get("result", {}).get("phone_number")
 
         # Sanssoftware
-        if vendor == "sansoftwares":
+        elif vendor == "sanssoftwares":
             # from telephony.sans_service import SansSoftwareService
             service = SansSoftwareService(process_id=tenent)
             resp = service.get_number(call_id)
-            print(resp,"--------------69")
-            # if resp.get("code") == 200:
-            return resp.get("result", {}).get("phone_number")
+            print(resp, "--------------69")
+
+            # Correct structure handling
+            result = resp.get("result", [])
+            if isinstance(result, list) and len(result) > 0:
+                return result[0].get("Phone_number")
 
         return None
 
