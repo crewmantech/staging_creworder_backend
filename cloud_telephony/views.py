@@ -605,7 +605,7 @@ class CallServiceViewSet(viewsets.ViewSet):
             # Loop over all keys that are digits (i.e., actual call entries)
             for key, value in data.items():
                 if key.isdigit():
-                    value['file_path'] = value.get("recording_path")
+                    value['file_path'] = value.get("reco_file")
                     calls.append(value)
 
             return Response({
