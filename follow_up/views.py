@@ -36,7 +36,7 @@ class FollowUpView(viewsets.ModelViewSet):
 
         # -------- Try finding number in Lead Model --------
         try:
-            lead = Lead.objects.get(call_id=call_id)
+            lead = Lead.objects.get(lead_id=call_id)
             if lead.customer_phone:
                 return lead.customer_phone
         except Lead.DoesNotExist:
