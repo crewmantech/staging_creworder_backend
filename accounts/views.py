@@ -4518,21 +4518,43 @@ class CompanyMonthlySalaryPreviewAPIView(APIView):
             print("[ERROR] Invalid monthyear format")
             return 0
 
-        total_amount = (
-            Order_Table.objects.filter(
-                order_created_by=user,
-                company=user.profile.company,
-                order_status__name="DELIVERED",
-                created_at__year=year,
-                created_at__month=month,
-                is_deleted=False
-            )
-            .aggregate(total=Sum("total_amount"))
-            .get("total")
+        # ✅ DEBUG: Let's see what orders exist first
+        all_orders = Order_Table.objects.filter(
+            order_created_by=user,
+            company=user.profile.company,
+            is_deleted=False
         )
+        print(f"[DEBUG] Total orders by user (all time): {all_orders.count()}")
+        
+        # Check orders in the specific month
+        month_orders = all_orders.filter(
+            created_at__year=year,
+            created_at__month=month
+        )
+        print(f"[DEBUG] Orders created in {year}-{month}: {month_orders.count()}")
+        
+        # Check delivered orders in the specific month
+        delivered_orders = month_orders.filter(
+            order_status__name="DELIVERED"
+        )
+        print(f"[DEBUG] DELIVERED orders created in {year}-{month}: {delivered_orders.count()}")
+        
+        # Print sample order details for debugging
+        if delivered_orders.exists():
+            for order in delivered_orders[:3]:  # Show first 3 orders
+                print(f"[DEBUG] Sample Order: ID={order.id}, Amount={order.total_amount}, Status={order.order_status.name}, Created={order.created_at}")
+        
+        # ✅ FIXED: Calculate total with proper None handling
+        total_amount = delivered_orders.aggregate(
+            total=Sum("total_amount")
+        ).get("total")
 
+        if total_amount is None:
+            print(f"[DEBUG] No delivered amount found. Returning 0")
+            return 0
+        
         print(f"[DEBUG] Total delivered amount = {total_amount}")
-        return total_amount or 0
+        return float(total_amount)
 
     def get(self, request):
         print("[DEBUG] Salary Preview API STARTED")
@@ -4602,40 +4624,46 @@ class CompanyMonthlySalaryPreviewAPIView(APIView):
             )
             print(f"[DEBUG] Target records count: {target_achieved_qs.count()}")
 
+            # ✅ Initialize default values
+            monthly_amount_target = 0
+            amount = 0
+
             if target_achieved_qs.exists():
                 print("[DEBUG] Target record exists. Fetching...")
                 try:
                     target_obj = UserTargetsDelails.objects.get(user=user, monthyear=monthyear)
-                    monthly_amount_target = target_obj.monthly_amount_target
+                    monthly_amount_target = float(target_obj.monthly_amount_target) if target_obj.monthly_amount_target else 0
                     print(f"[DEBUG] monthly_amount_target={monthly_amount_target}")
                 except UserTargetsDelails.DoesNotExist:
                     print("[ERROR] Target record disappeared during get()")
                     monthly_amount_target = 0
 
                 amount = self.get_user_monthwise_delivered_amount(user, monthyear)
-
                 print(f"[DEBUG] Delivered Amount={amount}")
+            else:
+                print("[DEBUG] No target record found for this user. Using defaults.")
 
-                if amount >= 50000:
-                    rule = "Full Salary"
-                    salary = per_day_salary * present_days
-                else:
-                    rule = "Half Salary (Target Not Achieved)"
-                    salary = (per_day_salary / 2) * present_days
+            # ✅ Calculate salary based on achievement
+            if amount >= 50000:
+                rule = "Full Salary"
+                salary = per_day_salary * present_days
+            else:
+                rule = "Half Salary (Target Not Achieved)"
+                salary = (per_day_salary / 2) * present_days
 
-                print(f"[DEBUG] Salary rule={rule}, Salary={salary}")
+            print(f"[DEBUG] Salary rule={rule}, Salary={salary}")
 
-                results.append({
-                    "user_id": user.id,
-                    "username": user.username,
-                    "full_name": user.get_full_name(),
-                    "present_days": present_days,
-                    "target_achieved": amount,
-                    "mintarget": 50000,
-                    "monthly_target": monthly_amount_target,
-                    "salary_rule": rule,
-                    "salary": round(float(salary), 2),
-                })
+            results.append({
+                "user_id": user.id,
+                "username": user.username,
+                "full_name": user.get_full_name(),
+                "present_days": present_days,
+                "target_achieved": amount,
+                "mintarget": 50000,
+                "monthly_target": monthly_amount_target,
+                "salary_rule": rule,
+                "salary": round(float(salary), 2),
+            })
 
         print("[DEBUG] Salary preview generation completed.")
 
