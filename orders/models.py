@@ -486,23 +486,43 @@ class LableLayout(BaseModel):
 
 class invoice_layout(BaseModel):
     id = models.CharField(max_length=50, primary_key=True, unique=True)
+
     logo = models.ImageField(upload_to='logo_lable_invoice_images/', null=True, blank=True)
     signature = models.ImageField(upload_to='signature_lable_invoice_images/', null=True, blank=True)
-    branch = models.ForeignKey(Branch, on_delete=models.CASCADE,null=True, blank=True)
-    company = models.ForeignKey(Company, on_delete=models.CASCADE, db_column='company_id',null=True,blank=True)
+
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, null=True, blank=True)
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, db_column='company_id', null=True, blank=True)
+
     page_setting = models.CharField(max_length=50, null=True, blank=True)
-    show_logo = models.BooleanField(default=False,null=True)
-    show_signature = models.BooleanField(default=False,null=True)
+
+    # Boolean fields default TRUE as you requested
+    show_logo = models.BooleanField(default=True, null=True, blank=True)
+    show_signature = models.BooleanField(default=True, null=True, blank=True)
+    payment_status = models.BooleanField(default=True, null=True, blank=True)
+
+    # All remaining fields (string fields)
+    shipped_from = models.BooleanField(default=True, null=True, blank=True)
+    customer_contact = models.BooleanField(default=True, null=True, blank=True)
+    company_email = models.BooleanField(default=True, null=True, blank=True)
+    cin = models.BooleanField(default=True, null=True, blank=True)
+    pan = models.BooleanField(default=True, null=True, blank=True)
+    gst = models.BooleanField(default=True, null=True, blank=True)
+    fssai = models.BooleanField(default=True, null=True, blank=True)
+    payment_info = models.BooleanField(default=True, null=True, blank=True)
+    customer_address = models.BooleanField(default=True, null=True, blank=True)
+    company_contact = models.BooleanField(default=True, null=True, blank=True)
+    customer_email = models.BooleanField(default=True, null=True, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'invoice_layout'
+
     def save(self, *args, **kwargs):
         if not self.id:
             self.id = generate_unique_id(invoice_layout, prefix='ILI')
         super().save(*args, **kwargs)
-
 
 
 
