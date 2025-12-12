@@ -514,7 +514,24 @@ class CallServiceViewSet(viewsets.ViewSet):
                     {"error": "Failed to retrieve call details from Sanssoftwares."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
+            if response_data.get("code") != 200:
+                    return Response({"error": "Failed to retrieve call recording."}, status=status.HTTP_400_BAD_REQUEST)
+               
+            data = response_data.get("result", {})
+            
+            calls = []
 
+            # Loop over all keys that are digits (i.e., actual call entries)
+            for key, value in data.items():
+                if key.isdigit():
+                    value['file_path'] = value.get("reco_file")
+                    calls.append(value)
+
+            return Response({
+                "success": True,
+                "data": calls,
+                "message": response_data.get("message", "Call details retrieved successfully.")
+            }, status=status.HTTP_200_OK)
             return Response({
                 "success": True,
                 "data": response_data,
@@ -588,7 +605,7 @@ class CallServiceViewSet(viewsets.ViewSet):
                 )
 
             sans_service = SansSoftwareService(process_id=process_id)
-            response_data = sans_service.get_all_call_log_detail(phone_number)
+            response_data = sans_service.get_all_call_log_detail(phone_number,date,date)
 
             if not response_data:
                 return Response(
