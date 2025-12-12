@@ -66,6 +66,7 @@ class FollowUpView(viewsets.ModelViewSet):
             # from telephony.sans_service import SansSoftwareService
             service = SansSoftwareService(process_id=tenent)
             resp = service.get_number(call_id)
+            print(resp,"--------------69")
             if resp.get("code") == 200:
                 return resp.get("result", {}).get("phone_number")
 
