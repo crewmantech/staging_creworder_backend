@@ -4489,11 +4489,10 @@ class CompanySalaryViewSet(viewsets.ModelViewSet):
 
 class CompanyMonthlySalaryPreviewAPIView(APIView):
     permission_classes = [IsAuthenticated]
-    """
-    Preview salary for all users of a company for given month
-    No DB write, calculation only
-    """
-    def get_present_days(self,user, year, month):
+
+    def get_present_days(self, user, year, month):
+        print(f"[DEBUG] Calculating present days for User={user.id}, Year={year}, Month={month}")
+
         attendances = Attendance.objects.filter(
             user=user,
             date__year=year,
@@ -4501,26 +4500,28 @@ class CompanyMonthlySalaryPreviewAPIView(APIView):
             attendance="P"
         )
 
+        print(f"[DEBUG] Total attendance records fetched: {attendances.count()}")
+
         present_days = sum(
             1 for a in attendances if a.date.weekday() != 6
         )
+
+        print(f"[DEBUG] Present days after excluding Sundays: {present_days}")
         return present_days
 
-    def get_user_monthwise_delivered_amount(self,user, monthyear):
-        """
-        Returns total delivered order amount for a user in a given month
-        monthyear format: YYYY-MM
-        """
+    def get_user_monthwise_delivered_amount(self, user, monthyear):
+        print(f"[DEBUG] Fetching delivered amount for User={user.id}, monthyear={monthyear}")
 
         try:
             year, month = map(int, monthyear.split("-"))
         except ValueError:
+            print("[ERROR] Invalid monthyear format")
             return 0
 
         total_amount = (
             Order_Table.objects.filter(
                 order_created_by=user,
-                company=user.profile.company,      # ✅ company safe
+                company=user.profile.company,
                 order_status__name="DELIVERED",
                 created_at__year=year,
                 created_at__month=month,
@@ -4530,114 +4531,125 @@ class CompanyMonthlySalaryPreviewAPIView(APIView):
             .get("total")
         )
 
+        print(f"[DEBUG] Total delivered amount = {total_amount}")
         return total_amount or 0
+
     def get(self, request):
+        print("[DEBUG] Salary Preview API STARTED")
+
         user = request.user
-        monthyear = request.query_params.get("monthyear")  # YYYY-MM
+        monthyear = request.query_params.get("monthyear")
         branch_id = request.query_params.get("branch_id")
+
+        print(f"[DEBUG] Request User={user.id}, monthyear={monthyear}, branch_id={branch_id}")
+
         if not hasattr(user, "profile") or not user.profile.company:
-            return Response(
-                {"error": "User is not linked to any company"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            print("[ERROR] User has no company linked")
+            return Response({"error": "User is not linked to any company"}, status=400)
+
         if not branch_id:
-            return Response(
-                {"error": "Please select a branch"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            print("[ERROR] Branch not selected")
+            return Response({"error": "Please select a branch"}, status=400)
+
         company = user.profile.company
-        # if not monthyear:
-        #     return Response(
-        #         {"error": "monthyear is required (YYYY-MM)"},
-        #         status=status.HTTP_400_BAD_REQUEST
-        #     )
+        print(f"[DEBUG] Company Found: {company.id} - {company.name}")
+
         if not monthyear:
             today = date.today()
             monthyear = f"{today.year}-{today.month:02d}"
-
+            print(f"[DEBUG] No monthyear provided. Defaulting to {monthyear}")
 
         try:
             year, month = map(int, monthyear.split("-"))
+            print(f"[DEBUG] Parsed monthyear: Year={year}, Month={month}")
         except ValueError:
-            return Response(
-                {"error": "Invalid monthyear format"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
+            print("[ERROR] Invalid monthyear format")
+            return Response({"error": "Invalid monthyear format"}, status=400)
 
-        # ✅ Company salary (annual)
+        # Company salary fetch
+        print("[DEBUG] Fetching Company Salary...")
         try:
-            company_salary = CompanySalary.objects.get(
-                company=company
-            )
+            company_salary = CompanySalary.objects.get(company=company)
         except CompanySalary.DoesNotExist:
-            return Response(
-                {"error": "Company salary not set"},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            print("[ERROR] Company salary not set")
+            return Response({"error": "Company salary not set"}, status=404)
 
         annual_salary = company_salary.amount
         per_day_salary = annual_salary / 365
+        print(f"[DEBUG] annual_salary={annual_salary}, per_day_salary={per_day_salary}")
 
+        # Fetching users
+        print("[DEBUG] Fetching users belonging to branch_id=", branch_id)
         users = User.objects.filter(
             profile__company=company,
             is_active=True,
             profile__branch_id=branch_id
         )
 
+        print(f"[DEBUG] Total users found: {users.count()}")
+
         results = []
 
         for user in users:
+            print(f"\n[DEBUG] ------------------ Processing User={user.id} ------------------")
+
             present_days = self.get_present_days(user, year, month)
 
-            target_achieved = UserTargetsDelails.objects.filter(
+            print("[DEBUG] Fetching user target details...")
+            target_achieved_qs = UserTargetsDelails.objects.filter(
                 user=user,
                 monthyear=monthyear,
-                # achieve_target=True
             )
-            if target_achieved:
-                print(target_achieved,"---------------4568")
-                try:
-                    target_achieved = UserTargetsDelails.objects.get(user=user, monthyear=monthyear)
-                    monthly_amount_target = target_achieved.monthly_amount_target
-                except UserTargetsDelails.DoesNotExist:
-                    monthly_amount_target = 0
-                # monthly_amount_target=target_achieved.monthly_amount_target
+            print(f"[DEBUG] Target records count: {target_achieved_qs.count()}")
 
-                amount = self.get_user_monthwise_delivered_amount(
-                        user=user,
-                        monthyear = monthyear
-                    )
-                if amount>=50000:
-                    salary = per_day_salary * present_days
+            if target_achieved_qs.exists():
+                print("[DEBUG] Target record exists. Fetching...")
+                try:
+                    target_obj = UserTargetsDelails.objects.get(user=user, monthyear=monthyear)
+                    monthly_amount_target = target_obj.monthly_amount_target
+                    print(f"[DEBUG] monthly_amount_target={monthly_amount_target}")
+                except UserTargetsDelails.DoesNotExist:
+                    print("[ERROR] Target record disappeared during get()")
+                    monthly_amount_target = 0
+
+                amount = self.get_user_monthwise_delivered_amount(user, monthyear)
+
+                print(f"[DEBUG] Delivered Amount={amount}")
+
+                if amount >= 50000:
                     rule = "Full Salary"
+                    salary = per_day_salary * present_days
                 else:
-                    salary = (per_day_salary / 2) * present_days
                     rule = "Half Salary (Target Not Achieved)"
+                    salary = (per_day_salary / 2) * present_days
+
+                print(f"[DEBUG] Salary rule={rule}, Salary={salary}")
 
                 results.append({
-                        "user_id": user.id,
-                        "username": user.username,
-                        "full_name":user.get_full_name(),
-                        "present_days": present_days,
-                        "target_achieved": amount,  # FIXED
-                        "mintarget":50000,
-                        "monthly_target":monthly_amount_target,
-                        "salary_rule": rule,
-                        "salary": round(float(salary), 2)
-                    })
+                    "user_id": user.id,
+                    "username": user.username,
+                    "full_name": user.get_full_name(),
+                    "present_days": present_days,
+                    "target_achieved": amount,
+                    "mintarget": 50000,
+                    "monthly_target": monthly_amount_target,
+                    "salary_rule": rule,
+                    "salary": round(float(salary), 2),
+                })
+
+        print("[DEBUG] Salary preview generation completed.")
 
         return Response(
-                {
-                    "company": {
-                        "id": company.id,
-                        "name": company.name
-                    },
-                    "month": monthyear,
-                    "annual_salary": float(annual_salary),
-                    "per_day_salary": round(float(per_day_salary), 2),
-                    "salary_preview": True,
-                    "employees": results
+            {
+                "company": {
+                    "id": company.id,
+                    "name": company.name
                 },
-                status=status.HTTP_200_OK
-            )
+                "month": monthyear,
+                "annual_salary": float(annual_salary),
+                "per_day_salary": round(float(per_day_salary), 2),
+                "salary_preview": True,
+                "employees": results
+            },
+            status=200
+        )
