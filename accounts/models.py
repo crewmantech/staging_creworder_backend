@@ -1081,7 +1081,12 @@ class Others(models.Model):
             ('create_group_chat_others', 'create group chat others'),
             ('view_click_team_order_others', 'Can click team order others'),
             ('view_branch_switcher_others', 'view branch switcher others'),
-            ('view_team_deliverd_performance_others', 'view team deliverd performance others')
+            ('view_team_deliverd_performance_others', 'view team deliverd performance others'),
+            ('doctor_appointment_others', 'Can doctor appointment others')
+            ('view_own_appointment_others', 'Can view own appointment others'),
+            ('view_all_appointment_others', 'Can view all appointment others'),
+            ('view_manager_appointment_others', 'Can view manager appointment others'),
+            ('view_teamlead_appointment_others', 'Can view team lead appointment others')
 
             )
     def __str__(self):
@@ -1253,3 +1258,58 @@ class CompanySalary(BaseModel):
 
     def __str__(self):
         return f"{self.company.name} - {self.amount}"
+
+
+
+class Doctor(BaseModel):
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name="doctor_profile"
+    )
+
+    company = models.ForeignKey(
+        Company,
+        on_delete=models.CASCADE,
+        related_name="doctors"
+        
+    )
+
+    # ✅ Multiple branches + nullable
+    branches = models.ManyToManyField(
+        Branch,
+        related_name="doctors"
+    )
+
+    registration_number = models.CharField(
+        max_length=100,
+        unique=True,
+        null=True,
+        blank=True
+    )
+
+    degree = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text="MBBS, MD, MS, BDS etc"
+    )
+
+    specialization = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True
+    )
+
+    experience_years = models.PositiveIntegerField(
+        default=0,
+        null=True,
+        blank=True
+    )
+
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        if self.user:
+            return f"{self.user.username}"
+        return f"Doctor - {self.id}"

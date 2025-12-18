@@ -4,8 +4,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import viewsets,status
 
-from accounts.models import Employees
+from accounts.models import Doctor, Employees
 from accounts.permissions import HasPermission
+from accounts.serializers import DoctorSerializer
 from cloud_telephony.models import CloudTelephonyChannelAssign
 from lead_management.models import Lead
 from services.cloud_telephoney.cloud_telephoney_service import CloudConnectService, SansSoftwareService
@@ -351,3 +352,33 @@ class GetPhoneByReferenceAPIView(APIView):
             {"error": "No Lead or Follow-up found for this reference_id"},
             status=status.HTTP_404_NOT_FOUND
         )
+    
+class DoctorViewSet(viewsets.ModelViewSet):
+    serializer_class = DoctorSerializer
+    permission_classes = [IsAuthenticated]
+
+    queryset = Doctor.objects.select_related(
+        "user", "company"
+    ).prefetch_related("branches")
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+
+        # ✅ get logged-in user
+        user = self.request.user
+
+        # ✅ get company from user profile
+        company = getattr(user.profile, "company", None)
+
+        branch = self.request.query_params.get("branch")
+
+        # 🔐 company-level isolation
+        if company:
+            qs = qs.filter(company=company)
+
+        # optional branch filter
+        if branch:
+            qs = qs.filter(branches__id=branch)
+
+        return qs
+

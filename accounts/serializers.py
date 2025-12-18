@@ -12,7 +12,7 @@ from staging_creworder_backend import settings
 from lead_management.models import Lead, LeadSourceModel
 from orders.models import  Products
 from services.email.email_service import send_email
-from .models import  Agreement, AttendanceSession, CompanyInquiry, CompanySalary, CompanyUserAPIKey, Enquiry, InterviewApplication, QcScore, ReminderNotes, StickyNote, User, Company, Package,Employees, Notice1, Branch, FormEnquiry, SupportTicket, Module, \
+from .models import  Agreement, AttendanceSession, CompanyInquiry, CompanySalary, CompanyUserAPIKey, Doctor, Enquiry, InterviewApplication, QcScore, ReminderNotes, StickyNote, User, Company, Package,Employees, Notice1, Branch, FormEnquiry, SupportTicket, Module, \
     Department, Designation, Leaves, Holiday, Award, Appreciation, ShiftTiming, Attendance,Shift_Roster,PackageDetailsModel,CustomAuthGroup,\
     PickUpPoint,UserTargetsDelails,AdminBankDetails,AllowedIP,QcTable
 import string
@@ -876,3 +876,33 @@ class CompanySalarySerializer(serializers.ModelSerializer):
     class Meta:
         model = CompanySalary
         fields = ["id", "amount", "created_at", "updated_at"]
+
+
+class DoctorSerializer(serializers.ModelSerializer):
+    branches = serializers.PrimaryKeyRelatedField(
+        queryset=Branch.objects.all(),
+        many=True,
+        required=False
+    )
+
+    branch_names = serializers.SerializerMethodField()
+    company_name = serializers.CharField(source="company.name", read_only=True)
+
+    class Meta:
+        model = Doctor
+        fields = "__all__"
+
+    def get_branch_names(self, obj):
+        return list(obj.branches.values_list("name", flat=True))
+
+    def validate(self, data):
+        company = data.get("company")
+        branches = data.get("branches", [])
+
+        if company and branches:
+            for branch in branches:
+                if branch.company != company:
+                    raise serializers.ValidationError(
+                        "All selected branches must belong to the same company."
+                    )
+        return data

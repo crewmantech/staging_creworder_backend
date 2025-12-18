@@ -1,5 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+
+from follow_up.views import DoctorViewSet
 from .views import AgentAttendanceUserWiseAPIView, AgreementViewSet, AssignRole,AgentListByManagerAPIView, AgentListByTeamleadAPIView, CSVUserUploadView, CompanyInquiryViewSet, CompanyMonthlySalaryPreviewAPIView, CompanyMonthlySummaryView, CompanySalaryViewSet, CompanyUserAPIKeyViewSet, CompanyUserViewSet, CustomPasswordResetView, DeleteUserListView, EnquiryViewSet, ForceLogoutView, InterviewApplicationViewSet, ManagerTeamLeadAgentAPIView, ManagerViewSet, MonthlyCompanyStatsView, QcScoreViewSet, ReminderNotesViewSet, ResetPasswordAPIView, StickyNoteViewSet, TeamleadViewSet, UpdateTeamLeadManagerAPIView, UserExportView, UserPermissionStatusView, UserViewSet, CompanyViewSet, PackageViewSet, UserPermissionsView, \
     UserProfileViewSet, \
     NoticeViewSet, BranchViewSet, AdminSelfSignUp, FormEnquiryViewSet, SupportTicketViewSet, ModuleViewSet, \
@@ -50,6 +52,7 @@ router.register(r'assign-company-user', CompanyUserAPIKeyViewSet, basename='assi
 router.register(r'reminder-notes', ReminderNotesViewSet, basename='remindernotes')
 router.register(r"interviews", InterviewApplicationViewSet, basename="interview")
 router.register(r"company-salary", CompanySalaryViewSet, basename="company-salary")
+router.register(r"doctors", DoctorViewSet, basename="doctor")
 # router.register(r'assign-role',AssignRole,basename='assign-role')
 urlpatterns = [
     path('', include(router.urls)),
