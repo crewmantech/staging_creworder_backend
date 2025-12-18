@@ -255,6 +255,10 @@ class UserViewSet(viewsets.ModelViewSet):
             if attendance:
                 
                 queryset = queryset.filter(profile__login_allowed=True,profile__user_type="agent")
+            # ✅ Exclude users who are already doctors
+            doctor = self.request.query_params.get("doctor")
+            if doctor == "true":
+                queryset = queryset.filter(doctor_profile__isnull=True)
             # Only filter active for list/retrieve
             if self.action in ["list", "retrieve"]:
                 queryset = queryset.filter(profile__status=1)
