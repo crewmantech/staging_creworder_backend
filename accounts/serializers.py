@@ -879,6 +879,7 @@ class CompanySalarySerializer(serializers.ModelSerializer):
 
 
 class DoctorSerializer(serializers.ModelSerializer):
+    # 🔹 Branches (existing)
     branches = serializers.PrimaryKeyRelatedField(
         queryset=Branch.objects.all(),
         many=True,
@@ -888,13 +889,51 @@ class DoctorSerializer(serializers.ModelSerializer):
     branch_names = serializers.SerializerMethodField()
     company_name = serializers.CharField(source="company.name", read_only=True)
 
+    # 🔹 USER DETAILS (READ-ONLY)
+    username = serializers.CharField(source="user.username", read_only=True)
+    email = serializers.EmailField(source="user.email", read_only=True)
+    full_name = serializers.SerializerMethodField()
+    phone_number = serializers.SerializerMethodField()
+
     class Meta:
         model = Doctor
-        fields = "__all__"
+        fields = [
+            "id",
+            "user",
+            "username",
+            "full_name",
+            "email",
+            "phone_number",
+            "company",
+            "company_name",
+            "branches",
+            "branch_names",
+            "registration_number",
+            "degree",
+            "specialization",
+            "experience_years",
+            "address",
+            "is_active",
+            "created_at",
+        ]
         read_only_fields = ["company"]
 
+    # -----------------------
+    # Helper methods
+    # -----------------------
     def get_branch_names(self, obj):
         return list(obj.branches.values_list("name", flat=True))
+
+    def get_full_name(self, obj):
+        first = obj.user.first_name or ""
+        last = obj.user.last_name or ""
+        return f"{first} {last}".strip()
+
+    def get_phone_number(self, obj):
+        # from Employees profile
+        if hasattr(obj.user, "profile") and obj.user.profile.contact_no:
+            return str(obj.user.profile.contact_no)
+        return None
 
     def validate(self, data):
         request = self.context.get("request")
@@ -910,3 +949,4 @@ class DoctorSerializer(serializers.ModelSerializer):
                         "All selected branches must belong to your company."
                     )
         return data
+

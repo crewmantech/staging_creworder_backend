@@ -4,9 +4,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import viewsets,status
 
-from accounts.models import Doctor, Employees
+from accounts.models import Employees
 from accounts.permissions import HasPermission
-from accounts.serializers import DoctorSerializer
+
 from cloud_telephony.models import CloudTelephonyChannelAssign
 from lead_management.models import Lead
 from services.cloud_telephoney.cloud_telephoney_service import CloudConnectService, SansSoftwareService
@@ -353,34 +353,6 @@ class GetPhoneByReferenceAPIView(APIView):
             status=status.HTTP_404_NOT_FOUND
         )
     
-class DoctorViewSet(viewsets.ModelViewSet):
-    serializer_class = DoctorSerializer
-    permission_classes = [IsAuthenticated]
-
-    queryset = Doctor.objects.select_related(
-        "user", "company"
-    ).prefetch_related("branches")
-
-    def get_queryset(self):
-        qs = super().get_queryset()
-        user = self.request.user
-        company = getattr(user.profile, "company", None)
-
-        branch = self.request.query_params.get("branch")
-
-        if company:
-            qs = qs.filter(company=company)
-
-        if branch:
-            qs = qs.filter(branches__id=branch)
-
-        return qs
-
-    def perform_create(self, serializer):
-        user = self.request.user
-        company = getattr(user.profile, "company", None)
-
-        serializer.save(company=company)
 
 
 
