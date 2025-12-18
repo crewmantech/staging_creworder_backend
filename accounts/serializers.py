@@ -891,7 +891,7 @@ class DoctorSerializer(serializers.ModelSerializer):
     class Meta:
         model = Doctor
         fields = "__all__"
-
+        read_only_fields = ['compay']
     def get_branch_names(self, obj):
         return list(obj.branches.values_list("name", flat=True))
 
