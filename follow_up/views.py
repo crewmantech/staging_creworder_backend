@@ -10,8 +10,8 @@ from accounts.serializers import DoctorSerializer
 from cloud_telephony.models import CloudTelephonyChannelAssign
 from lead_management.models import Lead
 from services.cloud_telephoney.cloud_telephoney_service import CloudConnectService, SansSoftwareService
-from .models import Follow_Up
-from .serializers import FollowUpSerializer,NotepadSerializer
+from .models import Appointment, Follow_Up
+from .serializers import AppointmentSerializer, FollowUpSerializer,NotepadSerializer
 from django.db import transaction
 from services.follow_up.notepad_service import createOrUpdateNotepad,getNotepadByAuthid
 from rest_framework.permissions import IsAuthenticated
@@ -382,3 +382,46 @@ class DoctorViewSet(viewsets.ModelViewSet):
 
         serializer.save(company=company)
 
+
+
+
+class AppointmentViewSet(viewsets.ModelViewSet):
+    serializer_class = AppointmentSerializer
+    permission_classes = [IsAuthenticated]
+
+    queryset = Appointment.objects.select_related(
+        "doctor", "branch", "company", "created_by"
+    )
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        user = self.request.user
+
+        # 🔐 Company isolation
+        if user.profile.user_type != "superadmin":
+            qs = qs.filter(company=user.profile.company)
+
+        # Optional filters
+        doctor = self.request.query_params.get("doctor")
+        uhid = self.request.query_params.get("uhid")
+        phone = self.request.query_params.get("phone")
+
+        if doctor:
+            qs = qs.filter(doctor_id=doctor)
+
+        if uhid:
+            qs = qs.filter(uhid=uhid)
+
+        if phone:
+            qs = qs.filter(patient_phone__icontains=phone)
+
+        return qs.order_by("-created_at")
+
+    def perform_create(self, serializer):
+        user = self.request.user
+
+        serializer.save(
+            company=user.profile.company,
+            branch=user.profile.branch,
+            created_by=user
+        )

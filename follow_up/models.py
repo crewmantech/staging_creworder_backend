@@ -3,10 +3,10 @@ import string
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import RegexValidator
-from accounts.models import Company, Branch
+from accounts.models import Company, Branch, Doctor
 from lead_management.models import LeadStatusModel
 from middleware.request_middleware import get_request
-
+from phonenumber_field.modelfields import PhoneNumberField
 phone_regex = RegexValidator(
     regex=r'^\+?1?\d{9,15}$',
     message="Phone number must be entered in the format: '+999999999'. Up to 15 digits allowed."
@@ -82,3 +82,133 @@ class Notepad(BaseModel):
         db_table = 'notepad_table'
     def __str__(self):
         return f"Note {self.id} by {self.authID}"
+    
+
+
+import random
+import string
+
+class Appointment(BaseModel):
+
+    id = models.CharField(
+        max_length=20,
+        primary_key=True,
+        editable=False
+    )
+
+    APPOINTMENT_STATUS = (
+        ("pending", "Pending"),
+        ("confirmed", "Confirmed"),
+        ("completed", "Completed"),
+        ("cancelled", "Cancelled"),
+        ("no_show", "No Show"),
+    )
+
+    APPOINTMENT_TYPE = (
+        ("opd", "OPD"),
+        ("online", "Online Consultation"),
+        ("emergency", "Emergency"),
+    )
+
+    company = models.ForeignKey(
+        Company,
+        on_delete=models.CASCADE,
+        related_name="appointments"
+    )
+
+    branch = models.ForeignKey(
+        Branch,
+        on_delete=models.CASCADE,
+        related_name="appointments"
+    )
+
+    doctor = models.ForeignKey(
+        Doctor,
+        on_delete=models.CASCADE,
+        related_name="appointments"
+    )
+
+    # 🧑 Patient Info
+    patient_name = models.CharField(max_length=255, null=True, blank=True)
+    patient_phone = PhoneNumberField(null=True, blank=True, db_index=True)
+    patient_email = models.EmailField(null=True, blank=True)
+    patient_age = models.PositiveIntegerField(null=True, blank=True)
+    patient_gender = models.CharField(
+        max_length=1,
+        choices=[("m", "Male"), ("f", "Female"), ("o", "Other")],
+        null=True,
+        blank=True
+    )
+
+    # 🆔 UHID (patient-level)
+    uhid = models.CharField(max_length=20, db_index=True)
+
+    # 🩺 VITALS
+    height_cm = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    weight_kg = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    bmi = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, editable=False)
+
+    # 📝 MEDICAL DETAILS
+    complaint = models.TextField(null=True, blank=True)
+    diagnosis = models.TextField(null=True, blank=True)
+    medicine_prescribed = models.JSONField(default=list, blank=True)
+    advice = models.TextField(null=True, blank=True)
+
+    # 🕒 TIME
+    appointment_date = models.DateField(null=True, blank=True)
+    appointment_time = models.TimeField(null=True, blank=True)
+    expected_duration = models.PositiveIntegerField(default=15)
+
+    status = models.CharField(max_length=20, choices=APPOINTMENT_STATUS, default="pending")
+    appointment_type = models.CharField(max_length=20, choices=APPOINTMENT_TYPE, default="opd")
+
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_appointments"
+    )
+
+    # ------------------------
+    # ID & UHID GENERATORS
+    # ------------------------
+    def generate_id(self):
+        prefix = "APT"
+        random_part = ''.join(random.choices(string.digits, k=6))
+        return f"{prefix}{random_part}"
+
+    def generate_uhid(self):
+        prefix = "UHID"
+        last = Appointment.objects.order_by("-created_at").first()
+        next_id = 1
+        if last and last.uhid:
+            try:
+                next_id = int(last.uhid.replace(prefix, "")) + 1
+            except:
+                pass
+        return f"{prefix}{str(next_id).zfill(6)}"
+
+    def save(self, *args, **kwargs):
+        # 🔑 Generate Appointment ID
+        if not self.id:
+            self.id = self.generate_id()
+
+        # 🔁 Reuse UHID by phone
+        if self.patient_phone:
+            old = Appointment.objects.filter(
+                patient_phone=self.patient_phone
+            ).exclude(pk=self.pk).first()
+            self.uhid = old.uhid if old else self.generate_uhid()
+
+        # 🧮 BMI
+        if self.height_cm and self.weight_kg:
+            height_m = float(self.height_cm) / 100
+            self.bmi = round(float(self.weight_kg) / (height_m ** 2), 2)
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.id} - {self.patient_name or 'Patient'}"
+
+    # name email contact , username
