@@ -891,18 +891,22 @@ class DoctorSerializer(serializers.ModelSerializer):
     class Meta:
         model = Doctor
         fields = "__all__"
-        read_only_fields = ['compay']
+        read_only_fields = ["company"]
+
     def get_branch_names(self, obj):
         return list(obj.branches.values_list("name", flat=True))
 
     def validate(self, data):
-        company = data.get("company")
+        request = self.context.get("request")
+        user = request.user if request else None
+        company = getattr(user.profile, "company", None)
+
         branches = data.get("branches", [])
 
         if company and branches:
             for branch in branches:
                 if branch.company != company:
                     raise serializers.ValidationError(
-                        "All selected branches must belong to the same company."
+                        "All selected branches must belong to your company."
                     )
         return data

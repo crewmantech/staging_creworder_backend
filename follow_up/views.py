@@ -363,22 +363,22 @@ class DoctorViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-
-        # ✅ get logged-in user
         user = self.request.user
-
-        # ✅ get company from user profile
         company = getattr(user.profile, "company", None)
 
         branch = self.request.query_params.get("branch")
 
-        # 🔐 company-level isolation
         if company:
             qs = qs.filter(company=company)
 
-        # optional branch filter
         if branch:
             qs = qs.filter(branches__id=branch)
 
         return qs
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        company = getattr(user.profile, "company", None)
+
+        serializer.save(company=company)
 
