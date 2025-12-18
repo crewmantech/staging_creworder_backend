@@ -1082,7 +1082,7 @@ class Others(models.Model):
             ('view_click_team_order_others', 'Can click team order others'),
             ('view_branch_switcher_others', 'view branch switcher others'),
             ('view_team_deliverd_performance_others', 'view team deliverd performance others'),
-            ('doctor_appointment_others', 'Can doctor appointment others')
+            ('doctor_appointment_others', 'Can doctor appointment others'),
             ('view_own_appointment_others', 'Can view own appointment others'),
             ('view_all_appointment_others', 'Can view all appointment others'),
             ('view_manager_appointment_others', 'Can view manager appointment others'),
