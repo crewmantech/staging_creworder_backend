@@ -180,7 +180,7 @@ class Appointment(BaseModel):
 
     def generate_uhid(self):
         prefix = "UHID"
-        last = Appointment.objects.order_by("-created_at").first()
+        last = Appointment.objects.order_by("-id").first()
         next_id = 1
         if last and last.uhid:
             try:
