@@ -1306,7 +1306,10 @@ class Doctor(BaseModel):
         null=True,
         blank=True
     )
-
+    address = models.TextField(
+        null=True,
+        blank=True
+    )
     is_active = models.BooleanField(default=True)
 
     def __str__(self):
