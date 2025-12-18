@@ -4636,7 +4636,9 @@ class DoctorViewSet(viewsets.ModelViewSet):
         company = getattr(user.profile, "company", None)
 
         branch = self.request.query_params.get("branch")
-
+        active = self.request.query_params.get("active")
+        if active == "true":
+            qs = qs.filter(is_active=True)
         if company:
             qs = qs.filter(company=company)
 
