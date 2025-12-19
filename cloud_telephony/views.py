@@ -706,21 +706,7 @@ class GetNumberAPIView(APIView):
             print("STEP 7: Calling get_number() with call_id =", call_id)
             details_response = sans_service.get_number(call_id)
 
-            print("STEP 8: Response received from Sans API =", details_response)
-
-            if not isinstance(details_response, dict):
-                print("❌ STEP 8 FAILED: Response is not a dict")
-                return Response(
-                    {"error": "Invalid response format from Sanssoftwares."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            api_code = details_response.get("code")
-            print("STEP 9: API response code =", api_code)
-
-            if api_code != 200:
-                print("❌ STEP 9 FAILED: API returned non-200 code")
-                print("Full API response:", details_response)
+            if not details_response.get("success"):
                 return Response(
                     {
                         "error": "Failed to retrieve call details.",
@@ -729,20 +715,29 @@ class GetNumberAPIView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            print("STEP 10: API code is 200")
+            result = details_response.get("result", [])
 
-            result = details_response.get("result", {})
-            print("STEP 11: Extracted result =", result)
+            phone_number = None
+            if isinstance(result, list) and len(result) > 0:
+                phone_number = result[0].get("Phone_number")
 
-            phone_number = result.get("phone_number")
-            print("STEP 12: Extracted phone_number =", phone_number)
+            if not phone_number:
+                return Response(
+                    {
+                        "error": "Phone number not found",
+                        "vendor_response": details_response
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
-            print("✅ STEP 13: Sending success response")
-            return Response({
-                "success": True,
-                "phone_number": phone_number,
-                "message": details_response.get("message")
-            }, status=status.HTTP_200_OK)
+            return Response(
+                {
+                    "success": True,
+                    "phone_number": phone_number,
+                    "message": details_response.get("message")
+                },
+                status=status.HTTP_200_OK
+            )
 
         print("❌ FINAL STEP: Unsupported cloud vendor =", cloud_vendor)
         return Response(
