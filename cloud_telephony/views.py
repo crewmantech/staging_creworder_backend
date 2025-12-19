@@ -676,34 +676,21 @@ class GetNumberAPIView(APIView):
                 "message": details_response.get("status_message")
             }, status=status.HTTP_200_OK)
         elif cloud_vendor == 'sansoftwares':
-            print("STEP 1: cloud_vendor matched -> sansoftwares")
-
             process_id = channel.tenent_id
-            print("STEP 2: process_id from channel.tenent_id =", process_id)
 
             if not process_id:
-                print("❌ STEP 2 FAILED: process_id is missing")
                 return Response(
                     {"error": "process_id (stored in tenant_id) is required for Sanssoftwares."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            print("STEP 3: process_id validation passed")
-
-            print("STEP 4: call_id received =", call_id)
             if not call_id:
-                print("❌ STEP 4 FAILED: call_id is missing")
                 return Response(
                     {"error": "call_id is required for Sanssoftware."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            print("STEP 5: call_id validation passed")
-
-            print("STEP 6: Initializing SansSoftwareService")
             sans_service = SansSoftwareService(process_id=process_id)
-
-            print("STEP 7: Calling get_number() with call_id =", call_id)
             details_response = sans_service.get_number(call_id)
 
             if not details_response.get("success"):
@@ -739,7 +726,6 @@ class GetNumberAPIView(APIView):
                 status=status.HTTP_200_OK
             )
 
-        print("❌ FINAL STEP: Unsupported cloud vendor =", cloud_vendor)
         return Response(
             {"error": f"{cloud_vendor} is not supported."},
             status=status.HTTP_400_BAD_REQUEST
