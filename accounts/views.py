@@ -3612,7 +3612,9 @@ class UserPermissionStatusView(APIView):
                 "create_group_chat":user.has_perm('accounts.create_group_chat_others'),
                 "team_order":user.has_perm('accounts.view_click_team_order_others'),
                 "branch_switcher":user.has_perm('accounts.view_branch_switcher_others'),
-                "team_deliverd_performance":True
+                "team_deliverd_performance":True,
+                # ✅ NEW PERMISSION
+                "force_appointment_others": True
             }
         else:
             # Fallback to permission-based checks
@@ -3628,7 +3630,11 @@ class UserPermissionStatusView(APIView):
                 "create_group_chat":user.has_perm('accounts.create_group_chat_others'),
                 "team_order":user.has_perm('accounts.view_click_team_order_others'),
                 "branch_switcher":user.has_perm('accounts.view_branch_switcher_others'),
-                "team_deliverd_performance":user.has_perm("accounts.view_team_deliverd_performance_others")
+                "team_deliverd_performance":user.has_perm("accounts.view_team_deliverd_performance_others"),
+                # ✅ NEW PERMISSION
+                "force_appointment_others": user.has_perm(
+                    'accounts.force_appointment_others'
+                )
             }   
 
         return Response(response_data)
