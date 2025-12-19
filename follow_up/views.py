@@ -3,7 +3,7 @@ from django.http import HttpResponse
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import viewsets,status
-
+from rest_framework.decorators import action
 from accounts.models import Employees
 from accounts.permissions import HasPermission
 
@@ -364,6 +364,27 @@ class AppointmentViewSet(viewsets.ModelViewSet):
     queryset = Appointment.objects.select_related(
         "doctor", "branch", "company", "created_by"
     )
+    
+    @action(detail=True, methods=["get"], url_path="customer-phone")
+    def customer_phone(self, request, pk=None):
+        """
+        Fetch patient phone number using appointment ID
+        """
+        try:
+            appointment = self.get_object()
+        except Appointment.DoesNotExist:
+            return Response(
+                {"error": "Appointment not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        return Response(
+            {
+                "appointment_id": appointment.id,
+                "patient_phone": str(appointment.patient_phone) if appointment.patient_phone else None
+            },
+            status=status.HTTP_200_OK
+        )
 
     def get_queryset(self):
         qs = super().get_queryset()
