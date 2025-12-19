@@ -23,7 +23,8 @@ from .models import UserTargetsDelails
 from .models import AdminBankDetails
 from .models import QcTable
 from .models import StickyNote
-from .models import CustomAuthGroup,CompanyInquiry,Enquiry                       
+from .models import CustomAuthGroup,CompanyInquiry,Enquiry
+from .models import Others                       
 admin.site.register(CompanyInquiry)
 admin.site.register(Enquiry)
 admin.site.register(Company)
@@ -56,3 +57,4 @@ admin.site.register(LoginLog)
 admin.site.register(LoginAttempt)
 admin.site.register(OTPAttempt)
 admin.site.register(InterviewApplication)
+admin.site.register(Others)
