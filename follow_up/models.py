@@ -169,6 +169,8 @@ class Appointment(BaseModel):
         blank=True,
         related_name="created_appointments"
     )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     # ------------------------
     # ID & UHID GENERATORS
