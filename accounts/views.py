@@ -3614,7 +3614,10 @@ class UserPermissionStatusView(APIView):
                 "branch_switcher":user.has_perm('accounts.view_branch_switcher_others'),
                 "team_deliverd_performance":True,
                 # ✅ NEW PERMISSION
-                "force_appointment_others": True
+                # ✅ DEFAULT FALSE unless permission assigned
+                "force_appointment_others": user.has_perm(
+                    'accounts.force_appointment_others'
+                )
             }
         else:
             # Fallback to permission-based checks
