@@ -104,6 +104,10 @@ from datetime import datetime
 from rest_framework.decorators import action
 from django.db.models import Sum, F
 import re
+from follow_up.serializers import AppointmentSerializer
+from accounts.serializers import DoctorSerializer
+from django.apps import apps
+
 
 
 class FilterOrdersPagination(PageNumberPagination):
@@ -267,8 +271,41 @@ class OrderAPIView(APIView):
             branch_id = request.user.profile.branch  # Assuming the user has a related `profile` model with `branch`
             company_id = request.user.profile.company 
             new = []
+            Appointment = apps.get_model("follow_up", "Appointment")
             if pk:
                 data =  get_single_order(request.user.id, pk)
+                 # ✅ ADD APPOINTMENT DETAILS HERE
+                for i in data:
+                    appointment_id = i.get("appointment")
+
+                    if appointment_id:
+                        appointment = (
+                            Appointment.objects
+                            .select_related("doctor", "branch", "company")
+                            .filter(id=appointment_id)
+                            .first()
+                        )
+
+                        if appointment:
+                            appointment_data = AppointmentSerializer(
+                                appointment,
+                                context={"request": request}
+                            ).data
+
+                            # Attach FULL doctor details
+                            if appointment.doctor:
+                                appointment_data["doctor_details"] = DoctorSerializer(
+                                    appointment.doctor,
+                                    context={"request": request}
+                                ).data
+                            else:
+                                appointment_data["doctor_details"] = None
+
+                            i["appointment_details"] = appointment_data
+                        else:
+                            i["appointment_details"] = None
+                    else:
+                        i["appointment_details"] = None
                 if request.user.profile.user_type not in  ["admin","superadmin"]:
                     if request.user.has_perm('accounts.view_Product_Information_others') or request.user.has_perm('accounts.view_order_payment_status_others') or request.user.has_perm('accounts.view_order_status_tracking_others') or request.user.has_perm('accounts.view_customer_information_others'):
                         for i in data:
