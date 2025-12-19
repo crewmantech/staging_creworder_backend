@@ -676,34 +676,79 @@ class GetNumberAPIView(APIView):
                 "message": details_response.get("status_message")
             }, status=status.HTTP_200_OK)
         elif cloud_vendor == 'sansoftwares':
-            # Sanssoft docs only show phone_number + process_id (no date),
-            # so we will primarily use phone_number here.
+            print("STEP 1: cloud_vendor matched -> sansoftwares")
+
             process_id = channel.tenent_id
+            print("STEP 2: process_id from channel.tenent_id =", process_id)
+
             if not process_id:
+                print("❌ STEP 2 FAILED: process_id is missing")
                 return Response(
                     {"error": "process_id (stored in tenant_id) is required for Sanssoftwares."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
+            print("STEP 3: process_id validation passed")
+
+            print("STEP 4: call_id received =", call_id)
             if not call_id:
+                print("❌ STEP 4 FAILED: call_id is missing")
                 return Response(
-                    {"error": "call_id is required for Sanssoftware ."},
+                    {"error": "call_id is required for Sanssoftware."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
+            print("STEP 5: call_id validation passed")
+
+            print("STEP 6: Initializing SansSoftwareService")
             sans_service = SansSoftwareService(process_id=process_id)
+
+            print("STEP 7: Calling get_number() with call_id =", call_id)
             details_response = sans_service.get_number(call_id)
 
-            if details_response.get("code") != 200:
-                return Response({"error": "Failed to retrieve call details."}, status=status.HTTP_400_BAD_REQUEST)
+            print("STEP 8: Response received from Sans API =", details_response)
+
+            if not isinstance(details_response, dict):
+                print("❌ STEP 8 FAILED: Response is not a dict")
+                return Response(
+                    {"error": "Invalid response format from Sanssoftwares."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            api_code = details_response.get("code")
+            print("STEP 9: API response code =", api_code)
+
+            if api_code != 200:
+                print("❌ STEP 9 FAILED: API returned non-200 code")
+                print("Full API response:", details_response)
+                return Response(
+                    {
+                        "error": "Failed to retrieve call details.",
+                        "vendor_response": details_response
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            print("STEP 10: API code is 200")
 
             result = details_response.get("result", {})
+            print("STEP 11: Extracted result =", result)
+
+            phone_number = result.get("phone_number")
+            print("STEP 12: Extracted phone_number =", phone_number)
+
+            print("✅ STEP 13: Sending success response")
             return Response({
                 "success": True,
-                "phone_number": result.get("phone_number"),
+                "phone_number": phone_number,
                 "message": details_response.get("message")
             }, status=status.HTTP_200_OK)
-        return Response({"error": f"{cloud_vendor} is not supported."}, status=status.HTTP_400_BAD_REQUEST)
+
+        print("❌ FINAL STEP: Unsupported cloud vendor =", cloud_vendor)
+        return Response(
+            {"error": f"{cloud_vendor} is not supported."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
     
 
 class SaveCallRecordingAPIView(APIView):

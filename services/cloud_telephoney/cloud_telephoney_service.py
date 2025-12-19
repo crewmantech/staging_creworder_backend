@@ -388,16 +388,17 @@ class SansSoftwareService:
     # ========== API Wrappers ==========
 
     def get_number(self, lead_id: str, process_id: Optional[str] = None):
-        """
-        Wraps:
-            POST https://bsl.sansoftwares.com/api/getNumber
-            Body: { "Lead_ID": "...", "process_id": "..." }
-        """
+        print("SERVICE get_number(): lead_id =", lead_id)
+
+        final_process_id = process_id or self.process_id
+        print("SERVICE get_number(): final process_id =", final_process_id)
+
         data = {
             "Lead_ID": lead_id,
-            "process_id": process_id or self.process_id,
+            "process_id": final_process_id,
         }
-        print(data,"------------400")
+
+        print("SERVICE get_number(): Final payload =", data)
         return self._post_request("api/getNumber", data)
 
     def get_all_call_log_detail(self, phone_number: str, start_date_str: str,to_date_str: str, process_id: Optional[str] = None):
