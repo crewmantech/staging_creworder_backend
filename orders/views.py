@@ -13,7 +13,7 @@ from django.db.models import Sum, Count
 from accounts.models import Attendance, Branch, CompanyUserAPIKey, Employees, UserTargetsDelails
 from accounts.permissions import CanCreateAndDeleteCustomerState, CanCreateOrDeletePaymentStatus, IsSuperAdmin
 from cloud_telephony.models import CloudTelephonyChannel, CloudTelephonyChannelAssign
-from follow_up.models import Follow_Up
+from follow_up.models import Follow_Up, Appointment
 from lead_management.models import Lead
 from orders.perrmissions import CategoryPermissions, OrderPermissions
 from services.cloud_telephoney.cloud_telephoney_service import CloudConnectService
@@ -142,6 +142,18 @@ class OrderAPIView(APIView):
 
             else:
                 request.data['lead_id'] = None
+            appointment_id = request.data.get("appointment_id")
+            if appointment_id:
+                try:
+                    appointment = Appointment.objects.get(id=appointment_id)
+                    request.data["appointment"] = appointment.id  # FK expects ID
+                except Appointment.DoesNotExist:
+                    return Response(
+                        {"error": f"Invalid appointment_id: {appointment_id}"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            else:
+                request.data["appointment"] = None
             repeat_order = request.data.get("repeat_order")
             if repeat_order and str(repeat_order)=='1':
                 if request.user.has_perm('accounts.view_number_masking_others') and request.user.profile.user_type != 'admin':

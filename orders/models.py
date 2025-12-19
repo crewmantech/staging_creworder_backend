@@ -10,6 +10,7 @@ from accounts.utils import generate_unique_id
 from middleware.request_middleware import get_request
 from shipment.models import ShipmentModel, ShipmentVendor
 from django.core.validators import RegexValidator, URLValidator
+from follow_up.models import Appointment
 
 class BaseModel(models.Model):
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="%(app_label)s_%(class)s_created_by")
@@ -296,6 +297,13 @@ class Order_Table(BaseModel):
     ndr_action = models.CharField(max_length=255, null=True, blank=True)  
     ndr_data = models.JSONField(null=True, blank=True)  
     ndr_date = models.DateTimeField(null=True, blank=True, default=None)
+    appointment = models.ForeignKey(
+        Appointment,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="orders"
+    )
     class Meta:
         db_table = 'orders_table'
     def save(self, *args, **kwargs):
