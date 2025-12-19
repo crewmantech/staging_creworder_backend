@@ -160,7 +160,7 @@ class Appointment(BaseModel):
     expected_duration = models.PositiveIntegerField(default=15)
 
     status = models.CharField(max_length=20, choices=APPOINTMENT_STATUS, default="pending")
-    appointment_type = models.CharField(max_length=20, choices=APPOINTMENT_TYPE, default="opd")
+    appointment_type = models.CharField(max_length=20, choices=APPOINTMENT_TYPE, default="online")
 
     created_by = models.ForeignKey(
         User,
