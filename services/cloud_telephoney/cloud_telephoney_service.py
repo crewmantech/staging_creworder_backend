@@ -401,12 +401,16 @@ class SansSoftwareService:
 
         return self._post_request("api/getNumber", data)
 
-    def get_all_call_log_detail(self, phone_number: str, start_date_str: str,to_date_str: str, process_id: Optional[str] = None):
-        """
-        Wraps:
-            POST https://bsl.sansoftwares.com/api/getAllCallLogDetail
-            Body: { "Phone_number": "...", "process_id": "..." }
-        """
+    def get_all_call_log_detail(
+    self,
+    phone_number: str,
+    start_date_str,
+    to_date_str,
+    process_id: Optional[str] = None
+):
+   
+
+        # ---- normalize start date ----
         if isinstance(start_date_str, date):
             start_date = start_date_str
         else:
@@ -420,11 +424,6 @@ class SansSoftwareService:
 
         from_date = f"{start_date} 00:00:00"
         to_date = f"{end_date} 23:59:59"
-        
-        selected_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
-        selected_date = datetime.strptime(to_date_str, "%Y-%m-%d").date()
-        from_date = f"{selected_date} 00:00:00"
-        to_date = f"{selected_date} 23:59:59"
 
         data = {
             "Phone_number": phone_number,
@@ -432,11 +431,9 @@ class SansSoftwareService:
             "from_date": from_date,
             "to_date": to_date,
         }
-        # data = {
-        #     "Phone_number": phone_number,
-        #     "process_id": process_id or self.process_id,
-        # }
-        print(data,"-----------342")
+
+        print(data, "-----------342")
+
         return self._post_request("api/getAllCallLogDetail", data)
 
     def get_lead_recording(self, phone_number: str, start_date_str: str,to_date_str: str, process_id: Optional[str] = None):
