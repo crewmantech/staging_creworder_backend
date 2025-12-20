@@ -251,7 +251,7 @@ class Appointment_layout(BaseModel):
 
     customer_address =models.CharField(max_length=50, null=True, blank=True)
     company_contact = models.CharField(max_length=50, null=True, blank=True)
-    customer_email = models.CharField(max_length=50, null=True, blank=True)
+    company_email = models.CharField(max_length=50, null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
