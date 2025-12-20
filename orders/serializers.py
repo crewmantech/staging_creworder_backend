@@ -193,6 +193,8 @@ class OrderDetailSerializer(serializers.ModelSerializer):
 
 
     # ---------------- PRODUCT FIELDS ----------------
+    def _get_product(self, obj):
+        return getattr(obj, "product", None)
     def get_dos(self, obj):
         product = self._get_product(obj)
         return product.dos if product else None
