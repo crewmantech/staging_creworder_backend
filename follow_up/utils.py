@@ -1,5 +1,5 @@
 from rest_framework.exceptions import ValidationError
-from follow_up.models import Follow_Up
+from follow_up.models import Appointment, Follow_Up
 from lead_management.models import Lead
 from services.cloud_telephoney.cloud_telephoney_service import get_phone_number_by_call_id
 
@@ -57,3 +57,27 @@ def get_phone_by_reference_id(user, reference_id):
             "message": "Phone number not found in Lead, Follow-up, or Call records",
             "details": e.detail
         })
+
+
+
+def get_phone_from_call_or_appointment(*, user, call_id=None, appointment_id=None):
+    """
+    Fetch patient phone using call_id or appointment_id
+    """
+
+    if call_id:
+        return get_phone_number_by_call_id(
+            user=user,
+            call_id=call_id
+        )
+
+    if appointment_id:
+        appointment = Appointment.objects.filter(
+            id=appointment_id,
+            company=user.profile.company
+        ).only("patient_phone").first()
+
+        if appointment and appointment.patient_phone:
+            return appointment.patient_phone
+
+    return None

@@ -14,9 +14,10 @@ from accounts.models import Attendance, Branch, CompanyUserAPIKey, Employees, Us
 from accounts.permissions import CanCreateAndDeleteCustomerState, CanCreateOrDeletePaymentStatus, IsSuperAdmin
 from cloud_telephony.models import CloudTelephonyChannel, CloudTelephonyChannelAssign
 from follow_up.models import Follow_Up, Appointment
+from follow_up.utils import get_phone_from_call_or_appointment
 from lead_management.models import Lead
 from orders.perrmissions import CategoryPermissions, OrderPermissions
-from services.cloud_telephoney.cloud_telephoney_service import CloudConnectService
+from services.cloud_telephoney.cloud_telephoney_service import CloudConnectService, get_phone_number_by_call_id
 from shipment.models import ShipmentVendor
 from .models import (
     AllowStatus,
@@ -143,7 +144,7 @@ class OrderAPIView(APIView):
                             {"error": f"No customer phone found for Lead ID {lead_id} or FollowUp ID {lead_id}"},
                             status=status.HTTP_404_NOT_FOUND
                         )
-
+            
             else:
                 request.data['lead_id'] = None
             appointment_id = request.data.get("appointment_id")
@@ -184,24 +185,25 @@ class OrderAPIView(APIView):
             payment_type_id = request.data["payment_type"]
             prepaid_amount = request.data["prepaid_amount"]
             payment_type = Payment_Type.objects.filter(id=payment_type_id).first()
-            # call_id = request.data['call_id']
-            # if call_id:
-            #     # Get the assigned channel
-            #     try:
-            #         channel_assign = CloudTelephonyChannelAssign.objects.get(user_id=user.id)
-            #         channel = channel_assign.cloud_telephony_channel
-            #         if not channel.token or not channel.tenent_id:
-            #             return Response({"error": "CloudConnect token or tenant ID missing."}, status=status.HTTP_400_BAD_REQUEST)
+            appointment_id = request.data.get("appointment_id")
+            call_id = request.data['call_id']
+            if ((call_id or appointment_id)and user.has_perm("accounts.view_number_masking_others")and user.profile.user_type != "admin"):
+                try:
+                    phone_number = get_phone_from_call_or_appointment(
+                        user=user,
+                        call_id=call_id,
+                        appointment_id=appointment_id
+                    )
 
-            #         cloud_service = CloudConnectService(channel.token, channel.tenent_id)
-            #         response = cloud_service.call_details(call_id)
-            #         if response.get("code") == 200:
-            #             phone_number = response.get("result", {}).get("phone_number")
-            #             request.data['customer_phone'] = phone_number
-            #         else:
-            #             return Response({"error": "Call details fetch failed."}, status=status.HTTP_400_BAD_REQUEST)
-            #     except CloudTelephonyChannelAssign.DoesNotExist:
-            #         return Response({"error": "Channel not assigned to user."}, status=status.HTTP_400_BAD_REQUEST)
+                    if phone_number:
+                        request.data["patient_phone"] = phone_number
+                
+                except Exception:
+                    return Response(
+                        {"error": "Failed to fetch patient phone number"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
             
                 
             if not payment_type:
