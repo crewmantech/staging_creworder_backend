@@ -223,6 +223,7 @@ import requests
 import csv
 from io import TextIOWrapper
 from django.db import transaction
+from datetime import datetime, date as dt_date
 
 class CloudTelephonyVendorViewSet(viewsets.ModelViewSet):
     queryset = CloudTelephonyVendor.objects.all()
@@ -520,8 +521,19 @@ class CallServiceViewSet(viewsets.ViewSet):
                 phone_number = None
                 if result and isinstance(result, list):
                     phone_number = result[0].get("Phone_number")
-              
-            response_data = sans_service.get_all_call_log_detail(phone_number,date,date)
+
+            if date:
+                start_date = end_date = datetime.strptime(date, "%Y-%m-%d").date()
+            else:
+                start_date = today.replace(day=1)
+                end_date = today
+
+            response_data = sans_service.get_all_call_log_detail(
+                phone_number,
+                start_date,
+                end_date
+            )  
+            # response_data = sans_service.get_all_call_log_detail(phone_number,date,date)
             print(response_data,"--------------511")
             if not response_data:
                 return Response(
