@@ -525,6 +525,7 @@ class CallServiceViewSet(viewsets.ViewSet):
             if date:
                 start_date = end_date = datetime.strptime(date, "%Y-%m-%d").date()
             else:
+                today = dt_date.today()
                 start_date = today.replace(day=1)
                 end_date = today
 
