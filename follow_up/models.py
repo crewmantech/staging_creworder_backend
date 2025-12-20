@@ -153,9 +153,9 @@ class Appointment(BaseModel):
     uhid = models.CharField(max_length=20, db_index=True)
 
     # 🩺 VITALS
-    height_cm = models.DecimalField( decimal_places=2, null=True, blank=True)
-    weight_kg = models.DecimalField( decimal_places=2, null=True, blank=True)
-    bmi = models.DecimalField( decimal_places=2, null=True, blank=True, editable=False)
+    height_cm = models.DecimalField(max_digits=9, decimal_places=2, null=True, blank=True)
+    weight_kg = models.DecimalField(max_digits=9, decimal_places=2, null=True, blank=True)
+    bmi = models.DecimalField(max_digits=9, decimal_places=2, null=True, blank=True, editable=False)
 
     # 📝 MEDICAL DETAILS
     complaint = models.TextField(null=True, blank=True)
