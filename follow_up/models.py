@@ -226,30 +226,30 @@ class Appointment(BaseModel):
 class Appointment_layout(BaseModel):
     id = models.CharField(max_length=50, primary_key=True, unique=True)
 
+    company = models.OneToOneField(
+        Company,
+        on_delete=models.CASCADE,
+        related_name="appointment_layout"
+    )
+
     logo = models.ImageField(upload_to='logo_lable_appointment_images/', null=True, blank=True)
 
-    doctor_info =models.BooleanField(default=True, null=True, blank=True)
-    company = models.ForeignKey(Company, on_delete=models.CASCADE, db_column='company_id', null=True, blank=True)
+    doctor_info = models.BooleanField(default=True)
 
     page_setting = models.CharField(max_length=50, null=True, blank=True)
     web_url = models.CharField(max_length=50, null=True, blank=True)
     Appointment_url = models.CharField(max_length=50, null=True, blank=True)
-    discriminator = models.CharField(max_length=50, null=True, blank=True)
 
-    # Boolean fields default TRUE as you requested
-    
-    show_logo = models.BooleanField(default=True, null=True, blank=True)
-    show_signature = models.BooleanField(default=True, null=True, blank=True)
-    show_advice = models.BooleanField(default=True, null=True, blank=True)
-    show_dose = models.BooleanField(default=True, null=True, blank=True)
-    
-    # All remaining fields (string fields)
+    discriminator = models.TextField(null=True, blank=True)
+    show_discriminator = models.BooleanField(default=True)
 
-    discriminator =models.TextField(null=True, blank=True)
-    show_discriminator =  models.BooleanField(default=True, null=True, blank=True)
-    customer_number = models.BooleanField(default=True, null=True, blank=True)
+    show_logo = models.BooleanField(default=True)
+    show_signature = models.BooleanField(default=True)
+    show_advice = models.BooleanField(default=True)
+    show_dose = models.BooleanField(default=True)
+    customer_number = models.BooleanField(default=True)
 
-    customer_address =models.CharField(max_length=50, null=True, blank=True)
+    customer_address = models.CharField(max_length=50, null=True, blank=True)
     company_contact = models.CharField(max_length=50, null=True, blank=True)
     company_email = models.CharField(max_length=50, null=True, blank=True)
 
@@ -257,9 +257,9 @@ class Appointment_layout(BaseModel):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'appointment_layout'
+        db_table = "appointment_layout"
 
     def save(self, *args, **kwargs):
         if not self.id:
-            self.id = generate_unique_id(Appointment_layout, prefix='ALI')
+            self.id = generate_unique_id(Appointment_layout, prefix="ALI")
         super().save(*args, **kwargs)

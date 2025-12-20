@@ -96,7 +96,9 @@ class AppointmentSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
     
 
-class AppointmentinvoiceSerializer(serializers.ModelSerializer):
+class AppointmentLayoutSerializer(serializers.ModelSerializer):
+    company = serializers.PrimaryKeyRelatedField(read_only=True)
+
     class Meta:
         model = Appointment_layout
         fields = "__all__"

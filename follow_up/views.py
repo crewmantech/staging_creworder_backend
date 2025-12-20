@@ -12,7 +12,7 @@ from follow_up.utils import get_phone_by_reference_id
 from lead_management.models import Lead
 from services.cloud_telephoney.cloud_telephoney_service import CloudConnectService, SansSoftwareService
 from .models import Appointment, Appointment_layout, Follow_Up
-from .serializers import AppointmentSerializer, AppointmentinvoiceSerializer, FollowUpSerializer,NotepadSerializer
+from .serializers import AppointmentLayoutSerializer, AppointmentSerializer, FollowUpSerializer,NotepadSerializer
 from django.db import transaction
 from services.follow_up.notepad_service import createOrUpdateNotepad,getNotepadByAuthid
 from rest_framework.permissions import IsAuthenticated
@@ -453,113 +453,51 @@ class GetPhoneByReferenceAllAPIView(APIView):
 
 
 
-class AppointmentLayoutAPIView(APIView):
+class AppointmentLayoutViewSet(viewsets.ModelViewSet):
+    serializer_class = AppointmentLayoutSerializer
     permission_classes = [IsAuthenticated]
 
-    # ---------------------------
-    # CREATE Appointment Layout
-    # ---------------------------
-    def post(self, request):
-        user = request.user
+    def get_queryset(self):
+        # 🔐 Only current user's company data
+        return Appointment_layout.objects.filter(
+            company=self.request.user.profile.company
+        )
 
-        # 🔐 get company from logged-in user
-        company = getattr(user.profile, "company", None)
-        if not company:
-            return Response(
-                {"success": False, "message": "Company not linked to user"},
-                status=status.HTTP_400_BAD_REQUEST
+    def perform_create(self, serializer):
+        # 🚫 NOT USED (handled in create())
+        pass
+
+    def create(self, request, *args, **kwargs):
+        company = request.user.profile.company
+
+        instance = Appointment_layout.objects.filter(
+            company=company
+        ).first()
+
+        if instance:
+            # 🔁 UPDATE existing record
+            serializer = self.get_serializer(
+                instance,
+                data=request.data,
+                partial=True
             )
+            message = "Appointment layout updated successfully"
+        else:
+            # ➕ CREATE new record
+            serializer = self.get_serializer(
+                data=request.data
+            )
+            message = "Appointment layout created successfully"
 
-        serializer = AppointmentinvoiceSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-
         serializer.save(company=company)
 
         return Response(
             {
                 "success": True,
-                "message": "Appointment layout created successfully",
-                "data": serializer.data
-            },
-            status=status.HTTP_201_CREATED
-        )
-
-    # ---------------------------
-    # LIST layouts (company wise)
-    # ---------------------------
-    def get(self, request):
-        user = request.user
-        company = getattr(user.profile, "company", None)
-
-        layouts = Appointment_layout.objects.filter(company=company)
-
-        serializer = AppointmentinvoiceSerializer(layouts, many=True)
-        return Response(
-            {
-                "success": True,
+                "message": message,
                 "data": serializer.data
             },
             status=status.HTTP_200_OK
         )
-    
 
-class AppointmentLayoutDetailAPIView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get_object(self, pk, company):
-        return get_object_or_404(
-            Appointment_layout,
-            id=pk,
-            company=company
-        )
-
-    def get(self, request, pk):
-        company = request.user.profile.company
-        obj = self.get_object(pk, company)
-
-        serializer = AppointmentinvoiceSerializer(obj)
-        return Response({"success": True, "data": serializer.data})
-
-    def put(self, request, pk):
-        company = request.user.profile.company
-        obj = self.get_object(pk, company)
-
-        serializer = AppointmentinvoiceSerializer(
-            obj, data=request.data, partial=True
-        )
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-
-        return Response(
-            {"success": True, "message": "Updated successfully", "data": serializer.data}
-        )
-
-    def delete(self, request, pk):
-        company = request.user.profile.company
-        obj = self.get_object(pk, company)
-        obj.delete()
-
-        return Response(
-            {"success": True, "message": "Deleted successfully"},
-            status=status.HTTP_204_NO_CONTENT
-        )
-    def patch(self, request, pk):
-        company = request.user.profile.company
-        obj = self.get_object(pk, company)
-
-        serializer = AppointmentinvoiceSerializer(
-            obj,
-            data=request.data,
-            partial=True  # ✅ Partial update
-        )
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-
-        return Response(
-            {
-                "success": True,
-                "message": "Appointment layout partially updated",
-                "data": serializer.data
-            },
-            status=status.HTTP_200_OK
-        )
