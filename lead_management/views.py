@@ -17,7 +17,7 @@ from .serializers import DealCategoryModelSerializer, DynamicRequestSerializer, 
 from services.lead_management.lead_management_service import createLead,updateLead,deleteLead,getLead
 from rest_framework.permissions import IsAuthenticated, AllowAny, DjangoObjectPermissions
 from django.http import JsonResponse
-from orders.models import Products
+from orders.models import Order_Table, Products
 from io import TextIOWrapper
 from rest_framework.decorators import action
 from django.db import transaction
@@ -25,6 +25,9 @@ from random import choice
 from datetime import datetime, time
 from django.utils.dateparse import parse_date
 from rest_framework.pagination import PageNumberPagination
+from django.db.models import Q
+
+
 class LeadPagination(PageNumberPagination):
     page_size = 100  # default records per page
     page_size_query_param = 'page_size'
@@ -531,61 +534,93 @@ class LeadViewSet(viewsets.ModelViewSet):
 class LeadBulkUploadView(APIView):
     """
     API endpoint for uploading leads in bulk using a CSV file.
+    Supports optional duplicate check using ?check=true
     """
     permission_classes = [IsAuthenticated]
 
+    # ---------------------------------------------------
+    # PERMISSIONS
+    # ---------------------------------------------------
     def get_permissions(self):
         permission_map = {
-            'create': ['superadmin_assets.show_submenusmodel_add_leads', 'superadmin_assets.add_submenusmodel'],
-            'update': ['superadmin_assets.show_submenusmodel_all_leads', 'superadmin_assets.change_submenusmodel'],
-            'destroy': ['superadmin_assets.show_submenusmodel_all_leads', 'superadmin_assets.delete_submenusmodel'],
-            'retrieve': ['superadmin_assets.show_submenusmodel_all_leads', 'superadmin_assets.view_submenusmodel'],
-            'list': ['superadmin_assets.show_submenusmodel_all_leads', 'superadmin_assets.view_submenusmodel']
+            'create': [
+                'superadmin_assets.show_submenusmodel_add_leads',
+                'superadmin_assets.add_submenusmodel'
+            ]
         }
 
-        action = getattr(self, 'action', None)
+        action = getattr(self, 'action', 'create')
         if action in permission_map:
-            permissions = permission_map[action]
-            return [HasPermission(perm) for perm in permissions]
+            return [HasPermission(perm) for perm in permission_map[action]]
 
         return super().get_permissions()
 
+    # ---------------------------------------------------
+    # PHONE VALIDATION
+    # ---------------------------------------------------
     def is_valid_phone_number(self, number):
-        """
-        Validate phone number using defined rules.
-        """
         if not number:
             return False
 
-        str_number = str(number).strip()
+        number = str(number).strip()
 
-        # Rule 1: Reject scientific notation (e.g. 1.23E+10)
-        if "e" in str_number.lower():
+        if "e" in number.lower():   # scientific notation
             return False
 
-        # Rule 2: Must be numeric only
-        if not str_number.isdigit():
+        if not number.isdigit():
             return False
 
-        # Rule 3: Must be exactly 10 digits
-        if len(str_number) != 10:
+        if len(number) != 10:
             return False
 
         return True
 
     def process_phone_number(self, number):
-        """Add +91 prefix to valid 10-digit numbers"""
         return f"+91{number}"
+
+    # ---------------------------------------------------
+    # HELPERS
+    # ---------------------------------------------------
     def handle_blank(self, value, default=""):
         return value.strip() if value and value.strip() else default
+
+    def phone_exists_in_orders(self, phone, company):
+        """
+        Check phone exists in order table (customer_phone or customer_alter_phone)
+        for the same company
+        """
+        if not company:
+            return False
+
+        return Order_Table.objects.filter(
+            company=company
+        ).filter(
+            Q(customer_phone=phone) |
+            Q(customer_alter_phone=phone)
+        ).exists()
+
+    # ---------------------------------------------------
+    # POST API
+    # ---------------------------------------------------
     def post(self, request, *args, **kwargs):
         user = request.user
+
+        # query param: ?check=true
+        check_duplicate = request.query_params.get("check", "false").lower() == "true"
+
         if 'file' not in request.FILES:
-            return Response({"Error": "No file provided"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"Error": "No file provided"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         csv_file = request.FILES['file']
+
         if not csv_file.name.endswith('.csv'):
-            return Response({"Error": "File is not a CSV"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"Error": "File is not a CSV"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         try:
             decoded_file = csv_file.read().decode('utf-8')
@@ -595,11 +630,16 @@ class LeadBulkUploadView(APIView):
             leads_data = []
             errors = []
 
+            profile = getattr(user, "profile", None)
+            company = profile.company if profile else None
+
             for index, row in enumerate(reader, start=1):
                 try:
+                    # -------------------------
+                    # PHONE VALIDATION
+                    # -------------------------
                     phone_value = str(row.get('customer_phone', '')).strip()
 
-                    # Validation check
                     if not self.is_valid_phone_number(phone_value):
                         errors.append({
                             "row": index,
@@ -610,54 +650,106 @@ class LeadBulkUploadView(APIView):
 
                     processed_phone = self.process_phone_number(phone_value)
 
-                    # Foreign key resolution
+                    # -------------------------
+                    # DUPLICATE CHECK
+                    # -------------------------
+                    if check_duplicate:
+                        if self.phone_exists_in_orders(processed_phone, company):
+                            errors.append({
+                                "row": index,
+                                "error": f"Phone already exists in orders for this company: {processed_phone}",
+                                "data": row
+                            })
+                            continue
+
+                    # -------------------------
+                    # FOREIGN KEYS
+                    # -------------------------
                     product = Products.objects.get(id=row['product'])
                     pipeline = Pipeline.objects.get(id=row['pipeline'])
-                    status_obj = LeadStatusModel.objects.get(id=row['status']) if row.get('status') else None
-                    branch = Branch.objects.get(id=row['branch']) if row.get('branch') else None
 
+                    status_obj = (
+                        LeadStatusModel.objects.get(id=row['status'])
+                        if row.get('status') else None
+                    )
+
+                    branch = (
+                        Branch.objects.get(id=row['branch'])
+                        if row.get('branch') else None
+                    )
+
+                    # -------------------------
+                    # ROUND ROBIN ASSIGNMENT
+                    # -------------------------
                     if pipeline.round_robin:
-                        
-                        assigned_users = list(pipeline.assigned_users.filter(profile__status=1).order_by("id"))
-                        print(assigned_users,"assign_userassign_userassign_userassign_user----------------623")
+                        assigned_users = list(
+                            pipeline.assigned_users.filter(
+                                profile__status=1
+                            ).order_by("id")
+                        )
+
                         if assigned_users:
-                            next_index = (pipeline.last_assigned_index + 1) % len(assigned_users)
-                            next_user = assigned_users[next_index]
-                            assign_user = next_user.id
+                            next_index = (
+                                pipeline.last_assigned_index + 1
+                            ) % len(assigned_users)
+
+                            assign_user = assigned_users[next_index].id
                             pipeline.last_assigned_index = next_index
-                            pipeline.save()
+                            pipeline.save(update_fields=["last_assigned_index"])
                         else:
                             assign_user = user.id
                     else:
                         assign_user = user.id
-                    print(assign_user,"assign_userassign_userassign_userassign_user----------------623")
-                    profile = request.user.profile
-                    company = profile.company if profile else None
 
+                    # -------------------------
+                    # LEAD DATA
+                    # -------------------------
                     lead_data = {
-                    'customer_name': self.handle_blank(row.get('customer_name'), default="Unknown"),
-                    'customer_email': self.handle_blank(row.get('customer_email'), default="unknown@test.com"),
-                    'customer_phone': processed_phone,
-                    'customer_postalcode': self.handle_blank(row.get('customer_postalcode'), default="000000"),
-                    'customer_city': self.handle_blank(row.get('customer_city'), default="Unknown"),
-                    'customer_state': self.handle_blank(row.get('customer_state'), default="Unknown"),
-                    'customer_address': self.handle_blank(row.get('customer_address'), default="Unknown"),
-                    'customer_message': self.handle_blank(row.get('customer_message'), default="Unknown"),
-                    'remark': self.handle_blank(row.get('remark'), default=""),
-                    
-                    'product': product.id,
-                    'lead_source': pipeline.lead_source.id,
-                    'pipeline': pipeline.id,
-                    'branch': branch.id if branch else None,
-                    'company': company.id if company else None,
-                    'assign_user': assign_user,
-                }
+                        "customer_name": self.handle_blank(
+                            row.get('customer_name'), "Unknown"
+                        ),
+                        "customer_email": self.handle_blank(
+                            row.get('customer_email'), "unknown@test.com"
+                        ),
+                        "customer_phone": processed_phone,
+                        "customer_postalcode": self.handle_blank(
+                            row.get('customer_postalcode'), "000000"
+                        ),
+                        "customer_city": self.handle_blank(
+                            row.get('customer_city'), "Unknown"
+                        ),
+                        "customer_state": self.handle_blank(
+                            row.get('customer_state'), "Unknown"
+                        ),
+                        "customer_address": self.handle_blank(
+                            row.get('customer_address'), "Unknown"
+                        ),
+                        "customer_message": self.handle_blank(
+                            row.get('customer_message'), "Unknown"
+                        ),
+                        "remark": self.handle_blank(
+                            row.get('remark'), ""
+                        ),
 
-                    # Save each valid record independently
+                        "product": product.id,
+                        "lead_source": pipeline.lead_source.id,
+                        "pipeline": pipeline.id,
+                        "branch": branch.id if branch else None,
+                        "company": company.id if company else None,
+                        "assign_user": assign_user,
+                        "status": status_obj.id if status_obj else None,
+                    }
+
+                    # -------------------------
+                    # SAVE
+                    # -------------------------
                     with transaction.atomic():
                         serializer = LeadNewSerializer(data=lead_data)
-                        if serializer.is_valid(raise_exception=False):
-                            serializer.save(created_by=request.user, updated_by=request.user)
+                        if serializer.is_valid():
+                            serializer.save(
+                                created_by=user,
+                                updated_by=user
+                            )
                             leads_data.append(serializer.data)
                         else:
                             errors.append({
@@ -673,20 +765,22 @@ class LeadBulkUploadView(APIView):
                         "data": row
                     })
 
-            # Build partial success response
-            response_data = {
-                "Success": True if leads_data else False,
-                "Message": f"{len(leads_data)} leads uploaded successfully. {len(errors)} failed.",
-                "Saved_Count": len(leads_data),
-                "Failed_Count": len(errors),
-                "Errors": errors
-            }
-
-            return Response(response_data, status=status.HTTP_207_MULTI_STATUS if errors else status.HTTP_201_CREATED)
+            return Response(
+                {
+                    "Success": bool(leads_data),
+                    "Message": f"{len(leads_data)} leads uploaded successfully. {len(errors)} failed.",
+                    "Saved_Count": len(leads_data),
+                    "Failed_Count": len(errors),
+                    "Errors": errors
+                },
+                status=status.HTTP_207_MULTI_STATUS if errors else status.HTTP_201_CREATED
+            )
 
         except Exception as e:
-            print(str(e))
-            return Response({"Error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"Error": str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 
 class LeadStatusModelViewSet(viewsets.ModelViewSet):
