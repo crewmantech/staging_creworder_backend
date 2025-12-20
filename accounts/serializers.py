@@ -888,11 +888,13 @@ class DoctorSerializer(serializers.ModelSerializer):
     branch_names = serializers.SerializerMethodField()
     company_name = serializers.CharField(source="company.name", read_only=True)
 
-    # User details (read-only)
     username = serializers.CharField(source="user.username", read_only=True)
     email = serializers.EmailField(source="user.email", read_only=True)
     full_name = serializers.SerializerMethodField()
     phone_number = serializers.SerializerMethodField()
+
+    # ✅ Signature field
+    doctor_sign = serializers.ImageField(required=False, allow_null=True)
 
     class Meta:
         model = Doctor
@@ -912,7 +914,8 @@ class DoctorSerializer(serializers.ModelSerializer):
             "specialization",
             "experience_years",
             "address",
-            "is_active"
+            "doctor_sign",
+            "is_active",
         ]
         read_only_fields = ["company"]
 
@@ -935,7 +938,6 @@ class DoctorSerializer(serializers.ModelSerializer):
         company = getattr(user.profile, "company", None)
 
         branches = data.get("branches", [])
-
         if company and branches:
             for branch in branches:
                 if branch.company != company:
@@ -943,4 +945,5 @@ class DoctorSerializer(serializers.ModelSerializer):
                         "All selected branches must belong to your company."
                     )
         return data
+
 

@@ -4634,6 +4634,7 @@ class CompanyMonthlySalaryPreviewAPIView(APIView):
 class DoctorViewSet(viewsets.ModelViewSet):
     serializer_class = DoctorSerializer
     permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     queryset = Doctor.objects.select_related(
         "user", "company"
@@ -4646,8 +4647,10 @@ class DoctorViewSet(viewsets.ModelViewSet):
 
         branch = self.request.query_params.get("branch")
         active = self.request.query_params.get("active")
+
         if active == "true":
             qs = qs.filter(is_active=True)
+
         if company:
             qs = qs.filter(company=company)
 
@@ -4659,5 +4662,4 @@ class DoctorViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         user = self.request.user
         company = getattr(user.profile, "company", None)
-
         serializer.save(company=company)

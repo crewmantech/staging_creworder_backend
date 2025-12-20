@@ -1272,10 +1272,8 @@ class Doctor(BaseModel):
         Company,
         on_delete=models.CASCADE,
         related_name="doctors"
-        
     )
 
-    # ✅ Multiple branches + nullable
     branches = models.ManyToManyField(
         Branch,
         related_name="doctors"
@@ -1291,8 +1289,7 @@ class Doctor(BaseModel):
     degree = models.CharField(
         max_length=255,
         null=True,
-        blank=True,
-        help_text="MBBS, MD, MS, BDS etc"
+        blank=True
     )
 
     specialization = models.CharField(
@@ -1306,13 +1303,17 @@ class Doctor(BaseModel):
         null=True,
         blank=True
     )
-    address = models.TextField(
+
+    address = models.TextField(null=True, blank=True)
+
+    # ✅ Doctor Signature
+    doctor_sign = models.ImageField(
+        upload_to="doctor/signatures/",
         null=True,
         blank=True
     )
+
     is_active = models.BooleanField(default=True)
 
     def __str__(self):
-        if self.user:
-            return f"{self.user.username}"
-        return f"Doctor - {self.id}"
+        return self.user.username if self.user else f"Doctor - {self.id}"
