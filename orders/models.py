@@ -77,6 +77,10 @@ class Products(models.Model):
     product_weight = models.FloatField()
     product_height = models.IntegerField()
     product_width = models.IntegerField()
+    dos = models.TextField(null=True, blank=True, default=None)
+    duration = models.TextField(null=True, blank=True, default=None)
+    advice = models.TextField(null=True, blank=True, default=None)
+    instructions = models.TextField(null=True, blank=True, default=None)
     class Meta:
         db_table = 'products_table'
         unique_together = ("product_name", "branch", "company") 
