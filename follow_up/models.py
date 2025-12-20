@@ -4,6 +4,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import RegexValidator
 from accounts.models import Company, Branch, Doctor
+from accounts.utils import generate_unique_id
 from lead_management.models import LeadStatusModel
 from middleware.request_middleware import get_request
 from phonenumber_field.modelfields import PhoneNumberField
@@ -219,3 +220,46 @@ class Appointment(BaseModel):
 
     def __str__(self):
         return f"{self.id} - {self.patient_name or 'Patient'}"
+    
+
+
+class Appointment_layout(BaseModel):
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
+
+    logo = models.ImageField(upload_to='logo_lable_appointment_images/', null=True, blank=True)
+
+    doctor_info =models.BooleanField(default=True, null=True, blank=True)
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, db_column='company_id', null=True, blank=True)
+
+    page_setting = models.CharField(max_length=50, null=True, blank=True)
+    web_url = models.CharField(max_length=50, null=True, blank=True)
+    Appointment_url = models.CharField(max_length=50, null=True, blank=True)
+    discriminator = models.CharField(max_length=50, null=True, blank=True)
+
+    # Boolean fields default TRUE as you requested
+    
+    show_logo = models.BooleanField(default=True, null=True, blank=True)
+    show_signature = models.BooleanField(default=True, null=True, blank=True)
+    show_advice = models.BooleanField(default=True, null=True, blank=True)
+    show_dose = models.BooleanField(default=True, null=True, blank=True)
+    
+    # All remaining fields (string fields)
+
+    discriminator =models.TextField(null=True, blank=True)
+    show_discriminator =  models.BooleanField(default=True, null=True, blank=True)
+    customer_number = models.BooleanField(default=True, null=True, blank=True)
+
+    customer_address =models.CharField(max_length=50, null=True, blank=True)
+    company_contact = models.CharField(max_length=50, null=True, blank=True)
+    customer_email = models.CharField(max_length=50, null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'appointment_layout'
+
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_unique_id(Appointment_layout, prefix='ALI')
+        super().save(*args, **kwargs)

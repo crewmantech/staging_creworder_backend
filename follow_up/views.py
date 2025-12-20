@@ -11,8 +11,8 @@ from cloud_telephony.models import CloudTelephonyChannelAssign
 from follow_up.utils import get_phone_by_reference_id
 from lead_management.models import Lead
 from services.cloud_telephoney.cloud_telephoney_service import CloudConnectService, SansSoftwareService
-from .models import Appointment, Follow_Up
-from .serializers import AppointmentSerializer, FollowUpSerializer,NotepadSerializer
+from .models import Appointment, Appointment_layout, Follow_Up
+from .serializers import AppointmentSerializer, AppointmentinvoiceSerializer, FollowUpSerializer,NotepadSerializer
 from django.db import transaction
 from services.follow_up.notepad_service import createOrUpdateNotepad,getNotepadByAuthid
 from rest_framework.permissions import IsAuthenticated
@@ -25,6 +25,8 @@ from django.utils.datastructures import MultiValueDict
 from django.utils.dateparse import parse_date
 import pdb
 from django.db.models import Q
+from django.shortcuts import get_object_or_404
+
 class FollowUpView(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     queryset = Follow_Up.objects.all()
@@ -448,3 +450,96 @@ class GetPhoneByReferenceAllAPIView(APIView):
                 {"success": False, "error": e.detail},
                 status=status.HTTP_404_NOT_FOUND
             )
+
+
+
+class AppointmentLayoutAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    # ---------------------------
+    # CREATE Appointment Layout
+    # ---------------------------
+    def post(self, request):
+        user = request.user
+
+        # 🔐 get company from logged-in user
+        company = getattr(user.profile, "company", None)
+        if not company:
+            return Response(
+                {"success": False, "message": "Company not linked to user"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer = AppointmentinvoiceSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        serializer.save(company=company)
+
+        return Response(
+            {
+                "success": True,
+                "message": "Appointment layout created successfully",
+                "data": serializer.data
+            },
+            status=status.HTTP_201_CREATED
+        )
+
+    # ---------------------------
+    # LIST layouts (company wise)
+    # ---------------------------
+    def get(self, request):
+        user = request.user
+        company = getattr(user.profile, "company", None)
+
+        layouts = Appointment_layout.objects.filter(company=company)
+
+        serializer = AppointmentinvoiceSerializer(layouts, many=True)
+        return Response(
+            {
+                "success": True,
+                "data": serializer.data
+            },
+            status=status.HTTP_200_OK
+        )
+    
+
+class AppointmentLayoutDetailAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self, pk, company):
+        return get_object_or_404(
+            Appointment_layout,
+            id=pk,
+            company=company
+        )
+
+    def get(self, request, pk):
+        company = request.user.profile.company
+        obj = self.get_object(pk, company)
+
+        serializer = AppointmentinvoiceSerializer(obj)
+        return Response({"success": True, "data": serializer.data})
+
+    def put(self, request, pk):
+        company = request.user.profile.company
+        obj = self.get_object(pk, company)
+
+        serializer = AppointmentinvoiceSerializer(
+            obj, data=request.data, partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(
+            {"success": True, "message": "Updated successfully", "data": serializer.data}
+        )
+
+    def delete(self, request, pk):
+        company = request.user.profile.company
+        obj = self.get_object(pk, company)
+        obj.delete()
+
+        return Response(
+            {"success": True, "message": "Deleted successfully"},
+            status=status.HTTP_204_NO_CONTENT
+        )

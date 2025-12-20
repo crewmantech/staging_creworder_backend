@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from follow_up.utils import get_phone_by_reference_id
-from .models import Appointment, Follow_Up,Notepad
+from .models import Appointment, Appointment_layout, Follow_Up,Notepad
 from rest_framework.exceptions import ValidationError
 
 class FollowUpSerializer(serializers.ModelSerializer):
@@ -94,3 +94,10 @@ class AppointmentSerializer(serializers.ModelSerializer):
                 pass
 
         return super().create(validated_data)
+    
+
+class AppointmentinvoiceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Appointment_layout
+        fields = "__all__"
+        read_only_fields = ["id", "company", "created_at", "updated_at"]

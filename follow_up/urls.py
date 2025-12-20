@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import ( AppointmentViewSet, FollowUpExportAPIView, GetPhoneByReferenceAPIView, GetPhoneByReferenceAllAPIView, NotepadCreateOrUpdate,
+from .views import ( AppointmentLayoutAPIView, AppointmentLayoutDetailAPIView, AppointmentViewSet, FollowUpExportAPIView, GetPhoneByReferenceAPIView, GetPhoneByReferenceAllAPIView, NotepadCreateOrUpdate,
                     NotepadDetail,
                     FollowUpView)
 router = DefaultRouter()
@@ -16,5 +16,7 @@ urlpatterns = [
         GetPhoneByReferenceAPIView.as_view(),
         name="get-phone-by-reference",
     ),
-    path('get-phone-by-all-reference',GetPhoneByReferenceAllAPIView.as_view(),name="get-phone-by-all-reference")
+    path('get-phone-by-all-reference',GetPhoneByReferenceAllAPIView.as_view(),name="get-phone-by-all-reference"),
+    path("appointment-layout/", AppointmentLayoutAPIView.as_view()),
+    path("appointment-layout/<str:pk>/", AppointmentLayoutDetailAPIView.as_view()),
 ]
