@@ -945,7 +945,22 @@ class FilterOrdersView(viewsets.ViewSet):
             raise ValueError("No filters provided")
         queryset = Order_Table.objects.all()
         filter_conditions = Q()
+        search = filters.get("search")
 
+        if search:
+            search = str(search).strip()
+
+            search_q = (
+                Q(id__icontains=search) |
+                Q(order_id__icontains=search) |
+                Q(customer_phone__icontains=search) |
+                Q(customer_alter_phone__icontains=search) |
+                Q(call_id__icontains=search) |
+                Q(lead_id__icontains=search) |
+                Q(appointment__id__icontains=search)
+            )
+
+        filter_conditions &= search_q
         # Mapping API fields to model fields
         filterable_fields = {
             "order_id": "order_id",
