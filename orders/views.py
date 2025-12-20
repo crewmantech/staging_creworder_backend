@@ -187,6 +187,7 @@ class OrderAPIView(APIView):
             payment_type = Payment_Type.objects.filter(id=payment_type_id).first()
             appointment_id = request.data.get("appointment_id")
             call_id = request.data['call_id']
+            print(request.data,"-------------190")
             if ((call_id or appointment_id)and user.has_perm("accounts.view_number_masking_others")and user.profile.user_type != "admin"):
                 try:
                     phone_number = get_phone_from_call_or_appointment(
@@ -194,10 +195,10 @@ class OrderAPIView(APIView):
                         call_id=call_id,
                         appointment_id=appointment_id
                     )
-
+                    print(phone_number,"-----------------197")
                     if phone_number:
                         request.data["patient_phone"] = phone_number
-                
+
                 except Exception:
                     return Response(
                         {"error": "Failed to fetch patient phone number"},

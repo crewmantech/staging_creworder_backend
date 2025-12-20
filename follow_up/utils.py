@@ -70,7 +70,7 @@ def get_phone_from_call_or_appointment(*, user, call_id=None, appointment_id=Non
             user=user,
             call_id=call_id
         )
-
+    print("-------------73")
     if appointment_id:
         appointment = Appointment.objects.filter(
             id=appointment_id,
@@ -79,5 +79,5 @@ def get_phone_from_call_or_appointment(*, user, call_id=None, appointment_id=Non
 
         if appointment and appointment.patient_phone:
             return appointment.patient_phone
-
+    print("---------------82")
     return None
