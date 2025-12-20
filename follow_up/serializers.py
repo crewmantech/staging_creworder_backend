@@ -1,5 +1,8 @@
 from rest_framework import serializers
+
+from follow_up.utils import get_phone_by_reference_id
 from .models import Appointment, Follow_Up,Notepad
+from rest_framework.exceptions import ValidationError
 
 class FollowUpSerializer(serializers.ModelSerializer):
     follow_status_name = serializers.CharField(source='follow_status.name', read_only=True)
@@ -52,19 +55,42 @@ class AppointmentSerializer(serializers.ModelSerializer):
     def validate(self, data):
         request = self.context.get("request")
         user = request.user
-
         doctor = data.get("doctor")
 
-        # 🔐 Doctor must belong to same company
         if doctor and doctor.company != user.profile.company:
             raise serializers.ValidationError(
                 "Doctor does not belong to your company."
             )
 
-        # 🔐 Doctor must be available in user's branch
         if doctor and user.profile.branch not in doctor.branches.all():
             raise serializers.ValidationError(
                 "Doctor is not available in your branch."
             )
 
         return data
+
+    def create(self, validated_data):
+        request = self.context.get("request")
+        user = request.user
+
+        reference_id = validated_data.get("reference_id")
+        patient_phone = validated_data.get("patient_phone")
+
+        # 🔐 CONDITIONAL FETCH (YOUR CONDITION)
+        if (
+            reference_id
+            and not patient_phone
+            and user.has_perm("accounts.view_number_masking_others")
+            and user.profile.user_type != "admin"
+        ):
+            try:
+                result = get_phone_by_reference_id(
+                    user=user,
+                    reference_id=reference_id
+                )
+                validated_data["patient_phone"] = result["phone_number"]
+            except ValidationError:
+                # Do NOT block appointment creation
+                pass
+
+        return super().create(validated_data)

@@ -96,6 +96,14 @@ class Appointment(BaseModel):
         editable=False
     )
 
+    # 🔗 Reference ID (Lead / FollowUp / Call ID)
+    reference_id = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True,
+        db_index=True
+    )
+
     APPOINTMENT_STATUS = (
         ("pending", "Pending"),
         ("confirmed", "Confirmed"),
@@ -140,7 +148,7 @@ class Appointment(BaseModel):
         blank=True
     )
 
-    # 🆔 UHID (patient-level)
+    # 🆔 UHID
     uhid = models.CharField(max_length=20, db_index=True)
 
     # 🩺 VITALS
@@ -182,17 +190,16 @@ class Appointment(BaseModel):
 
     def generate_uhid(self):
         prefix = "UHID"
-        last = Appointment.objects.order_by("-id").first()
+        last = Appointment.objects.order_by("-created_at").first()
         next_id = 1
         if last and last.uhid:
             try:
                 next_id = int(last.uhid.replace(prefix, "")) + 1
-            except:
+            except Exception:
                 pass
         return f"{prefix}{str(next_id).zfill(6)}"
 
     def save(self, *args, **kwargs):
-        # 🔑 Generate Appointment ID
         if not self.id:
             self.id = self.generate_id()
 
@@ -212,5 +219,3 @@ class Appointment(BaseModel):
 
     def __str__(self):
         return f"{self.id} - {self.patient_name or 'Patient'}"
-
-    # name email contact , username
