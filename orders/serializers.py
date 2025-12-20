@@ -35,6 +35,11 @@ class OrderDetailSerializer(serializers.ModelSerializer):
     cgst_amount = serializers.SerializerMethodField()
     igst_amount = serializers.SerializerMethodField()
 
+     # ✅ NEW PRODUCT MEDICAL FIELDS
+    dos = serializers.SerializerMethodField()
+    duration = serializers.SerializerMethodField()
+    advice = serializers.SerializerMethodField()
+    instructions = serializers.SerializerMethodField()
     class Meta:
         model = OrderDetail
         fields = '__all__'
@@ -187,7 +192,22 @@ class OrderDetailSerializer(serializers.ModelSerializer):
 
 
 
+    # ---------------- PRODUCT FIELDS ----------------
+    def get_dos(self, obj):
+        product = self._get_product(obj)
+        return product.dos if product else None
 
+    def get_duration(self, obj):
+        product = self._get_product(obj)
+        return product.duration if product else None
+
+    def get_advice(self, obj):
+        product = self._get_product(obj)
+        return product.advice if product else None
+
+    def get_instructions(self, obj):
+        product = self._get_product(obj)
+        return product.instructions if product else None
 
 
 class OrderLogSerializer(serializers.ModelSerializer):
