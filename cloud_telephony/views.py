@@ -507,10 +507,19 @@ class CallServiceViewSet(viewsets.ViewSet):
             if call_id:
                 details_response = sans_service.get_number(call_id)
                 print(details_response,"-------------------509")
-                if details_response.get("success") != True:
-                    return Response({"error": "Failed to retrieve call details."}, status=status.HTTP_400_BAD_REQUEST)
-                result = details_response.get("result", {})
-                phone_number = result.get("phone_number")
+                
+                if not details_response.get("success"):
+                    return Response(
+                        {"error": "Failed to retrieve call details."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+                result = details_response.get("result", [])
+
+                # ✅ Safely extract phone number
+                phone_number = None
+                if result and isinstance(result, list):
+                    phone_number = result[0].get("Phone_number")
               
             response_data = sans_service.get_all_call_log_detail(phone_number,date,date)
             print(response_data,"--------------511")
