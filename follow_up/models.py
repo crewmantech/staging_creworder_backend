@@ -170,7 +170,16 @@ class Appointment(BaseModel):
 
     status = models.CharField(max_length=20, choices=APPOINTMENT_STATUS, default="pending")
     appointment_type = models.CharField(max_length=20, choices=APPOINTMENT_TYPE, default="online")
-
+    drug_allergies = models.TextField(
+        null=True,
+        blank=True,
+        default=None
+    )
+    diet_allergies = models.TextField(
+        null=True,
+        blank=True,
+        default=None
+    )
     created_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
