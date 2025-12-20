@@ -1029,13 +1029,13 @@ class FilterOrdersView(viewsets.ViewSet):
             search = str(search).strip()
 
             search_q = (
-                Q(id__icontains=search) |
-                Q(order_id__icontains=search) |
-                Q(customer_phone__icontains=search) |
-                Q(customer_alter_phone__icontains=search) |
-                Q(call_id__icontains=search) |
-                Q(lead_id__icontains=search) |
-                Q(appointment__id__icontains=search)
+                Q(id=search) |
+                Q(order_id=search) |
+                Q(customer_phone=search) |
+                Q(customer_alter_phone=search) |
+                Q(call_id=search) |
+                Q(lead_id=search) |
+                Q(appointment__id=search)
             )
 
             filter_conditions &= search_q
