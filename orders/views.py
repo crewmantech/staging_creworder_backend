@@ -908,8 +908,12 @@ def get_date_range(self, request):
             return start_datetime, end_datetime
         
 class FilterOrdersView(viewsets.ViewSet):
-    permission_classes = [IsAuthenticated]  # Replace with actual permissions
-    pagination_class = FilterOrdersPagination  # Adjust as necessary
+    permission_classes = [IsAuthenticated]
+    pagination_class = FilterOrdersPagination
+
+    # ----------------------------------
+    # DATE RANGE HELPER
+    # ----------------------------------
     def get_date_range(self, request):
         """Extract and validate the date range from request.data (POST body)."""
         date_range = request.data.get('date_range')
@@ -940,28 +944,14 @@ class FilterOrdersView(viewsets.ViewSet):
 
         return start_datetime, end_datetime
     def create(self, request):
-        filters = request.data
-        if not filters:
-            raise ValueError("No filters provided")
+        filters = request.data or {}
+
         queryset = Order_Table.objects.all()
         filter_conditions = Q()
-        search = filters.get("search")
 
-        if search:
-            search = str(search).strip()
-
-            search_q = (
-                Q(id__icontains=search) |
-                Q(order_id__icontains=search) |
-                Q(customer_phone__icontains=search) |
-                Q(customer_alter_phone__icontains=search) |
-                Q(call_id__icontains=search) |
-                Q(lead_id__icontains=search) |
-                Q(appointment__id__icontains=search)
-            )
-
-        filter_conditions &= search_q
-        # Mapping API fields to model fields
+        # ----------------------------------
+        # EXACT FIELD FILTERS
+        # ----------------------------------
         filterable_fields = {
             "order_id": "order_id",
             "awb": "order_wayBill",
@@ -1030,22 +1020,42 @@ class FilterOrdersView(viewsets.ViewSet):
                 except ValueError:
                     return Response({"detail": "Invalid start_date format. Use YYYY-MM-DD."}, status=status.HTTP_400_BAD_REQUEST)
 
-            # if end_date:
-            #     try:
-            #         end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
-            #         end_date = timezone.make_aware(datetime.combine(end_date, datetime.max.time()))
-            #         filter_conditions &= (Q(created_at__lte=end_date) | Q(updated_at__lte=end_date))
-            #     except ValueError:
-            #         return Response({"detail": "Invalid end_date format. Use YYYY-MM-DD."}, status=status.HTTP_400_BAD_REQUEST)
-        # Apply the filter conditions to the queryset
-        queryset = queryset.filter(filter_conditions)
+        # ----------------------------------
+        # 🔍 GLOBAL SEARCH FILTER
+        # ----------------------------------
+        search = filters.get("search")
 
-        # Apply pagination and serialize the queryset
+        if search:
+            search = str(search).strip()
+
+            search_q = (
+                Q(id__icontains=search) |
+                Q(order_id__icontains=search) |
+                Q(customer_phone__icontains=search) |
+                Q(customer_alter_phone__icontains=search) |
+                Q(call_id__icontains=search) |
+                Q(lead_id__icontains=search) |
+                Q(appointment__id__icontains=search)
+            )
+
+            filter_conditions &= search_q
+
+        # ----------------------------------
+        # APPLY FILTERS
+        # ----------------------------------
+        queryset = queryset.filter(filter_conditions).distinct()
+
+        # ----------------------------------
+        # PAGINATION
+        # ----------------------------------
         paginator = self.pagination_class()
         paginated_queryset = paginator.paginate_queryset(queryset, request)
-        serializer = FilterOrdersSerializer(paginated_queryset, many=True)
-        return paginator.get_paginated_response(serializer.data)
 
+        serializer = FilterOrdersSerializer(
+            paginated_queryset, many=True
+        )
+
+        return paginator.get_paginated_response(serializer.data)
 
 
 
