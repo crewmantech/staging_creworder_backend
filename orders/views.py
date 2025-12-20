@@ -186,7 +186,7 @@ class OrderAPIView(APIView):
             prepaid_amount = request.data["prepaid_amount"]
             payment_type = Payment_Type.objects.filter(id=payment_type_id).first()
             appointment_id = request.data.get("appointment_id")
-            call_id = request.data['call_id']
+            call_id = request.data.get('call_id')
             print(request.data,"-------------190")
             if ((call_id or appointment_id)and user.has_perm("accounts.view_number_masking_others")and user.profile.user_type != "admin"):
                 try:
