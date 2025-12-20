@@ -552,6 +552,10 @@ class CallServiceViewSet(viewsets.ViewSet):
             for value in data:
                 # if key.isdigit():
                 value['file_path'] = value.get("reco_file")
+                value['call_start_time'] = value.get('start_time')
+                value['agent_username'] = value.get('agent_name')
+                value['campaign_name'] = value.get('campaign')
+                value['phone_number'] = value.get('log_phone_no')
                 calls.append(value)
             # print(calles)
             return Response({
