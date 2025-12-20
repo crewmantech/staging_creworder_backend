@@ -212,6 +212,7 @@ from .models import (
 from .serializers import (
     CallRecordingInputSerializer,
     CallRecordingModelSerializer,
+    CloudTelephonyChannelAssignCSVSerializer,
     CloudTelephonyVendorSerializer, 
     CloudTelephonyChannelSerializer, 
     CloudTelephonyChannelAssignSerializer,
@@ -219,6 +220,9 @@ from .serializers import (
     UserMailSetupSerializer
 )
 import requests
+import csv
+from io import TextIOWrapper
+from django.db import transaction
 
 class CloudTelephonyVendorViewSet(viewsets.ModelViewSet):
     queryset = CloudTelephonyVendor.objects.all()
@@ -850,3 +854,83 @@ class SecretKeyViewSet(viewsets.ModelViewSet):
         key_obj.save()
 
         return Response({"message": "Key deactivated successfully"})
+    
+
+class CloudTelephonyChannelAssignCSVUploadAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request):
+        user = request.user
+        company = user.profile.company
+
+        file = request.FILES.get("file")
+        if not file:
+            return Response(
+                {"error": "CSV file is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        csv_file = TextIOWrapper(file.file, encoding="utf-8")
+        reader = csv.DictReader(csv_file)
+
+        success, failed = [], []
+
+        for row_number, row in enumerate(reader, start=1):
+            try:
+                # 🔹 clean empty strings → None
+                cleaned_data = {
+                    k: (v if v not in ["", "null", "NULL"] else None)
+                    for k, v in row.items()
+                }
+
+                serializer = CloudTelephonyChannelAssignCSVSerializer(
+                    data=cleaned_data,
+                    context={"request": request}
+                )
+                serializer.is_valid(raise_exception=True)
+
+                target_user = serializer.validated_data.get("user")
+
+                instance = CloudTelephonyChannelAssign.objects.filter(
+                    user=target_user,
+                    company=company
+                ).first()
+
+                if instance:
+                    # 🔁 update only non-null fields
+                    for field, value in serializer.validated_data.items():
+                        if value is not None:
+                            setattr(instance, field, value)
+                    instance.save()
+                    success.append(
+                        {"row": row_number, "status": "updated"}
+                    )
+                else:
+                    serializer.save(company=company)
+                    success.append(
+                        {"row": row_number, "status": "created"}
+                    )
+
+            except Exception as e:
+                failed.append(
+                    {
+                        "row": row_number,
+                        "error": str(e),
+                        "data": row
+                    }
+                )
+
+        return Response(
+            {
+                "success": True,
+                "summary": {
+                    "total_rows": row_number,
+                    "processed": len(success),
+                    "failed": len(failed),
+                },
+                "success_rows": success,
+                "failed_rows": failed
+            },
+            status=status.HTTP_200_OK
+        )

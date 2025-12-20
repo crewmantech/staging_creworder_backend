@@ -12,6 +12,7 @@ from rest_framework.routers import DefaultRouter
 # )
 from .views import (
     CallServiceViewSet,
+    CloudTelephonyChannelAssignCSVUploadAPIView,
     CloudTelephonyVendorViewSet, 
     CloudTelephonyChannelViewSet, 
     CloudTelephonyChannelAssignViewSet,
@@ -32,6 +33,10 @@ urlpatterns = [
     path("", include(router.urls)),
     path('callservice/get-number/', GetNumberAPIView.as_view(), name='get-number'),
     path("telephony/save-recording/", SaveCallRecordingAPIView.as_view(), name="save-recording"),
+    path(
+        "telephony-channel-assign/upload-csv/",
+        CloudTelephonyChannelAssignCSVUploadAPIView.as_view()
+    )
     # path(
     #     "createCloudTelephoneyChannel/",
     #     CreateCloudTelephoneyChannel.as_view(),

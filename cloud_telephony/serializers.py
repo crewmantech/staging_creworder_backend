@@ -75,3 +75,19 @@ class SecretKeySerializer(serializers.ModelSerializer):
             "deactivated_at"
         ]
         read_only_fields = ["id", "secret_key", "created_at", "deactivated_at"]
+
+class CloudTelephonyChannelAssignCSVSerializer(serializers.ModelSerializer):
+    company = serializers.PrimaryKeyRelatedField(read_only=True)
+
+    class Meta:
+        model = CloudTelephonyChannelAssign
+        fields = "__all__"
+        extra_kwargs = {
+            "priority": {"required": False},
+            "campangin_name": {"required": False, "allow_null": True},
+            "agent_username": {"required": False, "allow_null": True},
+            "agent_password": {"required": False, "allow_null": True},
+            "agent_id": {"required": False, "allow_null": True},
+            "camp_id": {"required": False, "allow_null": True},
+            "other": {"required": False, "allow_null": True},
+        }
