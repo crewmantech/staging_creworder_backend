@@ -543,3 +543,23 @@ class AppointmentLayoutDetailAPIView(APIView):
             {"success": True, "message": "Deleted successfully"},
             status=status.HTTP_204_NO_CONTENT
         )
+    def patch(self, request, pk):
+        company = request.user.profile.company
+        obj = self.get_object(pk, company)
+
+        serializer = AppointmentinvoiceSerializer(
+            obj,
+            data=request.data,
+            partial=True  # ✅ Partial update
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(
+            {
+                "success": True,
+                "message": "Appointment layout partially updated",
+                "data": serializer.data
+            },
+            status=status.HTTP_200_OK
+        )
