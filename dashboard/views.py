@@ -549,9 +549,15 @@ class GetUserDashboardtiles1(APIView):
         is_admin = user.profile.user_type == 'admin'
         allowed_statuses = ("running", "pending", "accepted")
 
-        has_access = any(status_name in allowed_statuses and (
-        is_admin or user.has_perm(f"dashboard.view_all_dashboard_{self.TILES[s][1]}")
-    ))
+        has_access = (
+    status_name in allowed_statuses
+    and (
+        is_admin
+        or user.has_perm(
+            f"dashboard.view_all_dashboard_{self.TILES[status_name][1]}"
+        )
+    )
+)
         if has_access:
             qs = Order_Table.objects.filter(branch=branch, company=company, is_deleted=False)
            
