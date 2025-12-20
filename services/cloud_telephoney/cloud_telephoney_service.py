@@ -112,7 +112,7 @@ from rest_framework.exceptions import ValidationError
 import requests
 import hashlib
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, date
 
 from cloud_telephony.models import CloudTelephonyChannelAssign
 class CloudConnectService:
@@ -407,6 +407,20 @@ class SansSoftwareService:
             POST https://bsl.sansoftwares.com/api/getAllCallLogDetail
             Body: { "Phone_number": "...", "process_id": "..." }
         """
+        if isinstance(start_date_str, date):
+            start_date = start_date_str
+        else:
+            start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+
+        # ---- normalize end date ----
+        if isinstance(to_date_str, date):
+            end_date = to_date_str
+        else:
+            end_date = datetime.strptime(to_date_str, "%Y-%m-%d").date()
+
+        from_date = f"{start_date} 00:00:00"
+        to_date = f"{end_date} 23:59:59"
+        
         selected_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
         selected_date = datetime.strptime(to_date_str, "%Y-%m-%d").date()
         from_date = f"{selected_date} 00:00:00"
