@@ -108,10 +108,13 @@
 #     except ObjectDoesNotExist:
 #         return False
 
+from rest_framework.exceptions import ValidationError
 import requests
 import hashlib
 from typing import Optional
 from datetime import datetime
+
+from cloud_telephony.models import CloudTelephonyChannelAssign
 class CloudConnectService:
     BASE_URL = "https://crm5.cloud-connect.in/CCC_api/v1.4"
 
@@ -456,3 +459,57 @@ class SansSoftwareService:
         res = self._post_request("caller/Api/ClicktoCallDial", data)
         print(res,"-----------self._post_request")
         return res
+    
+    
+def get_phone_number_by_call_id(user, call_id):
+    if not call_id:
+        raise ValidationError("call_id is required.")
+
+    try:
+        channel_assign = CloudTelephonyChannelAssign.objects.get(user_id=user.id)
+        channel = channel_assign.cloud_telephony_channel
+    except CloudTelephonyChannelAssign.DoesNotExist:
+        raise ValidationError("No channel assigned to this user.")
+
+    cloud_vendor = channel.cloudtelephony_vendor.name.lower()
+
+    # -------- CLOUD CONNECT --------
+    if cloud_vendor == "cloud connect":
+        if not channel.token or not channel.tenent_id:
+            raise ValidationError("token and tenant_id required for CloudConnect.")
+
+        service = CloudConnectService(channel.token, channel.tenent_id)
+        response = service.call_details(call_id)
+
+        if response.get("code") != 200:
+            raise ValidationError({
+                "vendor": "cloud_connect",
+                "vendor_code": response.get("code"),
+                "vendor_message": response.get("status_message", "Unknown error")
+            })
+
+        # ✅ phone_number ONLY here
+        return response["result"]["phone_number"]
+
+    # -------- SANSSOFTWARES --------
+    elif cloud_vendor == "sansoftwares":
+        process_id = channel.tenent_id
+        if not process_id:
+            raise ValidationError("process_id required for Sanssoftwares.")
+
+        service = SansSoftwareService(process_id=process_id)
+        response = service.get_number(call_id)
+
+        if response.get("code") != 200:
+            raise ValidationError({
+                "vendor": "sansoftwares",
+                "vendor_code": response.get("code"),
+                "vendor_message": response.get("message", "Unknown error")
+            })
+
+        # ✅ phone_number ONLY here
+        return response["result"]["phone_number"]
+
+    else:
+        raise ValidationError(f"{cloud_vendor} is not supported.")
+    

@@ -8,6 +8,7 @@ from accounts.models import Employees
 from accounts.permissions import HasPermission
 
 from cloud_telephony.models import CloudTelephonyChannelAssign
+from follow_up.utils import get_phone_by_reference_id
 from lead_management.models import Lead
 from services.cloud_telephoney.cloud_telephoney_service import CloudConnectService, SansSoftwareService
 from .models import Appointment, Follow_Up
@@ -418,3 +419,32 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             branch=user.profile.branch,
             created_by=user
         )
+
+class GetPhoneByReferenceAllAPIView(APIView):
+    """
+    GET phone number using a single reference_id
+    reference_id can be:
+    - Lead.lead_id
+    - Follow_Up.followup_id
+    - call_id (cloud vendor)
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        reference_id = request.query_params.get("reference_id")
+
+        try:
+            data = get_phone_by_reference_id(
+                user=request.user,
+                reference_id=reference_id
+            )
+            return Response(
+                {"success": True, "data": data},
+                status=status.HTTP_200_OK
+            )
+
+        except ValidationError as e:
+            return Response(
+                {"success": False, "error": e.detail},
+                status=status.HTTP_404_NOT_FOUND
+            )
