@@ -549,28 +549,20 @@ class GetUserDashboardtiles1(APIView):
         is_admin = user.profile.user_type == 'admin'
         allowed_statuses = ("running", "pending", "accepted")
 
-        has_access = (
-    status_name in allowed_statuses
-    and (
-        is_admin
-        or user.has_perm(
-            f"dashboard.view_all_dashboard_{self.TILES[status_name][1]}"
-        )
-    )
-)       
+        has_access = (is_admin or user.has_perm(f"dashboard.view_all_dashboard_{self.TILES[status_name][1]}"))       
         print(has_access,"--------------561",status_name)
         if has_access:
             qs = Order_Table.objects.filter(branch=branch, company=company, is_deleted=False)
            
         # decide base scope
-        elif is_admin or any(
-            user.has_perm(f"dashboard.view_all_dashboard_{s}")
-            for _, s in self.TILES.values()
-        ):
-             qs = Order_Table.objects.filter(
-                Q(order_created_by__in=mgr) | Q(updated_by__in=mgr),
-                branch=branch, company=company, is_deleted=False
-            )
+        # elif is_admin or any(
+        #     user.has_perm(f"dashboard.view_all_dashboard_{s}")
+        #     for _, s in self.TILES.values()
+        # ):
+        #      qs = Order_Table.objects.filter(
+        #         Q(order_created_by__in=mgr) | Q(updated_by__in=mgr),
+        #         branch=branch, company=company, is_deleted=False
+        #     )
         elif any(
             user.has_perm(f"dashboard.view_manager_dashboard_{s}")
             for _, s in self.TILES.values()
@@ -603,10 +595,17 @@ class GetUserDashboardtiles1(APIView):
             qs = qs.filter(order_status__name=status_name)
         return qs
 
-    def _count_and_amount(self, qs, start_dt, end_dt, is_admin,permission):
+    def _count_and_amount(self, qs, start_dt, end_dt, is_admin,permission,status=None):
         """Return both count and total_amount."""
+        allowed_statuses = ("running", "pending", "accepted")
+        fetch = True if status in allowed_statuses else False
+
+
         if is_admin or not permission:
-            filtered_qs = qs.filter(created_at__range=(start_dt, end_dt))
+            if fetch:
+                filtered_qs = qs.filter(Q(created_at__range=(start_dt, end_dt)) | Q(updated_at__range=(start_dt, end_dt)))
+            else:
+                filtered_qs = qs.filter(created_at__range=(start_dt, end_dt))
         else:
             filtered_qs = qs.filter(Q(created_at__range=(start_dt, end_dt)) | Q(updated_at__range=(start_dt, end_dt)))
 
@@ -672,7 +671,7 @@ class GetUserDashboardtiles1(APIView):
             else:
                 # Default logic for all other tiles
                 qs = self._base_query(request, branch, company, mgr, tl, own, status_name)
-                cnt, amount = self._count_and_amount(qs, start_dt, end_dt, is_admin,permission)
+                cnt, amount = self._count_and_amount(qs, start_dt, end_dt, is_admin,permission,key)
                 # cnt = self._count(qs, status_name, start_dt, end_dt)
                 # total_amount = qs.aggregate(total_amount=Sum('total_amount'))['total_amount'] or 0
 
