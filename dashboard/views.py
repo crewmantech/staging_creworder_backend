@@ -557,7 +557,8 @@ class GetUserDashboardtiles1(APIView):
             f"dashboard.view_all_dashboard_{self.TILES[status_name][1]}"
         )
     )
-)
+)       
+        print(has_access,"--------------561",status_name)
         if has_access:
             qs = Order_Table.objects.filter(branch=branch, company=company, is_deleted=False)
            
