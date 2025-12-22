@@ -600,7 +600,7 @@ class GetUserDashboardtiles1(APIView):
         allowed_statuses = ("running", "pending", "accepted")
         fetch = True if status in allowed_statuses else False
 
-
+        print(status,fetch,"----------------603")
         if is_admin or not permission:
             if fetch:
                 filtered_qs = qs.filter(Q(created_at__range=(start_dt, end_dt)) | Q(updated_at__range=(start_dt, end_dt)))
