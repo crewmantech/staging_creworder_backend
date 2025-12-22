@@ -603,6 +603,7 @@ class GetUserDashboardtiles1(APIView):
         print(status,fetch,"----------------603")
         if is_admin or not permission:
             if fetch:
+                print("-----------606")
                 filtered_qs = qs.filter(Q(created_at__range=(start_dt, end_dt)) | Q(updated_at__range=(start_dt, end_dt)))
             else:
                 filtered_qs = qs.filter(created_at__range=(start_dt, end_dt))
@@ -672,6 +673,7 @@ class GetUserDashboardtiles1(APIView):
                 # Default logic for all other tiles
                 qs = self._base_query(request, branch, company, mgr, tl, own, status_name)
                 cnt, amount = self._count_and_amount(qs, start_dt, end_dt, is_admin,permission,key)
+                print(key,cnt,amount,"----------------676")
                 # cnt = self._count(qs, status_name, start_dt, end_dt)
                 # total_amount = qs.aggregate(total_amount=Sum('total_amount'))['total_amount'] or 0
 
