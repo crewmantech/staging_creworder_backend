@@ -55,13 +55,16 @@ class AppointmentSerializer(serializers.ModelSerializer):
     def validate(self, data):
         request = self.context.get("request")
         user = request.user
+
         doctor = data.get("doctor")
 
+        # 🔐 Doctor must belong to same company
         if doctor and doctor.company != user.profile.company:
             raise serializers.ValidationError(
                 "Doctor does not belong to your company."
             )
 
+        # 🔐 Doctor must be available in user's branch
         if doctor and user.profile.branch not in doctor.branches.all():
             raise serializers.ValidationError(
                 "Doctor is not available in your branch."

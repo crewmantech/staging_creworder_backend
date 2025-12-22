@@ -306,6 +306,7 @@ class Order_Table(BaseModel):
         null=True,
         blank=True
     )
+
     class Meta:
         db_table = 'orders_table'
     def save(self, *args, **kwargs):
@@ -533,6 +534,8 @@ class invoice_layout(BaseModel):
         if not self.id:
             self.id = generate_unique_id(invoice_layout, prefix='ILI')
         super().save(*args, **kwargs)
+
+
 
 
 

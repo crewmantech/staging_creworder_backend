@@ -3935,7 +3935,20 @@ class DeleteUserListView(ListAPIView):
                 queryset = User.objects.filter(
                     Q(profile__branch=user.profile.branch) & status_filter
                 )
+            search = self.request.query_params.get("search")
+            if search:
+                queryset = queryset.filter(
+                    Q(username__icontains=search) |
+                    Q(profile__contact_no__icontains=search) |
+                    Q(profile__professional_email__icontains=search) |
+                    Q(profile__employee_id__icontains=search) |
+                    Q(profile__gender__icontains=search) |
+                    Q(profile__department__name__icontains=search) |
+                    Q(profile__designation__name__icontains=search) |
+                    Q(first_name__icontains=search)|
+                    Q(email__icontains=search)
 
+                ).distinct()
         except Exception as e:
             print(f"Error in get_queryset: {e}")
 
@@ -4662,4 +4675,6 @@ class DoctorViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         user = self.request.user
         company = getattr(user.profile, "company", None)
+
         serializer.save(company=company)
+

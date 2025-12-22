@@ -191,9 +191,11 @@ class UserProfileCreateSerializer(serializers.ModelSerializer):
             phone_number_str = f"+91{phone_number_str}"
 
         try:
+            # Parse and validate the phone number
             parsed_phone = parse(phone_number_str, "IN")
             if not is_valid_number(parsed_phone):
                 raise serializers.ValidationError("The phone number entered is not valid.")
+            # Return formatted phone number in E.164 format
             return format_number(parsed_phone, PhoneNumberFormat.E164)
         except NumberParseException:
             raise serializers.ValidationError("The phone number entered is not valid.")
@@ -888,6 +890,7 @@ class DoctorSerializer(serializers.ModelSerializer):
     branch_names = serializers.SerializerMethodField()
     company_name = serializers.CharField(source="company.name", read_only=True)
 
+    # User details (read-only)
     username = serializers.CharField(source="user.username", read_only=True)
     email = serializers.EmailField(source="user.email", read_only=True)
     full_name = serializers.SerializerMethodField()
@@ -938,6 +941,7 @@ class DoctorSerializer(serializers.ModelSerializer):
         company = getattr(user.profile, "company", None)
 
         branches = data.get("branches", [])
+
         if company and branches:
             for branch in branches:
                 if branch.company != company:

@@ -559,6 +559,9 @@ class LeadBulkUploadView(APIView):
     # PHONE VALIDATION
     # ---------------------------------------------------
     def is_valid_phone_number(self, number):
+        """
+        Validate phone number using defined rules.
+        """
         if not number:
             return False
 
@@ -576,6 +579,7 @@ class LeadBulkUploadView(APIView):
         return True
 
     def process_phone_number(self, number):
+        """Add +91 prefix to valid 10-digit numbers"""
         return f"+91{number}"
 
     # ---------------------------------------------------
@@ -640,6 +644,7 @@ class LeadBulkUploadView(APIView):
                     # -------------------------
                     phone_value = str(row.get('customer_phone', '')).strip()
 
+                    # Validation check
                     if not self.is_valid_phone_number(phone_value):
                         errors.append({
                             "row": index,

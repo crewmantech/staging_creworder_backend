@@ -49,7 +49,7 @@ class ShipmentsConfig(AppConfig):
                     vendor_id = vendor_data.get('id')
                     vendor_name = vendor_data.get('name', '').lower()
                     company = shipmentData["company_id"]  # CharField
-                    branch = shipmentData["branch_id"]    # CharField
+                    # branch = shipmentData["branch_id"]    # CharField
 
                     # --- SHIPROCKET ---
                     if vendor_name == 'shiprocket' and shipmentData['credential_username']:
@@ -99,8 +99,7 @@ class ShipmentsConfig(AppConfig):
                         ]
                         orders = Order_Table.objects.filter(
                             order_wayBill__isnull=False,
-                            company=company,
-                            branch=branch
+                            company=company
                         ).exclude(order_wayBill='').exclude(order_status__name__in=excluded_statuses)
 
                         for order in orders:
@@ -138,8 +137,7 @@ class ShipmentsConfig(AppConfig):
                         ]
                         orders = Order_Table.objects.filter(
                             order_wayBill__isnull=False,
-                            company=company,
-                            branch=branch
+                            company=company
                         ).exclude(order_wayBill='').exclude(order_status__name__in=excluded_statuses)
 
                         for order in orders:
@@ -179,8 +177,7 @@ class ShipmentsConfig(AppConfig):
                         ]
                         orders = Order_Table.objects.filter(
                             order_wayBill__isnull=False,
-                            company=company,
-                            branch=branch
+                            company=company
                         ).exclude(order_wayBill='').exclude(order_status__name__in=excluded_statuses)
 
                         for order in orders:

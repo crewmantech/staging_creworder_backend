@@ -8,6 +8,8 @@ from accounts.utils import generate_unique_id
 from lead_management.models import LeadStatusModel
 from middleware.request_middleware import get_request
 from phonenumber_field.modelfields import PhoneNumberField
+
+
 phone_regex = RegexValidator(
     regex=r'^\+?1?\d{9,15}$',
     message="Phone number must be entered in the format: '+999999999'. Up to 15 digits allowed."
@@ -210,6 +212,7 @@ class Appointment(BaseModel):
         return f"{prefix}{str(next_id).zfill(6)}"
 
     def save(self, *args, **kwargs):
+        # 🔑 Generate Appointment ID
         if not self.id:
             self.id = self.generate_id()
 

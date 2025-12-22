@@ -107,6 +107,7 @@ from django.db.models import Sum, F
 import re
 from follow_up.serializers import AppointmentSerializer
 from accounts.serializers import DoctorSerializer
+from follow_up.models import Appointment
 from django.apps import apps
 
 
@@ -1056,6 +1057,7 @@ class FilterOrdersView(viewsets.ViewSet):
         )
 
         return paginator.get_paginated_response(serializer.data)
+
 
 
 

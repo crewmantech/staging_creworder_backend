@@ -854,7 +854,7 @@ class SecretKeyViewSet(viewsets.ModelViewSet):
 
         # Create a new record → secret key auto-generates in model.save()
         secret_key_obj = SecretKey.objects.create(
-            cloudtelephony_vendor_id=vendor_id,
+            cloudtelephony_vendor_id=vendor_id
         )
 
         return Response(

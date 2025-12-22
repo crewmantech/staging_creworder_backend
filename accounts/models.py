@@ -1272,8 +1272,10 @@ class Doctor(BaseModel):
         Company,
         on_delete=models.CASCADE,
         related_name="doctors"
+        
     )
 
+    # ✅ Multiple branches + nullable
     branches = models.ManyToManyField(
         Branch,
         related_name="doctors"
