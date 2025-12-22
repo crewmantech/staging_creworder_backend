@@ -547,22 +547,11 @@ class GetUserDashboardtiles1(APIView):
         """Same as your get_base_query() but status applied later."""
         user = request.user
         is_admin = user.profile.user_type == 'admin'
-        allowed_statuses = ("running", "pending", "accepted")
-
-        has_access = (is_admin or user.has_perm(f"dashboard.view_all_dashboard_{self.TILES[status_name][1]}"))       
-        print(has_access,"--------------561",status_name)
-        if has_access:
-            qs = Order_Table.objects.filter(branch=branch, company=company, is_deleted=False)
-           
-        # decide base scope
-        # elif is_admin or any(
-        #     user.has_perm(f"dashboard.view_all_dashboard_{s}")
-        #     for _, s in self.TILES.values()
-        # ):
-        #      qs = Order_Table.objects.filter(
-        #         Q(order_created_by__in=mgr) | Q(updated_by__in=mgr),
-        #         branch=branch, company=company, is_deleted=False
-        #     )
+        if is_admin or any(
+            user.has_perm(f"dashboard.view_all_dashboard_{s}")
+            for _, s in self.TILES.values()
+        ):
+            qs = Order_Table.objects.filter(company=company, is_deleted=False)
         elif any(
             user.has_perm(f"dashboard.view_manager_dashboard_{s}")
             for _, s in self.TILES.values()
