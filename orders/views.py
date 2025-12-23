@@ -3861,8 +3861,12 @@ class OrderListView(APIView):
             if start_dt and end_dt:
                 if request.user.profile.user_type == "agent" and request.user.has_perm('accounts.edit_order_others'):
                     qs = qs.filter(Q(created_at__range=(start_dt, end_dt)) | Q(updated_at__range=(start_dt, end_dt)))
-                else:    
-                    qs = qs.filter(created_at__range=(start_dt, end_dt))
+                else:
+                    # sastatus_name.lower()
+                    if status_name.lower() not in ("running","pending", "accepted"):
+                        qs = qs.filter(Q(created_at__range=(start_dt, end_dt)) | Q(updated_at__range=(start_dt, end_dt)))
+                    else:
+                        qs = qs.filter(created_at__range=(start_dt, end_dt))
         qs = self._scope_queryset(qs, request.user, status_name)
         
          # Add ordering: newest first (reverse chronological order by date and time)
