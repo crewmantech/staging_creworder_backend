@@ -551,7 +551,7 @@ class GetUserDashboardtiles1(APIView):
             user.has_perm(f"dashboard.view_all_dashboard_{s}")
             for _, s in self.TILES.values()
         ):
-            qs = Order_Table.objects.filter(company=company, is_deleted=False)
+            qs = Order_Table.objects.filter(company=company, branch=branch,is_deleted=False)
         elif any(
             user.has_perm(f"dashboard.view_manager_dashboard_{s}")
             for _, s in self.TILES.values()
@@ -586,7 +586,7 @@ class GetUserDashboardtiles1(APIView):
 
     def _count_and_amount(self, qs, start_dt, end_dt, is_admin,permission,status=None):
         """Return both count and total_amount."""
-        allowed_statuses = ( "pending", "accepted")
+        allowed_statuses = ("pending", "accepted")
         fetch = True if status in allowed_statuses else False
 
         print(status,fetch,"----------------603")
