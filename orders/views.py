@@ -3863,10 +3863,10 @@ class OrderListView(APIView):
                     qs = qs.filter(Q(created_at__range=(start_dt, end_dt)) | Q(updated_at__range=(start_dt, end_dt)))
                 else:
                     # sastatus_name.lower()
-                    if status_name and status_name.lower() not in ("running","pending", "accepted"):
-                        qs = qs.filter(Q(created_at__range=(start_dt, end_dt)) | Q(updated_at__range=(start_dt, end_dt)))
-                    else:
-                        qs = qs.filter(created_at__range=(start_dt, end_dt))
+                    # if status_name and status_name.lower() not in ("running","pending", "accepted"):
+                    #     qs = qs.filter(Q(created_at__range=(start_dt, end_dt)) | Q(updated_at__range=(start_dt, end_dt)))
+                    # else:
+                    qs = qs.filter(created_at__range=(start_dt, end_dt))
         qs = self._scope_queryset(qs, request.user, status_name)
         
          # Add ordering: newest first (reverse chronological order by date and time)
