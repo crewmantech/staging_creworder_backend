@@ -591,12 +591,12 @@ class GetUserDashboardtiles1(APIView):
 
         print(status,fetch,"----------------603")
         if is_admin or not permission:
-            if fetch:
-                print("-----------606")
-                filtered_qs = qs.filter(created_at__range=(start_dt, end_dt))
+            # if fetch:
+                # print("-----------606")
+            filtered_qs = qs.filter(created_at__range=(start_dt, end_dt))
                 
-            else:
-                filtered_qs = qs.filter(Q(created_at__range=(start_dt, end_dt)) | Q(updated_at__range=(start_dt, end_dt)))
+            # else:
+            #     filtered_qs = qs.filter(Q(created_at__range=(start_dt, end_dt)) | Q(updated_at__range=(start_dt, end_dt)))
         else:
             filtered_qs = qs.filter(Q(created_at__range=(start_dt, end_dt)) | Q(updated_at__range=(start_dt, end_dt)))
 
