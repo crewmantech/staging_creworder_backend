@@ -536,8 +536,8 @@ class AppointmentViewSet(viewsets.ModelViewSet):
 
         # 👤 Admin
         if hasattr(user, "profile") and user.profile.user_type == "admin":
-            queryset = self.apply_common_filters(queryset)
-            queryset = self.apply_date_filter(queryset)
+            # queryset = apply_common_filters(queryset)
+            # queryset = self.apply_date_filter(queryset)
             queryset = self.apply_appointment_filters(queryset)
             return queryset.order_by("-created_at")
 
