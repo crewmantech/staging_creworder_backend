@@ -455,6 +455,9 @@ class AppointmentViewSet(viewsets.ModelViewSet):
     def apply_appointment_filters(self, queryset):
         params = self.request.query_params
 
+        # 🔍 Global search
+        search = params.get("search")
+
         doctor = params.get("doctor")
         branch = params.get("branch")
         status = params.get("status")
@@ -468,6 +471,23 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         created_by = params.get("created_by")
         reference_id = params.get("reference_id")
 
+        # =====================================================
+        # 🔍 Global Search (single keyword)
+        # =====================================================
+        if search:
+            queryset = queryset.filter(
+                Q(id=search) |
+                Q(uhid=search) |
+                Q(patient_name__icontains=search) |
+                Q(patient_phone=search) |
+                Q(doctor__user__first_name__icontains=search) |
+                Q(doctor__user__last_name__icontains=search) |
+                Q(doctor__registration_number__icontains=search)
+            )
+
+        # =====================================================
+        # 🎯 Specific Filters
+        # =====================================================
         if doctor:
             queryset = queryset.filter(doctor_id=doctor)
 
@@ -504,6 +524,7 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(reference_id__icontains=reference_id)
 
         return queryset
+
 
     @action(detail=True, methods=["get"], url_path="customer-phone")
     def customer_phone(self, request, pk=None):

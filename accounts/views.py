@@ -4663,7 +4663,7 @@ class DoctorViewSet(viewsets.ModelViewSet):
 
         branch = self.request.query_params.get("branch")
         active = self.request.query_params.get("active")
-
+        status = self.request.query_params.get("status")
         if active == "true":
             qs = qs.filter(is_active=True)
 
@@ -4672,7 +4672,8 @@ class DoctorViewSet(viewsets.ModelViewSet):
 
         if branch:
             qs = qs.filter(branches__id=branch)
-
+        if status is not None:
+            qs = qs.filter(user__profile__status=status)
         return qs
 
     def perform_create(self, serializer):
