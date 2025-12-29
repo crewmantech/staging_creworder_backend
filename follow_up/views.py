@@ -355,7 +355,7 @@ class FollowUpExportAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         
-    @action(detail=False, methods=['post'], url_path='bulk-assign/')
+    @action(detail=False, methods=['post'], url_path='bulk-assign')
     @transaction.atomic
     def bulk_assign(self, request):
         serializer = BulkFollowupAssignSerializer(data=request.data)
