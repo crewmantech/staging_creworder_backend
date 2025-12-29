@@ -530,25 +530,18 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         user = self.request.user
         queryset = super().get_queryset()
 
-        # =====================================================
-        # 🔐 Company Isolation (Except Superadmin)
-        # =====================================================
+        # 🔐 Company Isolation
         if hasattr(user, "profile") and user.profile.user_type != "superadmin":
             queryset = queryset.filter(company=user.profile.company)
 
-        # =====================================================
-        # 👤 Admin → Common + Date Filters
-        # =====================================================
+        # 👤 Admin
         if hasattr(user, "profile") and user.profile.user_type == "admin":
             queryset = self.apply_common_filters(queryset)
             queryset = self.apply_date_filter(queryset)
             queryset = self.apply_appointment_filters(queryset)
             return queryset.order_by("-created_at")
 
-        # =====================================================
-        # 🔑 Permission-Based Appointment Visibility
-        # =====================================================
-
+        # 🔑 Permission-based access
         if user.has_perm("accounts.view_own_appointment_others"):
             queryset = queryset.filter(created_by=user)
 
@@ -571,17 +564,10 @@ class AppointmentViewSet(viewsets.ModelViewSet):
                 created_by__in=list(team_leads) + list(team_users)
             )
 
-        elif user.has_perm("accounts.view_all_appointment_others"):
-            pass
-
-        else:
+        elif not user.has_perm("accounts.view_all_appointment_others"):
             return queryset.none()
 
-        # =====================================================
-        # 🔍 Apply Extra Filters (for all roles)
-        # =====================================================
         queryset = self.apply_appointment_filters(queryset)
-
         return queryset.order_by("-created_at")
 
     def perform_create(self, serializer):
