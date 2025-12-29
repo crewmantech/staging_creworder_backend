@@ -50,8 +50,11 @@ class AppointmentSerializer(serializers.ModelSerializer):
             "uhid",
             "bmi"
         ]
+    #     doctor_name = serializers.CharField(
+    #     source="doctor.user.username", read_only=True
+    # )
     def get_doctor_name(self, obj):
-        return obj.user.first_name if obj.user else None
+        return obj.doctor.user.first_name if obj.doctor else None
     def validate(self, data):
         request = self.context.get("request")
         user = request.user
