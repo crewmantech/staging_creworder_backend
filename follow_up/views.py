@@ -452,7 +452,59 @@ class AppointmentViewSet(viewsets.ModelViewSet):
     queryset = Appointment.objects.select_related(
         "doctor", "branch", "company", "created_by"
     )
-    
+    def apply_appointment_filters(self, queryset):
+        params = self.request.query_params
+
+        doctor = params.get("doctor")
+        branch = params.get("branch")
+        status = params.get("status")
+        appointment_type = params.get("appointment_type")
+        uhid = params.get("uhid")
+        phone = params.get("phone")
+        patient_name = params.get("patient_name")
+        appointment_date = params.get("appointment_date")
+        date_from = params.get("date_from")
+        date_to = params.get("date_to")
+        created_by = params.get("created_by")
+        reference_id = params.get("reference_id")
+
+        if doctor:
+            queryset = queryset.filter(doctor_id=doctor)
+
+        if branch:
+            queryset = queryset.filter(branch_id=branch)
+
+        if status:
+            queryset = queryset.filter(status=status)
+
+        if appointment_type:
+            queryset = queryset.filter(appointment_type=appointment_type)
+
+        if uhid:
+            queryset = queryset.filter(uhid__icontains=uhid)
+
+        if phone:
+            queryset = queryset.filter(patient_phone__icontains=phone)
+
+        if patient_name:
+            queryset = queryset.filter(patient_name__icontains=patient_name)
+
+        if appointment_date:
+            queryset = queryset.filter(appointment_date=appointment_date)
+
+        if date_from and date_to:
+            queryset = queryset.filter(
+                appointment_date__range=[date_from, date_to]
+            )
+
+        if created_by:
+            queryset = queryset.filter(created_by_id=created_by)
+
+        if reference_id:
+            queryset = queryset.filter(reference_id__icontains=reference_id)
+
+        return queryset
+
     @action(detail=True, methods=["get"], url_path="customer-phone")
     def customer_phone(self, request, pk=None):
         """
@@ -485,30 +537,27 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(company=user.profile.company)
 
         # =====================================================
-        # 👤 Admin → Common + Date Filters (optional)
+        # 👤 Admin → Common + Date Filters
         # =====================================================
         if hasattr(user, "profile") and user.profile.user_type == "admin":
             queryset = self.apply_common_filters(queryset)
             queryset = self.apply_date_filter(queryset)
+            queryset = self.apply_appointment_filters(queryset)
             return queryset.order_by("-created_at")
 
         # =====================================================
         # 🔑 Permission-Based Appointment Visibility
         # =====================================================
 
-        # 🔹 View only own appointments
         if user.has_perm("accounts.view_own_appointment_others"):
             queryset = queryset.filter(created_by=user)
 
-        # 🔹 Team Lead → See team members' appointments
         elif user.has_perm("accounts.view_teamlead_appointment_others"):
             team_users = Employees.objects.filter(
                 teamlead=user
             ).values_list("user", flat=True)
-
             queryset = queryset.filter(created_by__in=team_users)
 
-        # 🔹 Manager → See team leads + their team members
         elif user.has_perm("accounts.view_manager_appointment_others"):
             team_leads = Employees.objects.filter(
                 manager=user
@@ -522,13 +571,16 @@ class AppointmentViewSet(viewsets.ModelViewSet):
                 created_by__in=list(team_leads) + list(team_users)
             )
 
-        # 🔹 Full access
         elif user.has_perm("accounts.view_all_appointment_others"):
             pass
 
-        # ❌ No permission → No data
         else:
-            queryset = queryset.none()
+            return queryset.none()
+
+        # =====================================================
+        # 🔍 Apply Extra Filters (for all roles)
+        # =====================================================
+        queryset = self.apply_appointment_filters(queryset)
 
         return queryset.order_by("-created_at")
 
