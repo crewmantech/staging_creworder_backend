@@ -4672,8 +4672,11 @@ class DoctorViewSet(viewsets.ModelViewSet):
 
         if branch:
             qs = qs.filter(branches__id=branch)
-        if status is not None:
-            qs = qs.filter(user__profile__status=status)
+        if status is not None and status != "":
+            try:
+                qs = qs.filter(user__profile__status=int(status))
+            except ValueError:
+                pass 
         return qs
 
     def perform_create(self, serializer):
