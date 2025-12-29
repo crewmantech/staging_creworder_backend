@@ -258,7 +258,42 @@ class FollowUpView(viewsets.ModelViewSet):
 
         return Response(serializer.data)
 
+    @action(detail=False, methods=['post'], url_path='bulk-assign')
+    @transaction.atomic
+    def bulk_assign(self, request):
+        serializer = BulkFollowupAssignSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
+        user_ids = serializer.validated_data['user_ids']
+        followup_ids = serializer.validated_data['followup_ids']
+
+        users = list(User.objects.filter(id__in=user_ids))
+        followups = list(Follow_Up.objects.filter(followup_id__in=followup_ids))
+
+        if not users or not followups:
+            return Response(
+                {"error": "Invalid users or followups"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        assigned = []
+        user_count = len(users)
+
+        # 🔄 ROUND ROBIN ASSIGNMENT
+        for index, followup in enumerate(followups):
+            user = users[index % user_count]
+            followup.assign_user = user
+            followup.save(update_fields=['assign_user'])
+            assigned.append({
+                "followup_id": followup.followup_id,
+                "assigned_to": user.id
+            })
+
+        return Response({
+            "message": "Followups assigned successfully",
+            "total_assigned": len(assigned),
+            "assignments": assigned
+        }, status=status.HTTP_200_OK)
 class NotepadCreateOrUpdate(APIView):
     permission_classes = [IsAuthenticated]
     def post(self, request):
@@ -355,42 +390,7 @@ class FollowUpExportAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         
-    @action(detail=False, methods=['post'], url_path='bulk-assign')
-    @transaction.atomic
-    def bulk_assign(self, request):
-        serializer = BulkFollowupAssignSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        user_ids = serializer.validated_data['user_ids']
-        followup_ids = serializer.validated_data['followup_ids']
-
-        users = list(User.objects.filter(id__in=user_ids))
-        followups = list(Follow_Up.objects.filter(followup_id__in=followup_ids))
-
-        if not users or not followups:
-            return Response(
-                {"error": "Invalid users or followups"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        assigned = []
-        user_count = len(users)
-
-        # 🔄 ROUND ROBIN ASSIGNMENT
-        for index, followup in enumerate(followups):
-            user = users[index % user_count]
-            followup.assign_user = user
-            followup.save(update_fields=['assign_user'])
-            assigned.append({
-                "followup_id": followup.followup_id,
-                "assigned_to": user.id
-            })
-
-        return Response({
-            "message": "Followups assigned successfully",
-            "total_assigned": len(assigned),
-            "assignments": assigned
-        }, status=status.HTTP_200_OK)
+    
 class GetPhoneByReferenceAPIView(APIView):
     """
     GET phone number using a single reference_id
