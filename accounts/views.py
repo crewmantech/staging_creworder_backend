@@ -257,7 +257,12 @@ class UserViewSet(viewsets.ModelViewSet):
                 queryset = queryset.filter(profile__login_allowed=True,profile__user_type="agent")
             user_status = self.request.query_params.get("status")
             if user_status:
-                queryset = queryset.filter(profile__status=user_status)
+                
+                try:
+                    qs = qs.filter(profile__status=int(user_status))
+                except ValueError:
+                    pass
+                # queryset = queryset.filter(profile__status=user_status)
             # ✅ Exclude users who are already doctors
             doctor = self.request.query_params.get("doctor")
             if doctor == "true":
