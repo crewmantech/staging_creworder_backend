@@ -32,9 +32,7 @@ class NotepadSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class AppointmentSerializer(serializers.ModelSerializer):
-    doctor_name = serializers.CharField(
-        source="doctor.user.username", read_only=True
-    )
+    doctor_name = serializers.SerializerMethodField()
     branch_name = serializers.CharField(
         source="branch.name", read_only=True
     )
@@ -52,7 +50,8 @@ class AppointmentSerializer(serializers.ModelSerializer):
             "uhid",
             "bmi"
         ]
-
+    def get_doctor_name(self, obj):
+        return obj.user.first_name if obj.user else None
     def validate(self, data):
         request = self.context.get("request")
         user = request.user

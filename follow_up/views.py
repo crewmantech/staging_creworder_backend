@@ -426,28 +426,62 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         )
 
     def get_queryset(self):
-        qs = super().get_queryset()
         user = self.request.user
+        queryset = super().get_queryset()
 
-        # 🔐 Company isolation
-        if user.profile.user_type != "superadmin":
-            qs = qs.filter(company=user.profile.company)
+        # =====================================================
+        # 🔐 Company Isolation (Except Superadmin)
+        # =====================================================
+        if hasattr(user, "profile") and user.profile.user_type != "superadmin":
+            queryset = queryset.filter(company=user.profile.company)
 
-        # Optional filters
-        doctor = self.request.query_params.get("doctor")
-        uhid = self.request.query_params.get("uhid")
-        phone = self.request.query_params.get("phone")
+        # =====================================================
+        # 👤 Admin → Common + Date Filters (optional)
+        # =====================================================
+        if hasattr(user, "profile") and user.profile.user_type == "admin":
+            queryset = self.apply_common_filters(queryset)
+            queryset = self.apply_date_filter(queryset)
+            return queryset.order_by("-created_at")
 
-        if doctor:
-            qs = qs.filter(doctor_id=doctor)
+        # =====================================================
+        # 🔑 Permission-Based Appointment Visibility
+        # =====================================================
 
-        if uhid:
-            qs = qs.filter(uhid=uhid)
+        # 🔹 View only own appointments
+        if user.has_perm("accounts.view_own_appointment_others"):
+            queryset = queryset.filter(created_by=user)
 
-        if phone:
-            qs = qs.filter(patient_phone__icontains=phone)
+        # 🔹 Team Lead → See team members' appointments
+        elif user.has_perm("accounts.view_teamlead_appointment_others"):
+            team_users = Employees.objects.filter(
+                teamlead=user
+            ).values_list("user", flat=True)
 
-        return qs.order_by("-created_at")
+            queryset = queryset.filter(created_by__in=team_users)
+
+        # 🔹 Manager → See team leads + their team members
+        elif user.has_perm("accounts.view_manager_appointment_others"):
+            team_leads = Employees.objects.filter(
+                manager=user
+            ).values_list("user", flat=True)
+
+            team_users = Employees.objects.filter(
+                teamlead__in=team_leads
+            ).values_list("user", flat=True)
+
+            queryset = queryset.filter(
+                created_by__in=list(team_leads) + list(team_users)
+            )
+
+        # 🔹 Full access
+        elif user.has_perm("accounts.view_all_appointment_others"):
+            pass
+
+        # ❌ No permission → No data
+        else:
+            queryset = queryset.none()
+
+        return queryset.order_by("-created_at")
 
     def perform_create(self, serializer):
         user = self.request.user
