@@ -103,12 +103,20 @@ class FollowUpView(viewsets.ModelViewSet):
         user = self.request.user
         queryset = Follow_Up.objects.all()
 
-        if hasattr(user, 'profile') and user.profile.company:
+        # =====================================================
+        # 🔐 Company Isolation
+        # =====================================================
+        if hasattr(user, "profile") and user.profile.company:
             queryset = queryset.filter(company=user.profile.company)
-        if user.profile.user_type == 'admin':
-            status_id = self.request.query_params.get('status')
-            branch_id = self.request.query_params.get('branch')
-            follow_add_by = self.request.query_params.get('follow_add_by')
+
+        # =====================================================
+        # 🏢 Admin Filters (Admin sees company data)
+        # =====================================================
+        if hasattr(user, "profile") and user.profile.user_type == "admin":
+            status_id = self.request.query_params.get("status")
+            branch_id = self.request.query_params.get("branch")
+            follow_add_by = self.request.query_params.get("follow_add_by")
+            search = self.request.query_params.get("search")
 
             if status_id:
                 queryset = queryset.filter(follow_status_id=status_id)
@@ -117,8 +125,10 @@ class FollowUpView(viewsets.ModelViewSet):
                 queryset = queryset.filter(branch_id=branch_id)
 
             if follow_add_by:
-                queryset = queryset.filter(follow_add_by_id=follow_add_by,assign_user=follow_add_by)
-            search = self.request.query_params.get('search')
+                queryset = queryset.filter(
+                    Q(follow_add_by_id=follow_add_by) |
+                    Q(assign_user_id=follow_add_by)
+                )
 
             if search:
                 queryset = queryset.filter(
@@ -126,31 +136,70 @@ class FollowUpView(viewsets.ModelViewSet):
                     Q(follow_add_by__first_name__icontains=search) |
                     Q(follow_add_by__last_name__icontains=search) |
                     Q(follow_add_by__username__icontains=search) |
+                    Q(assign_user__username__icontains=search) |
                     Q(customer_phone__icontains=search)
                 )
-            return queryset
-        else:
-            queryset=queryset.filter(branch= user.profile.branch)
-        if hasattr(user, 'profile') and user.profile.user_type == 'agent':
+
+            return queryset.order_by("-created_at")
+
+        # =====================================================
+        # 🌿 Non-admin → Branch Restriction
+        # =====================================================
+        if hasattr(user, "profile") and user.profile.branch:
+            queryset = queryset.filter(branch=user.profile.branch)
+
+        # =====================================================
+        # 🧑‍💼 Agent / Staff Permission-Based Visibility
+        # =====================================================
+        if hasattr(user, "profile") and user.profile.user_type == "agent":
+
+            # 🔹 Own followups (created OR assigned)
             if user.has_perm("accounts.view_own_followup_others"):
-                queryset = queryset.filter(follow_add_by=user)
+                queryset = queryset.filter(
+                    Q(follow_add_by=user) |
+                    Q(assign_user=user)
+                )
 
+            # 🔹 Team Lead
             elif user.has_perm("accounts.view_teamlead_followup_others"):
-                team_lead_users = Employees.objects.filter(teamlead=user).values_list('user', flat=True)
-                queryset = queryset.filter(follow_add_by__in=team_lead_users)
+                team_users = Employees.objects.filter(
+                    teamlead=user
+                ).values_list("user", flat=True)
 
+                queryset = queryset.filter(
+                    Q(follow_add_by__in=team_users) |
+                    Q(assign_user__in=team_users)
+                )
+
+            # 🔹 Manager
             elif user.has_perm("accounts.view_manager_followup_others"):
-                team_leads = Employees.objects.filter(manager=user).values_list('user', flat=True)
-                team_lead_users = Employees.objects.filter(teamlead__in=team_leads).values_list('user', flat=True)
-                all_users = list(team_leads) + list(team_lead_users)
-                queryset = queryset.filter(follow_add_by__in=all_users)
+                team_leads = Employees.objects.filter(
+                    manager=user
+                ).values_list("user", flat=True)
 
+                team_users = Employees.objects.filter(
+                    teamlead__in=team_leads
+                ).values_list("user", flat=True)
+
+                all_users = list(team_leads) + list(team_users)
+
+                queryset = queryset.filter(
+                    Q(follow_add_by__in=all_users) |
+                    Q(assign_user__in=all_users)
+                )
+
+            # 🔹 Full access
             elif user.has_perm("accounts.view_all_followup_others"):
-                pass  # View all allowed, no additional filtering.
+                pass
+
+            else:
+                queryset = Follow_Up.objects.none()
 
         else:
-            queryset = Follow_Up.objects.none()  # No permission, return empty.
-        return queryset
+            queryset = Follow_Up.objects.none()
+
+        return queryset.order_by("-created_at")
+
     # def get_permissions(self):
     #     if self.action == 'create':
     #         return [HasPermission('add_followup')]
