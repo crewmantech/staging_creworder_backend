@@ -26,7 +26,7 @@ from django.utils.dateparse import parse_date
 import pdb
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
-
+from .models import User
 class FollowUpView(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     queryset = Follow_Up.objects.all()
