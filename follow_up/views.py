@@ -117,7 +117,7 @@ class FollowUpView(viewsets.ModelViewSet):
                 queryset = queryset.filter(branch_id=branch_id)
 
             if follow_add_by:
-                queryset = queryset.filter(follow_add_by_id=follow_add_by)
+                queryset = queryset.filter(follow_add_by_id=follow_add_by,assign_user=follow_add_by)
             search = self.request.query_params.get('search')
 
             if search:
