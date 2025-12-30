@@ -1,13 +1,14 @@
+import json
+import pytz
+from dateutil import parser
 from django.utils import timezone
 from django.http import QueryDict
-from dateutil import parser
-import pytz
 
 IST = pytz.timezone("Asia/Kolkata")
 
 class ForceISTDateTimeMiddleware:
     """
-    Force all incoming datetime fields to Indian Standard Time (IST)
+    Force ALL incoming datetime values into Indian Standard Time (IST)
     """
 
     def __init__(self, get_response):
@@ -15,48 +16,54 @@ class ForceISTDateTimeMiddleware:
 
     def __call__(self, request):
 
-        # Only apply to write operations
-        if request.method in ["POST", "PUT", "PATCH"] and request.body:
+        if request.method in ("POST", "PUT", "PATCH") and request.body:
             try:
-                if request.content_type == "application/json":
-                    import json
+                if "application/json" in request.content_type:
                     data = json.loads(request.body)
 
-                    for key, value in data.items():
-                        if self._is_datetime(value):
-                            data[key] = self._convert_to_ist(value)
+                    data = self._process_data(data)
 
                     request._body = json.dumps(data).encode("utf-8")
 
-                elif request.content_type == "application/x-www-form-urlencoded":
+                elif "application/x-www-form-urlencoded" in request.content_type:
                     mutable = QueryDict(request.body, mutable=True)
+
                     for key, value in mutable.items():
-                        if self._is_datetime(value):
-                            mutable[key] = self._convert_to_ist(value)
+                        mutable[key] = self._process_value(value)
 
                     request.POST = mutable
 
             except Exception:
-                pass  # never break API
+                pass
 
         return self.get_response(request)
 
-    def _is_datetime(self, value):
-        if not isinstance(value, str):
-            return False
-        try:
-            parser.parse(value)
-            return "T" in value
-        except Exception:
-            return False
-
-    def _convert_to_ist(self, value):
-        dt = parser.parse(value)
-
-        # If naive datetime, assume IST
-        if timezone.is_naive(dt):
-            dt = IST.localize(dt)
+    # =========================
+    # Helpers
+    # =========================
+    def _process_data(self, data):
+        if isinstance(data, dict):
+            for k, v in data.items():
+                data[k] = self._process_data(v)
+        elif isinstance(data, list):
+            return [self._process_data(i) for i in data]
         else:
-            dt = dt.astimezone(IST)
+            return self._process_value(data)
+        return data
 
-        return dt.isoformat()
+    def _process_value(self, value):
+        if not isinstance(value, str):
+            return value
+
+        try:
+            dt = parser.parse(value)
+
+            # If datetime is naive → assume IST
+            if timezone.is_naive(dt):
+                dt = IST.localize(dt)
+            else:
+                dt = dt.astimezone(IST)
+
+            return dt.isoformat()
+        except Exception:
+            return value
