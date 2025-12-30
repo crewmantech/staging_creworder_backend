@@ -87,7 +87,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'allauth.account.middleware.AccountMiddleware',
     'middleware.request_middleware.RequestMiddleware',
-    "middleware.force_ist_middleware.ForceISTDateTimeMiddleware"
+    "middleware.force_ist_middleware.ForceISTDateTimeMiddleware",
     'middleware.request_middleware.MaskNumberMiddleware',
     'middleware.sleep_kill_middleware.SleepQueryCleanerMiddleware'
 ]  
