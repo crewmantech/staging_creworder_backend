@@ -1509,7 +1509,7 @@ class NDRActionAPIView(APIView):
             overall_success,
             "NDR action processed for multiple orders",
             results,
-            status.HTTP_207_MULTI_STATUS,
+            status.HTTP_200_OK,
         )
 
             
