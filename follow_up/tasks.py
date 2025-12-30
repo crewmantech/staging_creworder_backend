@@ -11,7 +11,7 @@ def followup_reminder_scheduler():
     Runs every minute and checks reminder_date
     """
 
-    now = timezone.now()
+    now = timezone.localtime(timezone.now())
     print("Current IST Time:", now, now.tzinfo)
     print(now,"------------------15")
     start_time = now.replace(second=0, microsecond=0)
