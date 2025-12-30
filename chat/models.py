@@ -126,7 +126,7 @@ class Notification(models.Model):
     )
 
     followup = models.ForeignKey(
-        "Follow_Up",
+        "follow_up.Follow_Up",
         on_delete=models.CASCADE,
         null=True,
         blank=True

@@ -1,10 +1,10 @@
+# follow_up/tasks.py
+
 from django.utils import timezone
 from datetime import timedelta
-
-from django.db.models import Q
-
 from chat.models import Notification
 from follow_up.models import Follow_Up
+
 
 def followup_reminder_scheduler():
     """
@@ -23,13 +23,15 @@ def followup_reminder_scheduler():
     for followup in followups:
         users_to_notify = set()
 
+        # Assigned user
         if followup.assign_user:
             users_to_notify.add(followup.assign_user)
 
+        # Created by user
         if followup.follow_add_by:
             users_to_notify.add(followup.follow_add_by)
 
-        # Optional: if BaseModel has updated_by
+        # Updated by user (if exists in BaseModel)
         if hasattr(followup, "updated_by") and followup.updated_by:
             users_to_notify.add(followup.updated_by)
 
@@ -39,7 +41,7 @@ def followup_reminder_scheduler():
                 followup=followup,
                 notification_type="followup_reminder",
                 defaults={
-                    "message": f"⏰ Follow-up Reminder for {followup.customer_name}",
+                    "message": f"⏰ Follow-up reminder for {followup.customer_name}",
                     "url": f"/followups/{followup.followup_id}/"
                 }
             )
