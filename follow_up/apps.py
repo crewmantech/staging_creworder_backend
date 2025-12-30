@@ -5,7 +5,7 @@ import time
 
 class FollowupsConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'followups'
+    name = 'follow_up'
 
     def ready(self):
         

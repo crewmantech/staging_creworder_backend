@@ -1,2 +1,1 @@
-default_app_config = 'followups.apps.FollowupsConfig'
-    
+default_app_config = 'follow_up.apps.FollowupsConfig'
