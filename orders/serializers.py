@@ -276,7 +276,7 @@ class OrderTableSerializer(serializers.ModelSerializer):
                 shipment = ShipmentModel.objects.filter(
                     shipment_vendor=obj.shipment_vendor,
                     company=obj.company,
-                    branch=obj.branch,
+                    # branch=obj.branch,
                     status=1
                 ).order_by('provider_priority').first()
 
@@ -539,7 +539,7 @@ class OrderTableSerializer1(serializers.ModelSerializer):
                 shipment = ShipmentModel.objects.filter(
                     shipment_vendor=obj.shipment_vendor,
                     company=obj.company,
-                    branch=obj.branch,
+                    # branch=obj.branch,
                     status=1
                 ).order_by('provider_priority').first()
 

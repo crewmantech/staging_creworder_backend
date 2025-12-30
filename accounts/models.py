@@ -1070,7 +1070,7 @@ class Others(models.Model):
             ('view_Product_Information_others', ' view Product Information other'),
             ('view_own_order_others', 'Can view own order others'),
             ('view_all_order_others', 'Can view all order others'),
-            ('view_owm_branch_order_others','Can view own branch order others'),
+            ('view_own_branch_order_others','Can view own branch order others'),
             ('view_manager_order_others', 'Can view manager order others'),
             ('view_teamlead_order_others', 'Can view teamlead order others'),
             ('edit_order_others', 'Can edit order others'),

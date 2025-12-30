@@ -106,17 +106,34 @@ class GroupDetails(BaseModel):
         return str(self.member)
 
 
+# notifications/models.py
+
 class Notification(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
     message = models.TextField()
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     url = models.TextField(null=True, blank=True)
-    notification_type = models.CharField(max_length=50, choices=[
-        ("chat_message", "Chat Message"),
-        ("group_chat", "Group Chat"),
-        ("new_group", "New Group"),
-    ])
+
+    notification_type = models.CharField(
+        max_length=50,
+        choices=[
+            ("followup_reminder", "Follow-up Reminder"),
+            ("chat_message", "Chat Message"),
+            ("group_chat", "Group Chat"),
+            ("new_group", "New Group"),
+        ]
+    )
+
+    followup = models.ForeignKey(
+        "Follow_Up",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True
+    )
+
+    class Meta:
+        unique_together = ("user", "followup", "notification_type")
 
     def __str__(self):
         return f"Notification for {self.user.username}"

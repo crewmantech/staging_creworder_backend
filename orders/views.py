@@ -3353,7 +3353,7 @@ class FilterOrdersView1(viewsets.ViewSet):
             return qs
         elif user.has_perm("accounts.view_all_order_others"):
             return qs
-        elif user.has_perm("accounts.view_owm_branch_order_others"):
+        elif user.has_perm("accounts.view_own_branch_order_others"):
             return qs.filter(branch=user.profile.branch)
         elif user.has_perm("accounts.view_manager_order_others"):
             return qs.filter(Q(order_created_by__in=mgr) | Q(updated_by__in=mgr))
