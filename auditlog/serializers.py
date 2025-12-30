@@ -5,7 +5,7 @@ class ActivityLogSerializer(serializers.ModelSerializer):
     module = serializers.SerializerMethodField()
     performed_by_name = serializers.SerializerMethodField()
     performed_by_id = serializers.SerializerMethodField()
-    created_time = serializers.SerializerMethodField()  # only time (optional)
+    # created_time = serializers.SerializerMethodField()  # only time (optional)
 
     class Meta:
         model = ActivityLog
@@ -17,8 +17,7 @@ class ActivityLogSerializer(serializers.ModelSerializer):
             "changes",
             "performed_by_id",
             "performed_by_name",
-            "created_at",     # full datetime (keep if needed)
-            "created_time",   # only time
+            "created_at",     # full datetime (keep if needed)   # only time
         ]
 
     def get_module(self, obj):
@@ -37,9 +36,5 @@ class ActivityLogSerializer(serializers.ModelSerializer):
     def get_performed_by_id(self, obj):
         return obj.performed_by.id if obj.performed_by else None
 
-    def get_created_time(self, obj):
-        """
-        Returns only time (HH:MM AM/PM)
-        """
-        return obj.created_at.strftime("%I:%M %p") if obj.created_at else None
+    
 
