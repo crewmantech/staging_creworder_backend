@@ -12,6 +12,7 @@ def followup_reminder_scheduler():
     """
 
     now = timezone.now()
+    print(now,"------------------15")
     start_time = now.replace(second=0, microsecond=0)
     end_time = start_time + timedelta(minutes=1)
 
