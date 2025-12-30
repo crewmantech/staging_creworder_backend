@@ -72,6 +72,7 @@ INSTALLED_APPS = [
     'dashboard',
     'landing_page',
     'kyc',
+    'auditlog',
     "django_celery_beat"
 ]
 

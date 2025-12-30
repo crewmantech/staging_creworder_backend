@@ -259,7 +259,7 @@ class UserViewSet(viewsets.ModelViewSet):
             if user_status:
                 
                 try:
-                    qs = qs.filter(profile__status=int(user_status))
+                    queryset = queryset.filter(profile__status=int(user_status))
                 except ValueError:
                     pass
                 # queryset = queryset.filter(profile__status=user_status)
