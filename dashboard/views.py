@@ -397,17 +397,17 @@ class GetUserDashboardtiles(APIView):
 
         # rtodelivered_tile tile count
         if (
-            request.user.has_perm("dashboard.view_all_dashboard_rtodelivered_tile")
-            or request.user.has_perm("dashboard.view_own_dashboard_rtodelivered_tile")
-            or request.user.has_perm("dashboard.view_teamlead_dashboard_rtodelivered_tile")
-            or request.user.has_perm("dashboard.view_manager_dashboard_rtodelivered_tile")
+            request.user.has_perm("dashboard.view_all_dashboard_deliveredrto_tile")
+            or request.user.has_perm("dashboard.view_own_dashboard_deliveredrto_tile")
+            or request.user.has_perm("dashboard.view_teamlead_dashboard_deliveredrto_tile")
+            or request.user.has_perm("dashboard.view_manager_dashboard_deliveredrto_tile")
             or request.user.profile.user_type=='admin'
             ):
             base_query = get_base_query(
-                request.user.has_perm("dashboard.view_own_dashboard_rtodelivered_tile"),
-                request.user.has_perm("dashboard.view_all_dashboard_rtodelivered_tile"),
-                request.user.has_perm("dashboard.view_manager_dashboard_rtodelivered_tile"),
-                request.user.has_perm("dashboard.view_teamlead_dashboard_rtodelivered_tile"),
+                request.user.has_perm("dashboard.view_own_dashboard_deliveredrto_tile"),
+                request.user.has_perm("dashboard.view_all_dashboard_deliveredrto_tile"),
+                request.user.has_perm("dashboard.view_manager_dashboard_deliveredrto_tile"),
+                request.user.has_perm("dashboard.view_teamlead_dashboard_deliveredrto_tile"),
                 request.user.id, _branch, request.user.profile.company,
                 user_ids_for_manager, user_ids_for_teamlead
             )
@@ -506,7 +506,7 @@ class GetUserDashboardtiles1(APIView):
         "ofd":              ("OUT FOR DELIVERY",  "ofd_tile"),
         "delivered":        ("DELIVERED",         "delivered_tile"),
         "rto_initiated":    ("RTO INITIATED",     "initiatedrto"),
-        "rto_delivered":    ("RTO DELIVERED",     "rtodelivered_tile"),
+        "rto_delivered":    ("RTO DELIVERED",     "deliveredrto_tile"),
         "exception":        ("EXCEPTION",         "exception_tile"),
         "ndr":              ("NDR",               "ndr_tile"),
     }
@@ -1381,7 +1381,7 @@ class GetUserHometiles(APIView):
         "ofd":              ("OUT FOR DELIVERY",  "ofd_tile"),
         "delivered":        ("DELIVERED",         "delivered_tile"),
         "rto_initiated":    ("RTO INITIATED",     "initiatedrto"),
-        "rto_delivered":    ("RTO DELIVERED",     "rtodelivered_tile"),
+        "rto_delivered":    ("RTO DELIVERED",     "deliveredrto_tile"),
         "exception":        ("EXCEPTION",         "exception_tile"),
         "ndr":              ("NDR",               "ndr_tile"),
     }

@@ -2556,7 +2556,8 @@ class ScanOrderAPIView(APIView):
             user = request.user
             branch = user.profile.branch
             company = user.profile.company
-            orders = Order_Table.objects.filter(branch=branch, company=company, order_id=order_id)
+            orders = Order_Table.objects.filter(company=company).filter(Q(order_id=order_id) | Q(order_wayBill=order_id)
+)
         except Order_Table.DoesNotExist:
             return Response({'error': 'Order not found.'}, status=status.HTTP_404_NOT_FOUND)
 
