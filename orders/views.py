@@ -9,8 +9,8 @@ from rest_framework import status,pagination
 from rest_framework.response import Response
 from rest_framework import viewsets, status
 from django.db.models import Q,OuterRef,Subquery
-from django.db.models import Sum, Count
-from accounts.models import Attendance, Branch, CompanyUserAPIKey, Employees, UserTargetsDelails
+from django.db.models import Sum, Count,Avg
+from accounts.models import Attendance, Branch, CompanyUserAPIKey, Employees, UserTargetsDelails,QcScore
 from accounts.permissions import CanCreateAndDeleteCustomerState, CanCreateOrDeletePaymentStatus, IsSuperAdmin
 from cloud_telephony.models import CloudTelephonyChannel, CloudTelephonyChannelAssign
 from follow_up.models import Follow_Up, Appointment
@@ -1930,7 +1930,42 @@ class OrderAggregationByStatusAPIView(APIView):
         return Response(response_data, status=status.HTTP_200_OK)
     
 class OrderAggregationByStatusAPIViewPerformance(APIView):
+    
+    def build_qc_response(self, users, start_date, end_date):
+        response_data = []
 
+        for emp in users:
+            scores = QcScore.objects.filter(user=emp)
+
+            scores = scores.filter(
+                Q(created_at__range=(start_date, end_date)) |
+                Q(updated_at__range=(start_date, end_date))
+            )
+
+            avg_scores = scores.values(
+                'question__id',
+                'question__question'
+            ).annotate(
+                avg_rating=Avg('score')
+            )
+
+            questions_rating = [
+                {
+                    "question_id": item['question__id'],
+                    "question": item['question__question'],
+                    "question_rating": round(item['avg_rating'], 2)
+                }
+                for item in avg_scores
+            ]
+
+            response_data.append({
+                "employee_name": emp.get_full_name() or emp.username,
+                "employee_id": emp.id,
+                "questions_rating": questions_rating
+            })
+
+        return response_data
+    
     def get(self, request, *args, **kwargs):
         branch_id = request.query_params.get('branch', None)
         start_date = request.query_params.get('start_date', None)
@@ -2139,6 +2174,8 @@ class OrderAggregationByStatusAPIViewPerformance(APIView):
         
         for agent in agents:
             user = agent.user
+            
+            qc_scores = self.get_qc_scores(user, start_datetime, end_datetime)
 
             # Orders created or updated today
             today_orders = Order_Table.objects.filter(
@@ -2223,6 +2260,9 @@ class OrderAggregationByStatusAPIViewPerformance(APIView):
                 "activity": activity,
                 "daily_target": daily_target,
                 "progress": round(progress, 2),
+                
+                # ✅ QC Score Added Here
+                "qc_score": qc_scores,
 
                 # ✅ New Fields
                 "payment_type_summary": list(payment_type_summary),  # e.g. [{"payment_type__name": "COD", "total": 5}]
