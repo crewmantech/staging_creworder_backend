@@ -2175,12 +2175,14 @@ class OrderAggregationByStatusAPIViewPerformance(APIView):
         for agent in agents:
             user = agent.user
             
-            qc_scores = self.build_qc_response(
-                users=[user],   # QC API always expects a LIST
-                start_date=start_datetime,
-                end_date=end_datetime
-            )
+            qc_scores = []
 
+            if agent_id and int(agent_id) == user.id:
+                qc_scores = self.build_qc_response(
+                    users=[user],
+                    start_date=start_datetime,
+                    end_date=end_datetime
+                )
             # Orders created or updated today
             today_orders = Order_Table.objects.filter(
                 Q(order_created_by=user) | Q(updated_by=user),
@@ -2249,12 +2251,16 @@ class OrderAggregationByStatusAPIViewPerformance(APIView):
                 "id", "order_id", "customer_name", "total_amount", "payment_type__name", "order_status__name"
             )
 
-            # Final Response
-            agent_list.append({
+            # ---------------- FINAL AGENT DATA ----------------
+            agent_data = {
                 "agent_id": user.id,
                 "username": user.username,
                 "agent_name": user.get_full_name(),
-                "profile_image": user.profile.profile_image.url if hasattr(user, 'profile') and user.profile.profile_image else None,
+                "profile_image": (
+                    user.profile.profile_image.url
+                    if hasattr(user, 'profile') and user.profile.profile_image
+                    else None
+                ),
                 "agent_status": agent_status,
                 "today_orders": total_today,
                 "today_accepted": today_accepted,
@@ -2264,15 +2270,15 @@ class OrderAggregationByStatusAPIViewPerformance(APIView):
                 "activity": activity,
                 "daily_target": daily_target,
                 "progress": round(progress, 2),
-                
-                # ✅ QC Score Added Here
-                "qc_score": qc_scores,
+                "payment_type_summary": list(payment_type_summary),
+            }
 
-                # ✅ New Fields
-                "payment_type_summary": list(payment_type_summary),  # e.g. [{"payment_type__name": "COD", "total": 5}]
-                # "orders": list(order_list),  # every order with payment type and status
-            })
+            # ✅ Attach QC ONLY if non-empty
+            if qc_scores and qc_scores[0].get("questions_rating"):
+                agent_data["qc_score"] = qc_scores
 
+            # ✅ Append ONCE
+            agent_list.append(agent_data)
         response_data = {
             'total_summary': total_summary,
             'status_data': status_data,
