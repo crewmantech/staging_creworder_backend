@@ -491,10 +491,10 @@ class GetUserDashboardtiles1(APIView):
     permission_classes = [IsAuthenticated]
 
     # ----------------------------------------------------------
-    # 1. Map tile key -> (status__name, permission_suffix)
+    # 1. Tile Definitions
     # ----------------------------------------------------------
     TILES = {
-        "running":          (None,                "running_tile"),
+        "running":          (None,               "running_tile"),
         "pending":          ("Pending",           "pending_tile"),
         "accepted":         ("Accepted",          "accepted_tile"),
         "rejected":         ("Rejected",          "rejected_tile"),
@@ -512,171 +512,213 @@ class GetUserDashboardtiles1(APIView):
     }
 
     # ----------------------------------------------------------
-    # 2. Helpers – 100 % same logic as your original file
+    # 2. Tiles allowed to use updated_at
+    # ----------------------------------------------------------
+    UPDATED_AT_TILES = {
+        "rejected",
+        "no_response",
+        "future",
+        "non_serviceable",
+        "pickup_pending",
+        "in_transit",
+        "ofd",
+        "delivered",
+        "rto_initiated",
+        "rto_delivered",
+        "exception",
+        "ndr",
+    }
+
+    # ----------------------------------------------------------
+    # 3. Branch + Date + User Scope
     # ----------------------------------------------------------
     def _branch_and_user_ids(self, request):
-        """Return branch, dates, manager/team/own user-ids exactly like original."""
         dashboard = ScheduleOrderForDashboard()
+
         branch = request.user.profile.branch_id
         start_dt, end_dt = dashboard.get_date_range(request)
 
-        # branch override from GET (must happen BEFORE scopes are built!)
-        if 'branch' in request.GET and request.GET['branch']:
-            branch = int(request.GET['branch'])
+        if request.GET.get("branch"):
+            branch = int(request.GET["branch"])
 
         agent_ids = list(
-            Employees.objects.filter(manager=request.user.id).values_list('user', flat=True)
+            Employees.objects.filter(manager=request.user.id)
+            .values_list("user", flat=True)
         )
+
         mgr = set(agent_ids)
         mgr.update(
             Employees.objects.filter(
                 Q(teamlead__in=agent_ids) | Q(user=request.user.id)
-            ).values_list('user', flat=True)
+            ).values_list("user", flat=True)
         )
         mgr = list(mgr)
 
         tl = list(
-            Employees.objects.filter(teamlead=request.user.id).values_list('user', flat=True)
+            Employees.objects.filter(teamlead=request.user.id)
+            .values_list("user", flat=True)
         )
         tl.append(request.user.id)
 
         own = [request.user.id]
+
         return branch, start_dt, end_dt, mgr, tl, own
 
+    # ----------------------------------------------------------
+    # 4. Base Query (Permission Safe)
+    # ----------------------------------------------------------
     def _base_query(self, request, branch, company, mgr, tl, own, status_name):
-        """Same as your get_base_query() but status applied later."""
         user = request.user
-        is_admin = user.profile.user_type == 'admin'
+        is_admin = user.profile.user_type == "admin"
+
         if is_admin or any(
             user.has_perm(f"dashboard.view_all_dashboard_{s}")
             for _, s in self.TILES.values()
         ):
-            qs = Order_Table.objects.filter(company=company, branch=branch,is_deleted=False)
+            qs = Order_Table.objects.filter(
+                company=company, branch=branch, is_deleted=False
+            )
+
         elif any(
             user.has_perm(f"dashboard.view_manager_dashboard_{s}")
             for _, s in self.TILES.values()
         ):
             qs = Order_Table.objects.filter(
                 Q(order_created_by__in=mgr) | Q(updated_by__in=mgr),
-                branch=branch, company=company, is_deleted=False
+                company=company, branch=branch, is_deleted=False
             )
+
         elif any(
             user.has_perm(f"dashboard.view_teamlead_dashboard_{s}")
             for _, s in self.TILES.values()
         ):
             qs = Order_Table.objects.filter(
                 Q(order_created_by__in=tl) | Q(updated_by__in=tl),
-                branch=branch, company=company, is_deleted=False
+                company=company, branch=branch, is_deleted=False
             )
+
         elif any(
             user.has_perm(f"dashboard.view_own_dashboard_{s}")
             for _, s in self.TILES.values()
         ):
             qs = Order_Table.objects.filter(
                 Q(order_created_by__in=own) | Q(updated_by__in=own),
-                branch=branch, company=company, is_deleted=False
+                company=company, branch=branch, is_deleted=False
             )
         else:
-            qs = Order_Table.objects.none()
+            return Order_Table.objects.none()
 
-        # apply status filter (except "running")
-        if status_name is not None:
+        if status_name:
             qs = qs.filter(order_status__name=status_name)
+
         return qs
 
-    def _count_and_amount(self, qs, start_dt, end_dt, is_admin,permission,status=None):
-        """Return both count and total_amount."""
-        allowed_statuses = ("running","pending", "accepted")
-        fetch = True if status in allowed_statuses else False
+    # ----------------------------------------------------------
+    # 5. Count + Amount Logic (FINAL)
+    # ----------------------------------------------------------
+    def _count_and_amount(self, qs, start_dt, end_dt, is_admin, updated_by, tile_key):
+        """
+        Admin:
+          - updated_by=true AND tile in UPDATED_AT_TILES → created_at OR updated_at
+          - otherwise → created_at only
+        Non-admin:
+          - always created_at OR updated_at
+        """
 
-        print(status,fetch,"----------------603")
-        if is_admin or not permission:
-            # if fetch:
-                # print("-----------606")
-            filtered_qs = qs.filter(created_at__range=(start_dt, end_dt))
-                
-            # else:
-            #     filtered_qs = qs.filter(Q(created_at__range=(start_dt, end_dt)) | Q(updated_at__range=(start_dt, end_dt)))
+        if is_admin:
+            if updated_by and tile_key in self.UPDATED_AT_TILES:
+                qs = qs.filter(
+                    Q(created_at__range=(start_dt, end_dt)) |
+                    Q(updated_at__range=(start_dt, end_dt))
+                )
+            else:
+                qs = qs.filter(created_at__range=(start_dt, end_dt))
         else:
-            filtered_qs = qs.filter(Q(created_at__range=(start_dt, end_dt)) | Q(updated_at__range=(start_dt, end_dt)))
+            qs = qs.filter(
+                Q(created_at__range=(start_dt, end_dt)) |
+                Q(updated_at__range=(start_dt, end_dt))
+            )
 
-        total_orders = filtered_qs.count()
-        total_amount = filtered_qs.aggregate(total_amount=Sum('total_amount'))['total_amount'] or 0
-        return total_orders, total_amount
+        return (
+            qs.count(),
+            qs.aggregate(total_amount=Sum("total_amount"))["total_amount"] or 0
+        )
 
     # ----------------------------------------------------------
-    # 3. Single GET
+    # 6. GET API
     # ----------------------------------------------------------
     def get(self, request):
-        is_admin = request.user.profile.user_type == 'admin'
+        user = request.user
+        is_admin = user.profile.user_type == "admin"
+        updated_by = request.GET.get("updated_by") == "true"
+
         branch, start_dt, end_dt, mgr, tl, own = self._branch_and_user_ids(request)
-        company = request.user.profile.company
+        company = user.profile.company
+
         tiles = {}
-        permission = request.user.has_perm('accounts.edit_order_others')
+
         for key, (status_name, suffix) in self.TILES.items():
-            # Permission check
+
             allowed = (
-                request.user.has_perm(f"dashboard.view_own_dashboard_{suffix}") or
-                request.user.has_perm(f"dashboard.view_all_dashboard_{suffix}") or
-                request.user.has_perm(f"dashboard.view_manager_dashboard_{suffix}") or
-                request.user.has_perm(f"dashboard.view_teamlead_dashboard_{suffix}") or
-                request.user.profile.user_type == 'admin'
+                user.has_perm(f"dashboard.view_own_dashboard_{suffix}")
+                or user.has_perm(f"dashboard.view_all_dashboard_{suffix}")
+                or user.has_perm(f"dashboard.view_manager_dashboard_{suffix}")
+                or user.has_perm(f"dashboard.view_teamlead_dashboard_{suffix}")
+                or is_admin
             )
+
             if not allowed:
                 continue
 
-            # 🔀 Special logic for "running"
+            # ------------------ RUNNING TILE ------------------
             if key == "running":
-                if request.user.has_perm("dashboard.view_all_dashboard_running_tile") or request.user.profile.user_type == 'admin':
+                if is_admin or user.has_perm("dashboard.view_all_dashboard_running_tile"):
                     qs = Order_Table.objects.filter(
-                        branch=branch,
-                        company=company,
-                        is_deleted=False
+                        company=company, branch=branch, is_deleted=False
                     )
-                elif request.user.has_perm("dashboard.view_manager_dashboard_running_tile"):
+                elif user.has_perm("dashboard.view_manager_dashboard_running_tile"):
                     qs = Order_Table.objects.filter(
                         Q(order_created_by__in=mgr) | Q(updated_by__in=mgr),
-                        branch=branch,
-                        company=company,
-                        is_deleted=False
+                        company=company, branch=branch, is_deleted=False
                     )
-                elif request.user.has_perm("dashboard.view_teamlead_dashboard_running_tile"):
+                elif user.has_perm("dashboard.view_teamlead_dashboard_running_tile"):
                     qs = Order_Table.objects.filter(
                         Q(order_created_by__in=tl) | Q(updated_by__in=tl),
-                        branch=branch,
-                        company=company,
-                        is_deleted=False
-                    )
-                elif request.user.has_perm("dashboard.view_own_dashboard_running_tile"):
-                    qs = Order_Table.objects.filter(
-                        Q(order_created_by__in=own) | Q(updated_by__in=own),
-                        branch=branch,
-                        company=company,
-                        is_deleted=False
+                        company=company, branch=branch, is_deleted=False
                     )
                 else:
-                    qs = Order_Table.objects.none()
-                cnt, amount = self._count_and_amount(qs, start_dt, end_dt, is_admin,permission)
-                # cnt = self._count(qs, None, start_dt, end_dt)
-                # total_amount = qs.aggregate(total_amount=Sum('total_amount'))['total_amount'] or 0
+                    qs = Order_Table.objects.filter(
+                        Q(order_created_by__in=own) | Q(updated_by__in=own),
+                        company=company, branch=branch, is_deleted=False
+                    )
             else:
-                # Default logic for all other tiles
-                qs = self._base_query(request, branch, company, mgr, tl, own, status_name)
-                cnt, amount = self._count_and_amount(qs, start_dt, end_dt, is_admin,permission)
-                print(key,cnt,amount,"----------------676")
-                # cnt = self._count(qs, status_name, start_dt, end_dt)
-                # total_amount = qs.aggregate(total_amount=Sum('total_amount'))['total_amount'] or 0
+                qs = self._base_query(
+                    request, branch, company, mgr, tl, own, status_name
+                )
 
+            cnt, amount = self._count_and_amount(
+                qs,
+                start_dt,
+                end_dt,
+                is_admin,
+                updated_by,
+                tile_key=key
+            )
 
             tiles[f"{key}_tile_count"] = {
-                "name": f"{status_name or 'Running'} Tile",
+                "name": status_name or "Running",
                 "count": cnt,
-                "amount":amount,
+                "amount": amount,
                 "url": status_name or "",
             }
 
         return Response(
-            {"status": True, "message": "Data fetched successfully", "data": tiles, "errors": None},
+            {
+                "status": True,
+                "message": "Dashboard data fetched successfully",
+                "data": tiles,
+                "errors": None,
+            },
             status=status.HTTP_200_OK,
         )
         
