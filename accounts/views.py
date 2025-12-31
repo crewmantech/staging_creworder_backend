@@ -31,7 +31,7 @@ from shipment.models import ShipmentModel, ShipmentVendor
 from shipment.serializers import ShipmentSerializer
 from .models import  Agreement, AttendanceSession, CompanyInquiry, CompanySalary, CompanyUserAPIKey, Doctor, Enquiry, InterviewApplication, QcScore, ReminderNotes, StickyNote, User, Company, Package, Employees, Notice1, Branch, FormEnquiry, SupportTicket, Module, \
     Department, Designation, Leaves, Holiday, Award, Appreciation, ShiftTiming, Attendance, AllowedIP,Shift_Roster,CustomAuthGroup,PickUpPoint, UserStatus,\
-    UserTargetsDelails,AdminBankDetails,QcTable,OTPAttempt
+    UserTargetsDelails,AdminBankDetails,QcTable,OTPAttempt,LoginAttempt
 from .serializers import  AgreementSerializer, CompanyInquirySerializer, CompanySalarySerializer, CompanyUserAPIKeySerializer, CustomPasswordResetSerializer, DoctorSerializer, EnquirySerializer, InterviewApplicationSerializer, NewPasswordSerializer,  QcScoreSerializer, ReminderNotesSerializer, StickyNoteSerializer, UpdateTeamLeadManagerSerializer, UserSerializer, CompanySerializer, PackageSerializer, \
     UserProfileSerializer, NoticeSerializer, BranchSerializer, UserSignupSerializer, FormEnquirySerializer, \
     SupportTicketSerializer, ModuleSerializer, DepartmentSerializer, DesignationSerializer, LeaveSerializer, \
@@ -200,10 +200,11 @@ class UserViewSet(viewsets.ModelViewSet):
             # self._send_admin_notification(instance)
             reassign_user_assets_on_suspension(instance)
             OTPAttempt.objects.filter(user=instance).delete()
+            LoginAttempt.objects.filter(user=instance).delete()
         # ---- CLEAR OTP ATTEMPTS WHEN STATUS CHANGES INACTIVE → ACTIVE ----
         if old_status == UserStatus.inactive and new_status == UserStatus.active:
             OTPAttempt.objects.filter(user=instance).delete()
-
+            LoginAttempt.objects.filter(user=instance).delete()
         # Update user now
         self.perform_update(serializer)
 
