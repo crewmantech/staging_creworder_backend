@@ -2274,10 +2274,9 @@ class OrderAggregationByStatusAPIViewPerformance(APIView):
             }
 
             # ✅ Attach QC ONLY if non-empty
-            if qc_scores and qc_scores[0].get("questions_rating"):
+            if agent_id and int(agent_id) == user.id:
                 agent_data["qc_score"] = qc_scores
 
-            # ✅ Append ONCE
             agent_list.append(agent_data)
         response_data = {
             'total_summary': total_summary,
