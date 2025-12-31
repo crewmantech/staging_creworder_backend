@@ -2175,7 +2175,11 @@ class OrderAggregationByStatusAPIViewPerformance(APIView):
         for agent in agents:
             user = agent.user
             
-            qc_scores = self.get_qc_scores(user, start_datetime, end_datetime)
+            qc_scores = self.build_qc_response(
+                users=[user],   # QC API always expects a LIST
+                start_date=start_datetime,
+                end_date=end_datetime
+            )
 
             # Orders created or updated today
             today_orders = Order_Table.objects.filter(
