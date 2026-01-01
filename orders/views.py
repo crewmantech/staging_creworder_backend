@@ -2755,6 +2755,34 @@ class OrderStatusWorkflowViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(shipment_vendor_id=shipment_vendor_id)
 
         return queryset
+    
+    def update(self, request, *args, **kwargs):
+        workflow = self.get_object()
+
+        # Handle order_status
+        order_status_name = request.data.get("order_status")
+        if order_status_name:
+            workflow.order_status = OrderStatus.objects.get(name=order_status_name)
+
+        # Handle shipment_vendor
+        shipment_vendor_name = request.data.get("shipment_vendor")
+        if shipment_vendor_name:
+            workflow.shipment_vendor = ShipmentVendor.objects.get(name=shipment_vendor_name)
+
+        # 🔥 Handle allow_status (OLD REQUEST BODY)
+        allow_status_data = request.data.get("allow_status", [])
+
+        if allow_status_data:
+            allow_status_ids = [
+                item["id"] for item in allow_status_data if "id" in item
+            ]
+
+            allow_status_qs = AllowStatus.objects.filter(id__in=allow_status_ids)
+            workflow.allow_status.set(allow_status_qs)
+
+        workflow.save()
+        serializer = self.get_serializer(workflow)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 class AllowStatusViewSet(viewsets.ModelViewSet):
     queryset = AllowStatus.objects.all()

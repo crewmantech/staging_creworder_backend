@@ -415,14 +415,13 @@ class AllowStatusSerializer(serializers.ModelSerializer):
 
 
 class OrderStatusWorkflowSerializer(serializers.ModelSerializer):
-    order_status = serializers.CharField(source='order_status.name')
-    shipment_vendor = serializers.CharField(source='shipment_vendor.name')
-    allow_status = AllowStatusSerializer(many=True)
+    order_status = serializers.CharField(source="order_status.name", read_only=True)
+    shipment_vendor = serializers.CharField(source="shipment_vendor.name", read_only=True)
+    allow_status = AllowStatusSerializer(many=True, read_only=True)
 
     class Meta:
         model = OrderStatusWorkflow
-        fields = ['id', 'order_status', 'shipment_vendor', 'allow_status']
-        read_only_fields = ['id']
+        fields = ["id", "order_status", "shipment_vendor", "allow_status"]
 
 class ReturnTypeSerializer(serializers.ModelSerializer):
     class Meta:
