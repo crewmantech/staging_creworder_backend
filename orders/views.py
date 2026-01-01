@@ -2757,32 +2757,63 @@ class OrderStatusWorkflowViewSet(viewsets.ModelViewSet):
         return queryset
     
     def update(self, request, *args, **kwargs):
-        workflow = self.get_object()
+        try:
+            with transaction.atomic():
+                workflow = self.get_object()
 
-        # Handle order_status
-        order_status_name = request.data.get("order_status")
-        if order_status_name:
-            workflow.order_status = OrderStatus.objects.get(name=order_status_name)
+                # ✅ order_status
+                order_status_name = request.data.get("order_status")
+                if order_status_name:
+                    workflow.order_status = get_object_or_404(
+                        OrderStatus, name=order_status_name
+                    )
 
-        # Handle shipment_vendor
-        shipment_vendor_name = request.data.get("shipment_vendor")
-        if shipment_vendor_name:
-            workflow.shipment_vendor = ShipmentVendor.objects.get(name=shipment_vendor_name)
+                # ✅ shipment_vendor (FIXED KEY NAME)
+                shipment_vendor_name = request.data.get("shipment_vendor")
+                if shipment_vendor_name:
+                    workflow.shipment_vendor = get_object_or_404(
+                        ShipmentVendor, name=shipment_vendor_name
+                    )
 
-        # 🔥 Handle allow_status (OLD REQUEST BODY)
-        allow_status_data = request.data.get("allow_status", [])
+                # ✅ allow_status (OLD FRONTEND BODY)
+                allow_status_data = request.data.get("allow_status")
 
-        if allow_status_data:
-            allow_status_ids = [
-                item["id"] for item in allow_status_data if "id" in item
-            ]
+                if allow_status_data is not None:
+                    if not isinstance(allow_status_data, list):
+                        return Response(
+                            {"allow_status": "Expected a list"},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
 
-            allow_status_qs = AllowStatus.objects.filter(id__in=allow_status_ids)
-            workflow.allow_status.set(allow_status_qs)
+                    allow_status_ids = []
+                    for item in allow_status_data:
+                        if not isinstance(item, dict) or "id" not in item:
+                            return Response(
+                                {"allow_status": "Each item must contain an 'id'"},
+                                status=status.HTTP_400_BAD_REQUEST
+                            )
+                        allow_status_ids.append(item["id"])
 
-        workflow.save()
-        serializer = self.get_serializer(workflow)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+                    allow_status_qs = AllowStatus.objects.filter(id__in=allow_status_ids)
+
+                    if allow_status_qs.count() != len(allow_status_ids):
+                        return Response(
+                            {"allow_status": "One or more AllowStatus IDs are invalid"},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+
+                    workflow.allow_status.set(allow_status_qs)
+
+                workflow.save()
+                serializer = self.get_serializer(workflow)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            # 🔥 This prevents silent 500 errors
+            return Response(
+                {"detail": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 class AllowStatusViewSet(viewsets.ModelViewSet):
     queryset = AllowStatus.objects.all()
