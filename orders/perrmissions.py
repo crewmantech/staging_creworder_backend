@@ -3,22 +3,54 @@ from django.core.exceptions import PermissionDenied
 
 class OrderPermissions(BasePermission):
     """
-    Custom permission to check multiple required permissions for a given action.
+    Custom permission supporting:
+    - any  -> OR logic
+    - all  -> AND logic
     """
+
     permission_map = {
-        'POST': ['superadmin_assets.show_submenusmodel_create_order', 'superadmin_assets.add_submenusmodel'],  # Example: Need both permissions
-        # 'GET': ['superadmin_assets.show_submenusmodel_all_order', 'superadmin_assets.view_submenusmodel'],
-        'DELETE': ['superadmin_assets.show_submenusmodel_all_order', 'superadmin_assets.delete_submenusmodel'],
-        'PUT': ['superadmin_assets.show_submenusmodel_all_order', 'superadmin_assets.change_submenusmodel'],
-        # Example: Need both permissions
+        'POST': {
+            'any': [
+                'superadmin_assets.show_submenusmodel_create_order',
+                'superadmin_assets.show_submenusmodel_appointment_order',
+            ],
+            'all': [
+                'superadmin_assets.add_submenusmodel',
+            ]
+        },
+        'PUT': {
+            'all': [
+                'superadmin_assets.show_submenusmodel_all_order',
+                'superadmin_assets.change_submenusmodel',
+            ]
+        },
+        'DELETE': {
+            'all': [
+                'superadmin_assets.show_submenusmodel_all_order',
+                'superadmin_assets.delete_submenusmodel',
+            ]
+        }
     }
 
     def has_permission(self, request, view):
-        required_permissions = self.permission_map.get(request.method)
-        if required_permissions:
-            if not all(request.user.has_perm(perm) for perm in required_permissions):
-                return False  # Deny if the user lacks any permission
+        perms = self.permission_map.get(request.method)
+        if not perms:
+            return True
+
+        user = request.user
+
+        # AND permissions (must have all)
+        if 'all' in perms:
+            if not all(user.has_perm(p) for p in perms['all']):
+                return False
+
+        # OR permissions (must have at least one)
+        if 'any' in perms:
+            if not any(user.has_perm(p) for p in perms['any']):
+                return False
+
         return True
+
 
 class CategoryPermissions(BasePermission):
     """
