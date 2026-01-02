@@ -386,6 +386,9 @@ class PaymentStatusSerializer(serializers.ModelSerializer):
         read_only_fields = ['id']
 
 class CustomerStateSerializer(serializers.ModelSerializer):
+    replace_keys = serializers.BooleanField(
+        write_only=True, required=False, default=False
+    )
 
     class Meta:
         model = Customer_State
@@ -394,28 +397,34 @@ class CustomerStateSerializer(serializers.ModelSerializer):
             "name",
             "keys",
             "gst_state_code",
+            "replace_keys",
             "created_at",
             "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
 
-    def create(self, validated_data):
-        keys = validated_data.get("keys", "")
-        validated_data["keys"] = keys or ""
-        return super().create(validated_data)
-
     def update(self, instance, validated_data):
+        replace_keys = validated_data.pop("replace_keys", False)
         new_keys = validated_data.get("keys")
 
-        if new_keys:
-            existing_keys = instance.keys.split(",") if instance.keys else []
+        if new_keys is not None:
             incoming_keys = [
                 k.strip().lower()
                 for k in new_keys.split(",")
                 if k.strip()
             ]
-            merged_keys = sorted(set(existing_keys + incoming_keys))
-            instance.keys = ",".join(merged_keys)
+
+            if replace_keys:
+                # 🔥 REPLACE COMPLETELY
+                instance.keys = ",".join(sorted(set(incoming_keys)))
+            else:
+                # ➕ MERGE
+                existing = (
+                    instance.keys.split(",") if instance.keys else []
+                )
+                instance.keys = ",".join(
+                    sorted(set(existing + incoming_keys))
+                )
 
         instance.name = validated_data.get("name", instance.name)
         instance.gst_state_code = validated_data.get(
@@ -424,6 +433,7 @@ class CustomerStateSerializer(serializers.ModelSerializer):
 
         instance.save()
         return instance
+
 
 class PaymentTypeSerializer(serializers.ModelSerializer):
     class Meta:
