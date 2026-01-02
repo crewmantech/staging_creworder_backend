@@ -478,6 +478,7 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(
                 Q(id=search) |
                 Q(uhid=search) |
+                Q(reference_id=search) |
                 Q(patient_name__icontains=search) |
                 Q(patient_phone=search) |
                 Q(doctor__user__first_name__icontains=search) |
