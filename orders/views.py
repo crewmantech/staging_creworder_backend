@@ -1935,27 +1935,18 @@ class OrderAggregationByStatusAPIViewPerformance(APIView):
         response_data = []
 
         for emp in users:
-            scores = QcScore.objects.filter(user=emp)
-
-            scores = scores.filter(
-                Q(created_at__range=(start_date, end_date)) |
-                Q(updated_at__range=(start_date, end_date))
-            )
-
-            avg_scores = scores.values(
-                'question__id',
-                'question__question'
-            ).annotate(
-                avg_rating=Avg('score')
+            scores = QcScore.objects.filter(
+                user=emp,
+                created_at__range=(start_date, end_date)
             )
 
             questions_rating = [
                 {
-                    "question_id": item['question__id'],
-                    "question": item['question__question'],
-                    "question_rating": round(item['avg_rating'], 2)
+                    "question_id": qs.question.id,
+                    "question": qs.question.question,
+                    "question_rating": round(qs.score, 2)
                 }
-                for item in avg_scores
+                for qs in scores.select_related('question')
             ]
 
             response_data.append({

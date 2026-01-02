@@ -833,8 +833,17 @@ class AgreementSerializer(serializers.ModelSerializer):
 class QcScoreSerializer(serializers.ModelSerializer):
     class Meta:
         model = QcScore
-        fields = ['id', 'user', 'question', 'score', 'feedback', 'scored_at', 'created_at', 'updated_at']
-
+        fields = [
+            'id',
+            'user',
+            'question',
+            'score',
+            'rating_count',
+            'feedback',
+            'scored_at',
+            'created_at',
+            'updated_at'
+        ]
 
 
 

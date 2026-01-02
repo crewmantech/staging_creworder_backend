@@ -1117,8 +1117,9 @@ class Extra(models.Model):
 class QcScore(BaseModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='qc_scores')
     question = models.ForeignKey('QcTable', on_delete=models.CASCADE, related_name='question_scores')
-    score = models.PositiveIntegerField()  # You can limit it from 1 to 5, or use choices
+    score = models.FloatField()  # store AVERAGE score
     feedback = models.TextField(null=True, blank=True)
+    rating_count = models.PositiveIntegerField(default=0)
     scored_at = models.DateTimeField(auto_now_add=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
