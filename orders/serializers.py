@@ -401,7 +401,7 @@ class CustomerStateSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = ["replace_keys","id", "created_at", "updated_at"]
 
     def update(self, instance, validated_data):
         replace_keys = validated_data.pop("replace_keys", False)
