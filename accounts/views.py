@@ -3729,36 +3729,59 @@ class QcScoreViewSet(viewsets.ModelViewSet):
         ratings = request.data.get('rating', [])
 
         if not user_id or not ratings:
-            return Response({'error': 'User and rating are required.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {'error': 'User and rating are required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         user = get_object_or_404(User, id=user_id)
         created_scores = []
 
-        for entry in ratings:
-            question_id = entry.get('id')
-            score = entry.get('rating')
-            if not question_id or score is None:
-                continue
+        with transaction.atomic():
+            for entry in ratings:
+                question_id = entry.get('id')
+                new_score = entry.get('rating')
 
-            question = get_object_or_404(QcTable, id=question_id)
+                if not question_id or new_score is None:
+                    continue
 
-            qc_score, created = QcScore.objects.update_or_create(
-                user=user,
-                question=question,
-                defaults={
-                    'score': score,
-                    'scored_at': now()  # This will set the scored_at field, and updated_at will be automatically updated
-                }
-            )
-            created_scores.append({
-                'user': user.id,
-                'question_id': question.id,
-                'score': qc_score.score,
-                'created': created
-            })
+                question = get_object_or_404(QcTable, id=question_id)
 
-        return Response({'created_scores': created_scores}, status=status.HTTP_201_CREATED)
+                qc_score, created = QcScore.objects.get_or_create(
+                    user=user,
+                    question=question,
+                    defaults={
+                        'score': new_score,
+                        'rating_count': 1,
+                        'scored_at': now()
+                    }
+                )
 
+                if not created:
+                    old_avg = qc_score.score
+                    old_count = qc_score.rating_count
+
+                    updated_avg = (
+                        (old_avg * old_count) + new_score
+                    ) / (old_count + 1)
+
+                    qc_score.score = round(updated_avg, 2)
+                    qc_score.rating_count = old_count + 1
+                    qc_score.scored_at = now()
+                    qc_score.save()
+
+                created_scores.append({
+                    'user': user.id,
+                    'question_id': question.id,
+                    'average_score': qc_score.score,
+                    'rating_count': qc_score.rating_count,
+                    'created': created
+                })
+
+        return Response(
+            {'created_scores': created_scores},
+            status=status.HTTP_201_CREATED
+        )
 
 
 
