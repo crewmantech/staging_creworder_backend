@@ -1126,7 +1126,7 @@ class QcScore(BaseModel):
 
     class Meta:
         db_table = 'qc_score'
-        unique_together = ('user', 'question')  # Prevent duplicate scoring
+        # unique_together = ('user', 'question')  # Prevent duplicate scoring
 
     def __str__(self):
         return f"{self.user.username} - Q{self.question.id} Score: {self.score}"

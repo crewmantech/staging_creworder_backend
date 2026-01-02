@@ -3701,19 +3701,26 @@ class QcScoreViewSet(viewsets.ModelViewSet):
         for emp in queryset:
             scores = QcScore.objects.filter(user=emp)
 
-            # Apply filtering for date range on created_at or updated_at
-            scores = scores.filter(
-                Q(created_at__range=(start_date, end_date)) | Q(updated_at__range=(start_date, end_date))
-            )
+            # Apply date filter ONLY if dates are provided
+            if start_date and end_date:
+                scores = scores.filter(
+                    created_at__date__range=(start_date, end_date)
+                )
 
-            avg_scores = scores.values('question__id', 'question__question').annotate(avg_rating=Avg('score'))
+            avg_scores = scores.values(
+                'question__id',
+                'question__question'
+            ).annotate(
+                avg_rating=Avg('score')
+            )
 
             questions_rating = [
                 {
                     "question_id": item['question__id'],
                     "question": item['question__question'],
                     "question_rating": round(item['avg_rating'], 2)
-                } for item in avg_scores
+                }
+                for item in avg_scores
             ]
 
             response_data.append({
@@ -3721,7 +3728,6 @@ class QcScoreViewSet(viewsets.ModelViewSet):
                 "employee_id": emp.id,
                 "questions_rating": questions_rating
             })
-
         return Response(response_data)
 
     def create(self, request, *args, **kwargs):
@@ -3740,49 +3746,32 @@ class QcScoreViewSet(viewsets.ModelViewSet):
         with transaction.atomic():
             for entry in ratings:
                 question_id = entry.get('id')
-                new_score = entry.get('rating')
+                score = entry.get('rating')
 
-                if not question_id or new_score is None:
+                if not question_id or score is None:
                     continue
 
                 question = get_object_or_404(QcTable, id=question_id)
 
-                qc_score, created = QcScore.objects.get_or_create(
+                qc_score = QcScore.objects.create(
                     user=user,
                     question=question,
-                    defaults={
-                        'score': new_score,
-                        'rating_count': 1,
-                        'scored_at': now()
-                    }
+                    score=score,
+                    rating_count=1,   # keep column, value not used in avg
+                    scored_at=now()
                 )
-
-                if not created:
-                    old_avg = qc_score.score
-                    old_count = qc_score.rating_count
-
-                    updated_avg = (
-                        (old_avg * old_count) + new_score
-                    ) / (old_count + 1)
-
-                    qc_score.score = round(updated_avg, 2)
-                    qc_score.rating_count = old_count + 1
-                    qc_score.scored_at = now()
-                    qc_score.save()
 
                 created_scores.append({
                     'user': user.id,
                     'question_id': question.id,
-                    'average_score': qc_score.score,
-                    'rating_count': qc_score.rating_count,
-                    'created': created
+                    'score': qc_score.score,
+                    'created': True
                 })
 
         return Response(
             {'created_scores': created_scores},
             status=status.HTTP_201_CREATED
         )
-
 
 
 
