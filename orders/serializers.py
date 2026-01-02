@@ -386,10 +386,44 @@ class PaymentStatusSerializer(serializers.ModelSerializer):
         read_only_fields = ['id']
 
 class CustomerStateSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = Customer_State
-        fields = '__all__'
-        read_only_fields = ['id']
+        fields = [
+            "id",
+            "name",
+            "keys",
+            "gst_state_code",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+    def create(self, validated_data):
+        keys = validated_data.get("keys", "")
+        validated_data["keys"] = keys or ""
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        new_keys = validated_data.get("keys")
+
+        if new_keys:
+            existing_keys = instance.keys.split(",") if instance.keys else []
+            incoming_keys = [
+                k.strip().lower()
+                for k in new_keys.split(",")
+                if k.strip()
+            ]
+            merged_keys = sorted(set(existing_keys + incoming_keys))
+            instance.keys = ",".join(merged_keys)
+
+        instance.name = validated_data.get("name", instance.name)
+        instance.gst_state_code = validated_data.get(
+            "gst_state_code", instance.gst_state_code
+        )
+
+        instance.save()
+        return instance
 
 class PaymentTypeSerializer(serializers.ModelSerializer):
     class Meta:

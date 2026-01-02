@@ -1210,77 +1210,99 @@ class PaymentStatusViewSet(viewsets.ModelViewSet):
 
 
 class CustomerStateViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet for managing Customer_State.
-    """
     queryset = Customer_State.objects.all()
     serializer_class = CustomerStateSerializer
     permission_classes = [IsAuthenticated & CanCreateAndDeleteCustomerState]
 
     def get_queryset(self):
-        """
-        Optionally filter states via query parameters.
-        """
         queryset = super().get_queryset()
-        name = self.request.query_params.get('name', None)
+        name = self.request.query_params.get("name")
         if name:
             queryset = queryset.filter(name__icontains=name)
         return queryset
 
-    def create(self, request, *args, **kwargs):
-        """
-        Override create to ensure unique state names and check permissions.
-        """
-        return super().create(request, *args, **kwargs)
+    @action(
+        detail=False,
+        methods=["post"],
+        permission_classes=[IsAuthenticated & CanCreateAndDeleteCustomerState],
+    )
+    def bulk_upload(self, request):
+        if "file" not in request.FILES:
+            return Response(
+                {"success": False, "error": "No file provided"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated & CanCreateAndDeleteCustomerState])
-    def bulk_upload(self, request, *args, **kwargs):
-        """
-        Bulk upload Customer_State data from a CSV file.
-        """
-        if 'file' not in request.FILES:
-            return Response({"error": "No file provided."}, status=status.HTTP_400_BAD_REQUEST)
+        csv_file = request.FILES["file"]
 
-        csv_file = request.FILES['file']
+        if not csv_file.name.endswith(".csv"):
+            return Response(
+                {"success": False, "error": "Only CSV files allowed"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-        if not csv_file.name.endswith('.csv'):
-            return Response({"error": "File is not a CSV."}, status=status.HTTP_400_BAD_REQUEST)
+        reader = csv.DictReader(
+            io.StringIO(csv_file.read().decode("utf-8"))
+        )
 
-        try:
-            file_data = csv_file.read().decode('utf-8')
-            io_string = io.StringIO(file_data)
-            reader = csv.DictReader(io_string)
+        created = 0
+        updated = 0
+        errors = []
 
-            states_data = []
-            errors = []
+        with transaction.atomic():
+            for index, row in enumerate(reader, start=1):
+                name = row.get("name")
+                gst_state_code = row.get("gst_state_code", "")
+                keys = row.get("keys", "")
 
-            with transaction.atomic():
-                for row in reader:
-                    state_name = row.get('name')
-                    gst_state_code = row.get('gst_state_code')
-                    if not state_name:
-                        errors.append({"row": row, "error": "State name is required."})
-                        continue
+                if not name:
+                    errors.append({
+                        "row": index,
+                        "error": "State name is required"
+                    })
+                    continue
 
-                    if Customer_State.objects.filter(name=state_name).exists():
-                        errors.append({"row": row, "error": f"State '{state_name}' already exists."})
-                        continue
+                state, is_created = Customer_State.objects.get_or_create(
+                    name=name,
+                    defaults={
+                        "gst_state_code": gst_state_code,
+                        "keys": keys or "",
+                    },
+                )
 
-                    states_data.append({'name': state_name,"gst_state_code":gst_state_code})
-
-                serializer = CustomerStateSerializer(data=states_data, many=True)
-                if serializer.is_valid():
-                    serializer.save()
-                    return Response({
-                        "success": True,
-                        "message": "States uploaded successfully.",
-                        "errors": errors
-                    }, status=status.HTTP_201_CREATED)
+                if is_created:
+                    created += 1
                 else:
-                    return Response({"success": False, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+                    # merge keys
+                    if keys:
+                        existing_keys = (
+                            state.keys.split(",") if state.keys else []
+                        )
+                        incoming_keys = [
+                            k.strip().lower()
+                            for k in keys.split(",")
+                            if k.strip()
+                        ]
+                        merged = sorted(
+                            set(existing_keys + incoming_keys)
+                        )
+                        state.keys = ",".join(merged)
 
-        except Exception as e:
-            return Response({"error": f"Error processing file: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+                    if gst_state_code:
+                        state.gst_state_code = gst_state_code
+
+                    state.save()
+                    updated += 1
+
+        return Response(
+            {
+                "success": True,
+                "created": created,
+                "updated": updated,
+                "errors": errors,
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 
 # class BulkOrderUploadView(APIView):

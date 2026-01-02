@@ -207,21 +207,33 @@ class Payment_Status(models.Model):
 #         return self.name
 
 class Customer_State(models.Model):
-    # The above code is a comment in Python. Comments are used to provide explanations or notes within
-    # the code and are not executed by the Python interpreter. In this case, the comment is indicating
-    # that the code is using the `id` function, but it is not actually calling the function.
     id = models.CharField(max_length=50, primary_key=True, unique=True)
-    name = models.CharField(max_length=50, unique=True) 
-    gst_state_code = models.CharField(max_length=20,blank=True)
+    name = models.CharField(max_length=50, unique=True)
+    keys = models.TextField(blank=True, default="")
+    gst_state_code = models.CharField(max_length=20, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'state_table'
+        db_table = "state_table"
+
     def save(self, *args, **kwargs):
         if not self.id:
-            self.id = generate_unique_id(Customer_State, prefix='CSI')
-        super().save(*args, **kwargs) 
+            self.id = generate_unique_id(Customer_State, prefix="CSI")
+
+        # normalize keys
+        if self.keys:
+            key_list = [
+                k.strip().lower()
+                for k in self.keys.split(",")
+                if k.strip()
+            ]
+            self.keys = ",".join(sorted(set(key_list)))
+        else:
+            self.keys = ""
+
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return self.name
     
