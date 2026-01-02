@@ -387,7 +387,9 @@ class PaymentStatusSerializer(serializers.ModelSerializer):
 
 class CustomerStateSerializer(serializers.ModelSerializer):
     replace_keys = serializers.BooleanField(
-        write_only=True, required=False, default=False
+        write_only=True,
+        required=False,
+        default=False
     )
 
     class Meta:
@@ -401,7 +403,16 @@ class CustomerStateSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["replace_keys","id", "created_at", "updated_at"]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+    def create(self, validated_data):
+        # ❗ REMOVE non-model field
+        validated_data.pop("replace_keys", None)
+
+        keys = validated_data.get("keys", "")
+        validated_data["keys"] = keys or ""
+
+        return super().create(validated_data)
 
     def update(self, instance, validated_data):
         replace_keys = validated_data.pop("replace_keys", False)
@@ -415,7 +426,7 @@ class CustomerStateSerializer(serializers.ModelSerializer):
             ]
 
             if replace_keys:
-                # 🔥 REPLACE COMPLETELY
+                # 🔥 REPLACE
                 instance.keys = ",".join(sorted(set(incoming_keys)))
             else:
                 # ➕ MERGE
