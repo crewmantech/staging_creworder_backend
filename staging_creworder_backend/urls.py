@@ -38,6 +38,7 @@ urlpatterns = [
     path('api/', include('emailsetup.urls')),
     path('api/', include('kyc.urls')),
     path("api/", include("auditlog.urls")),
+    path('api/', include('assets.urls')),
     # path('dj-rest-auth/', include('dj_rest_auth.urls')),
     path('dj-rest-auth/login/', CustomLoginView.as_view(), name='rest_login'),
     path('api/login-otp-verify/', VerifyOTPView.as_view(), name='rest_otp'),

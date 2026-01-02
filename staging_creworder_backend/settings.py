@@ -73,7 +73,8 @@ INSTALLED_APPS = [
     'landing_page',
     'kyc',
     'auditlog',
-    "django_celery_beat"
+    "django_celery_beat",
+    "assets"
 ]
 
 MIDDLEWARE = [
