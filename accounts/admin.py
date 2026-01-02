@@ -22,6 +22,7 @@ from .models import PickUpPoint
 from .models import UserTargetsDelails
 from .models import AdminBankDetails
 from .models import QcTable
+from .models import QcScore
 from .models import StickyNote
 from .models import CustomAuthGroup,CompanyInquiry,Enquiry
 from .models import Others                       
@@ -58,3 +59,4 @@ admin.site.register(LoginAttempt)
 admin.site.register(OTPAttempt)
 admin.site.register(InterviewApplication)
 admin.site.register(Others)
+admin.site.register(QcScore)    
