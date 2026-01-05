@@ -38,18 +38,33 @@ def get_order_amount_breakup(order_qs):
     }
 
 
+from django.db.models import Sum, F, FloatField, ExpressionWrapper
+from django.db.models.functions import Coalesce
+
+
 def get_price_breakdown(order_qs):
     """
-    Returns aggregated base, gst, total amounts for given orders
+    SAFE price breakdown:
+    - base_amount
+    - gst_amount
+    - total_amount
     """
-    data = OrderDetail.objects.filter(
-        order__in=order_qs
-    ).aggregate(
-        base_amount=Coalesce(Sum("product_price"), 0.0),
-        gst_amount=Coalesce(Sum("gst_amount"), 0.0),
-        total_amount=Coalesce(
-            Sum(F("product_price") + F("gst_amount"), output_field=FloatField()),
-            0.0
+
+    gst_expression = ExpressionWrapper(
+        F("product_price") * F("product__product_gst_percent") / 100,
+        output_field=FloatField()
+    )
+
+    data = (
+        OrderDetail.objects
+        .filter(order__in=order_qs)
+        .aggregate(
+            base_amount=Coalesce(Sum("product_price"), 0.0),
+            gst_amount=Coalesce(Sum(gst_expression), 0.0),
+            total_amount=Coalesce(
+                Sum(F("product_price") + gst_expression),
+                0.0
+            )
         )
     )
 
