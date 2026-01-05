@@ -529,11 +529,8 @@ class AppointmentViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["get"], url_path="customer-phone")
     def customer_phone(self, request, pk=None):
-        """
-        Fetch patient phone number using appointment ID
-        """
         try:
-            appointment = self.get_object()
+            appointment = Appointment.objects.get(pk=pk)
         except Appointment.DoesNotExist:
             return Response(
                 {"error": "Appointment not found"},
