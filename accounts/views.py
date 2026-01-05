@@ -3444,6 +3444,8 @@ class GetPackagesModule(viewsets.ModelViewSet):
         my_set.add("/admin/manage/editassignrole")
         my_set.add('/admin/performance/agent-order')
         my_set.add('/admin/orders')
+        my_set.add('/admin/shipment/PrescreiptionPreviewPage')
+       
         if self.request.user.profile.user_type == "admin" or  self.request.user.has_perm("accounts.chat_user_permission_others"):
             my_set.add("/chat")
         user_type = self.request.user.profile.user_type

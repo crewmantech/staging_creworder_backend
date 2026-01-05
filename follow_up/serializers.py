@@ -32,10 +32,14 @@ class NotepadSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class AppointmentSerializer(serializers.ModelSerializer):
-    # 🔹 Doctor basic details
     doctor_id = serializers.CharField(source="doctor.id", read_only=True)
     doctor_username = serializers.CharField(
         source="doctor.user.username", read_only=True
+    )
+    patient_phone = serializers.CharField(
+        required=False,
+        allow_null=True,
+        allow_blank=True
     )
     doctor_full_name = serializers.SerializerMethodField()
     doctor_email = serializers.EmailField(
@@ -43,7 +47,7 @@ class AppointmentSerializer(serializers.ModelSerializer):
     )
     doctor_phone = serializers.SerializerMethodField()
 
-    # 🔹 Doctor professional details
+    # doctor_name = serializers.SerializerMethodField()
     doctor_registration_number = serializers.CharField(
         source="doctor.registration_number", read_only=True
     )
@@ -65,25 +69,19 @@ class AppointmentSerializer(serializers.ModelSerializer):
     doctor_sign = serializers.ImageField(
         source="doctor.doctor_sign", read_only=True
     )
-
-    # 🔹 Branch & Company
-    branch_name = serializers.CharField(
-        source="branch.name", read_only=True
-    )
-    company_name = serializers.CharField(
-        source="company.name", read_only=True
-    )
+    branch_name = serializers.CharField(source="branch.name", read_only=True)
+    company_name = serializers.CharField(source="company.name", read_only=True)
 
     class Meta:
         model = Appointment
         fields = "__all__"
-        read_only_fields = [
+        read_only_fields = (
             "company",
             "branch",
             "created_by",
+            "bmi",
             "uhid",
-            "bmi"
-        ]
+        )
 
     def get_doctor_full_name(self, obj):
         if not obj.doctor or not obj.doctor.user:
@@ -91,7 +89,6 @@ class AppointmentSerializer(serializers.ModelSerializer):
         first = obj.doctor.user.first_name or ""
         last = obj.doctor.user.last_name or ""
         return f"{first} {last}".strip()
-
     def get_doctor_phone(self, obj):
         if (
             obj.doctor
@@ -101,12 +98,21 @@ class AppointmentSerializer(serializers.ModelSerializer):
             return str(obj.doctor.user.profile.contact_no)
         return None
     def validate(self, data):
-        request = self.context.get("request")
+        request = self.context["request"]
         user = request.user
 
         doctor = data.get("doctor")
 
-        # 🔐 Doctor must belong to same company
+        patient_phone = data.get("patient_phone")
+        reference_id = data.get("reference_id")
+
+        # 🔴 Rule 1: At least one is required
+        if not patient_phone and not reference_id:
+            raise serializers.ValidationError(
+                "Either patient_phone or reference_id is required."
+            )
+
+        # 🔐 Doctor validations
         if doctor and doctor.company != user.profile.company:
             raise serializers.ValidationError(
                 "Doctor does not belong to your company."
@@ -121,28 +127,29 @@ class AppointmentSerializer(serializers.ModelSerializer):
         return data
 
     def create(self, validated_data):
-        request = self.context.get("request")
+        request = self.context["request"]
         user = request.user
 
         reference_id = validated_data.get("reference_id")
         patient_phone = validated_data.get("patient_phone")
+        reference_id = validated_data.get("reference_id")
 
-        # 🔐 CONDITIONAL FETCH (YOUR CONDITION)
-        if (
-            reference_id
-            and not patient_phone
-            and user.has_perm("accounts.view_number_masking_others")
-            and user.profile.user_type != "admin"
-        ):
+        # 🔥 STRICT reference_id behavior
+        if reference_id and (not patient_phone or "*" in patient_phone):
             try:
+                print("---------------98",reference_id)
                 result = get_phone_by_reference_id(
                     user=user,
                     reference_id=reference_id
                 )
+                print(result,"---------------100")
                 validated_data["patient_phone"] = result["phone_number"]
+
             except ValidationError:
-                # Do NOT block appointment creation
-                pass
+                # ❌ BLOCK creation if phone not found
+                raise serializers.ValidationError({
+                    "reference_id": "Phone number not found for this reference ID."
+                })
 
         return super().create(validated_data)
     

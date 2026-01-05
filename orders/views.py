@@ -962,6 +962,7 @@ class FilterOrdersView(viewsets.ViewSet):
             "customer_state__id": "state", 
             "city":"customer_city",
             "zone": "zone",
+            "appointment":"appointment",
                  # Assuming customer_state has a name field
         }
 
@@ -4626,7 +4627,7 @@ class OrderAggregationByPerformance(APIView):
             price_breakdown_total = get_price_breakdown(total_order)
             price_breakdown_delivered = get_price_breakdown(delivered_orders)
             price_breakdown_rto = get_price_breakdown(rto_orders)
-
+            
             order_percentage = (
                 (float(achieved_orders) / float(order_target)) * 100
                 if order_target else 0

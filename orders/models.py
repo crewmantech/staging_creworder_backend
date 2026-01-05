@@ -207,6 +207,9 @@ class Payment_Status(models.Model):
 #         return self.name
 
 class Customer_State(models.Model):
+    # The above code is a comment in Python. Comments are used to provide explanations or notes within
+    # the code and are not executed by the Python interpreter. In this case, the comment is indicating
+    # that the code is using the `id` function, but it is not actually calling the function.
     id = models.CharField(max_length=50, primary_key=True, unique=True)
     name = models.CharField(max_length=50, unique=True)
     keys = models.TextField(blank=True, default="")

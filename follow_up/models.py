@@ -142,7 +142,7 @@ class Appointment(BaseModel):
 
     # 🧑 Patient Info
     patient_name = models.CharField(max_length=255, null=True, blank=True)
-    patient_phone = PhoneNumberField(null=True, blank=True, db_index=True)
+    patient_phone = PhoneNumberField(db_index=True)
     patient_email = models.EmailField(null=True, blank=True)
     patient_age = models.PositiveIntegerField(null=True, blank=True)
     patient_gender = models.CharField(

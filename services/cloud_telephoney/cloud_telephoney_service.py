@@ -393,7 +393,7 @@ class SansSoftwareService:
     def get_number(self, lead_id: str, process_id: Optional[str] = None):
 
         final_process_id = process_id or self.process_id
-
+        print(final_process_id,"-----------self.process_id")
         data = {
             "Lead_ID": lead_id,
             "process_id": final_process_id,
@@ -483,7 +483,7 @@ def get_phone_number_by_call_id(user, call_id):
         raise ValidationError("No channel assigned to this user.")
 
     cloud_vendor = channel.cloudtelephony_vendor.name.lower()
-
+    print(cloud_vendor,"-----------------cloudvendor")
     # -------- CLOUD CONNECT --------
     if cloud_vendor == "cloud connect":
         if not channel.token or not channel.tenent_id:
@@ -510,16 +510,16 @@ def get_phone_number_by_call_id(user, call_id):
 
         service = SansSoftwareService(process_id=process_id)
         response = service.get_number(call_id)
+        print(response,"-----------------sansoftwaresresponse")
+        result = response.get("result", [])
 
-        if response.get("code") != 200:
+        if not result or "Phone_number" not in result[0]:
             raise ValidationError({
                 "vendor": "sansoftwares",
-                "vendor_code": response.get("code"),
-                "vendor_message": response.get("message", "Unknown error")
+                "vendor_message": "Phone number not found in response"
             })
 
-        # ✅ phone_number ONLY here
-        return response["result"]["phone_number"]
+        return result[0]["Phone_number"]
 
     else:
         raise ValidationError(f"{cloud_vendor} is not supported.")
