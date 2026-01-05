@@ -130,7 +130,7 @@ class OrderAPIView(APIView):
                 try:
                     # 1️⃣ Try to fetch from Lead
                     lead = (Lead.objects.filter(Q(lead_id=lead_id) | Q(id=lead_id)).only("customer_phone").first()         )
-                    lead = Lead.objects.get(lead_id=lead_id)
+                    # lead = Lead.objects.get(lead_id=lead_id)
                     request.data['customer_phone'] = lead.customer_phone
 
                 except Lead.DoesNotExist:
