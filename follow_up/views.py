@@ -407,9 +407,7 @@ class GetPhoneByReferenceAPIView(APIView):
             )
 
         # ✅ Try Lead
-        lead = Lead.objects.filter(
-            lead_id=reference_id
-        ).only("customer_phone").first()
+        lead = (Lead.objects.filter(Q(lead_id=reference_id) | Q(id=reference_id)).only("customer_phone").first())
 
         if lead:
             return Response(
