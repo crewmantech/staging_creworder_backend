@@ -155,7 +155,7 @@ class OrderAPIView(APIView):
                 try:
                     appointment = Appointment.objects.get(id=appointment_id)
                     request.data["appointment"] = appointment.id  # FK expects ID
-                    if '+91' not in appointment.patient_phone:
+                    if '+91' not in str(appointment.patient_phone):
                         request.data['customer_phone'] = '+91'+str(appointment.patient_phone)
                     else:
                         request.data['customer_phone'] = appointment.patient_phone
