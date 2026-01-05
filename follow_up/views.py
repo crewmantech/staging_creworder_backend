@@ -407,7 +407,7 @@ class GetPhoneByReferenceAPIView(APIView):
             )
 
         # ✅ Try Lead
-        lead = (Lead.objects.filter(Q(lead_id=reference_id) | Q(id=reference_id)).only("customer_phone").first())
+        lead = (Lead.objects.filter(Q(lead_id=reference_id) | Q(id=reference_id)).only("customer_phone").first()         )
 
         if lead:
             return Response(
@@ -558,11 +558,16 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         if hasattr(user, "profile") and user.profile.user_type == "admin":
             # queryset = apply_common_filters(queryset)
             # queryset = self.apply_date_filter(queryset)
+            queryset = queryset.filter(company=user.profile.company)
             queryset = self.apply_appointment_filters(queryset)
             return queryset.order_by("-created_at")
-
+        # 👥 Agent / Staff
         # 🔑 Permission-based access
-        if user.has_perm("accounts.view_own_appointment_others"):
+        params = self.request.query_params
+        search = params.get("search")
+        if search:
+            pass
+        elif user.has_perm("accounts.view_own_appointment_others"):
             queryset = queryset.filter(created_by=user)
 
         elif user.has_perm("accounts.view_teamlead_appointment_others"):
@@ -585,7 +590,7 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             )
 
         elif not user.has_perm("accounts.view_all_appointment_others"):
-            return queryset.none()
+            queryset = queryset.filter(company=user.profile.company)
 
         queryset = self.apply_appointment_filters(queryset)
         return queryset.order_by("-created_at")
