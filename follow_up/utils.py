@@ -2,7 +2,7 @@ from rest_framework.exceptions import ValidationError
 from follow_up.models import Appointment, Follow_Up
 from lead_management.models import Lead
 from services.cloud_telephoney.cloud_telephoney_service import get_phone_number_by_call_id
-
+from django.db.models import Q
 
 
 def get_phone_by_reference_id(user, reference_id):
@@ -15,9 +15,12 @@ def get_phone_by_reference_id(user, reference_id):
         raise ValidationError("reference_id is required")
 
     # -------- 1️⃣ Try Lead --------
-    lead = Lead.objects.filter(
-        lead_id=reference_id
-    ).only("customer_phone").first()
+    lead = (
+        Lead.objects
+        .filter(Q(lead_id=reference_id) | Q(id=reference_id))
+        .only("customer_phone")
+        .first()
+    )
 
     if lead and lead.customer_phone:
         return {
