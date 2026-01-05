@@ -199,7 +199,7 @@ class OrderAPIView(APIView):
                     )
                     print(phone_number,"-----------------197")
                     if phone_number:
-                        request.data["patient_phone"] = phone_number
+                        request.data["customer_phone"] = phone_number
 
                 except Exception:
                     return Response(
