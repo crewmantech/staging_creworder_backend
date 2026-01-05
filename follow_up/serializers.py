@@ -32,7 +32,41 @@ class NotepadSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class AppointmentSerializer(serializers.ModelSerializer):
-    doctor_name = serializers.SerializerMethodField()
+    # 🔹 Doctor basic details
+    doctor_id = serializers.CharField(source="doctor.id", read_only=True)
+    doctor_username = serializers.CharField(
+        source="doctor.user.username", read_only=True
+    )
+    doctor_full_name = serializers.SerializerMethodField()
+    doctor_email = serializers.EmailField(
+        source="doctor.user.email", read_only=True
+    )
+    doctor_phone = serializers.SerializerMethodField()
+
+    # 🔹 Doctor professional details
+    doctor_registration_number = serializers.CharField(
+        source="doctor.registration_number", read_only=True
+    )
+    doctor_degree = serializers.CharField(
+        source="doctor.degree", read_only=True
+    )
+    doctor_specialization = serializers.CharField(
+        source="doctor.specialization", read_only=True
+    )
+    doctor_experience_years = serializers.IntegerField(
+        source="doctor.experience_years", read_only=True
+    )
+    doctor_address = serializers.CharField(
+        source="doctor.address", read_only=True
+    )
+    doctor_is_active = serializers.BooleanField(
+        source="doctor.is_active", read_only=True
+    )
+    doctor_sign = serializers.ImageField(
+        source="doctor.doctor_sign", read_only=True
+    )
+
+    # 🔹 Branch & Company
     branch_name = serializers.CharField(
         source="branch.name", read_only=True
     )
@@ -50,11 +84,22 @@ class AppointmentSerializer(serializers.ModelSerializer):
             "uhid",
             "bmi"
         ]
-    #     doctor_name = serializers.CharField(
-    #     source="doctor.user.username", read_only=True
-    # )
-    def get_doctor_name(self, obj):
-        return obj.doctor.user.first_name if obj.doctor else None
+
+    def get_doctor_full_name(self, obj):
+        if not obj.doctor or not obj.doctor.user:
+            return None
+        first = obj.doctor.user.first_name or ""
+        last = obj.doctor.user.last_name or ""
+        return f"{first} {last}".strip()
+
+    def get_doctor_phone(self, obj):
+        if (
+            obj.doctor
+            and hasattr(obj.doctor.user, "profile")
+            and obj.doctor.user.profile.contact_no
+        ):
+            return str(obj.doctor.user.profile.contact_no)
+        return None
     def validate(self, data):
         request = self.context.get("request")
         user = request.user
@@ -109,3 +154,4 @@ class AppointmentLayoutSerializer(serializers.ModelSerializer):
         model = Appointment_layout
         fields = "__all__"
         read_only_fields = ["id", "company", "created_at", "updated_at"]
+
