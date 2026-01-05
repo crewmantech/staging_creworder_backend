@@ -152,7 +152,14 @@ class AppointmentSerializer(serializers.ModelSerializer):
                 })
 
         return super().create(validated_data)
-    
+    def update(self, instance, validated_data):
+        request = self.context.get("request")
+
+        if request and request.user.has_perm("accounts.view_number_masking_others"):
+            # ✅ Keep original phone from DB
+            validated_data["patient_phone"] = instance.patient_phone
+
+        return super().update(instance, validated_data)
 
 class AppointmentLayoutSerializer(serializers.ModelSerializer):
     company = serializers.PrimaryKeyRelatedField(read_only=True)

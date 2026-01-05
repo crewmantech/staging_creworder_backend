@@ -31,6 +31,16 @@ class FollowUpView(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     queryset = Follow_Up.objects.all()
     serializer_class = FollowUpSerializer
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+
+        if request and request.user.has_perm("accounts.view_number_masking_others"):
+            phone = data.get("customer_phone")
+            if phone and len(phone) >= 10:
+                data["customer_phone"] = phone[:2] + "******" + phone[-2:]
+
+        return data
     def resolve_phone_number(self,call_id, phone_number, user):
         """
         Resolves the phone number from Lead or using external API.
