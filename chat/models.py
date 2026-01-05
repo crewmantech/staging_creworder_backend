@@ -1,6 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
-
+from django.db.models import Q
 from middleware.request_middleware import get_request
 # Create your models here.
 
@@ -133,7 +133,13 @@ class Notification(models.Model):
     )
 
     class Meta:
-        unique_together = ("user", "followup", "notification_type")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "followup", "notification_type"],
+                condition=Q(followup__isnull=False),
+                name="unique_followup_notification"
+            )
+        ]
 
     def __str__(self):
         return f"Notification for {self.user.username}"

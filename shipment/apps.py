@@ -215,7 +215,7 @@ class ShipmentsConfig(AppConfig):
         scheduler = BackgroundScheduler()
         scheduler.add_job(
             fetch_and_update_shipments,
-            IntervalTrigger(minutes=35),  # Run every 10 minutes
+            IntervalTrigger(minutes=20),  # Run every 20 minutes
             id="fetch_and_update_shipments",
             max_instances=1,
             # misfire_grace_time=30,  # Optional

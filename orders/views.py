@@ -17,6 +17,7 @@ from follow_up.models import Follow_Up, Appointment
 from follow_up.utils import get_phone_from_call_or_appointment
 from lead_management.models import Lead
 from orders.perrmissions import CategoryPermissions, OrderPermissions
+from orders.utils import get_price_breakdown
 from services.cloud_telephoney.cloud_telephoney_service import CloudConnectService, get_phone_number_by_call_id
 from shipment.models import ShipmentVendor
 from .models import (
@@ -4563,13 +4564,15 @@ class OrderAggregationByPerformance(APIView):
                     "username": user.username,
                     "agent_name": user.get_full_name(),
                     "month": start_date.strftime("%Y-%m"),
+                    "price_breakdown": {},
                     "rto":{
                             "total_order":0,
                             "total_order_amount":0,
                             "total_rto_order":0,
                             "total_rto_count":0,
                             "rto_order_percentage":0,
-                            "rto_amount_percentage":0
+                            "rto_amount_percentage":0,
+                            "price_breakdown": {}
                         },
                     "target": {
                         "order_target": 0,
@@ -4579,6 +4582,7 @@ class OrderAggregationByPerformance(APIView):
                     "achieved": {
                         "delivered_orders": 0,
                         "delivered_amount": 0,
+                        "price_breakdown": {}
                     },
 
                     "percentage": {
@@ -4619,7 +4623,10 @@ class OrderAggregationByPerformance(APIView):
             achieved_amount = delivered_orders.aggregate(
                 total=Sum("total_amount")
             )["total"] or 0
-            
+            price_breakdown_total = get_price_breakdown(total_order)
+            price_breakdown_delivered = get_price_breakdown(delivered_orders)
+            price_breakdown_rto = get_price_breakdown(rto_orders)
+
             order_percentage = (
                 (float(achieved_orders) / float(order_target)) * 100
                 if order_target else 0
@@ -4651,13 +4658,15 @@ class OrderAggregationByPerformance(APIView):
                 "username": user.username,
                 "agent_name": user.get_full_name(),
                 "month": start_date.strftime("%Y-%m"),
+                "price_breakdown": price_breakdown_total,
                 "rto":{
                     "total_order":total_order_count,
                     "total_order_amount":total_count_amount,
                     "total_rto_order":rto_order_count,
                     "total_rto_count":rto_count_amount,
                     "rto_order_percentage":rto_order_percentage,
-                    "rto_amount_percentage":rto_amount_percentage
+                    "rto_amount_percentage":rto_amount_percentage,
+                    "price_breakdown": price_breakdown_rto
                 },
                 "target": {
                     "order_target": order_target,
@@ -4667,6 +4676,7 @@ class OrderAggregationByPerformance(APIView):
                 "achieved": {
                     "delivered_orders": achieved_orders,
                     "delivered_amount": float(achieved_amount),
+                    "price_breakdown": price_breakdown_delivered
                 },
 
                 "percentage": {
