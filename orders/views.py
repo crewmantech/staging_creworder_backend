@@ -156,10 +156,14 @@ class OrderAPIView(APIView):
                     appointment = Appointment.objects.get(id=appointment_id)
                     request.data["appointment"] = appointment.id  # FK expects ID
                     print(appointment.patient_phone,"------------------105")
-                    if '+91' not in str(appointment.patient_phone):
-                        request.data['customer_phone'] = '+91'+str(appointment.patient_phone)
-                    else:
-                        request.data['customer_phone'] = appointment.patient_phone
+                    phone = appointment.patient_phone
+                    if phone:
+                        phone_str = str(phone)   # 🔑 convert PhoneNumber → string
+                        if not phone_str.startswith('+'):
+                            phone_str = '+91' + phone_str
+                        request.data['customer_phone'] = phone_str
+                    print(type(request.data['customer_phone']))
+                    print(request.data['customer_phone'])
                 except Appointment.DoesNotExist:
                     return Response(
                         {"error": f"Invalid appointment_id: {appointment_id}"},
