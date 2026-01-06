@@ -183,22 +183,22 @@ class OrderAPIView(APIView):
                         except Order_Table.DoesNotExist:
                             print("No mobile number found using this order ID.")
                             return f"No reference_order found for : {reference_order}"
-                    if call_id or appointment_id:
-                        try:
-                            phone_number = get_phone_from_call_or_appointment(
-                                user=request.user,
-                                call_id=call_id,
-                                appointment_id=appointment_id
-                            )
-                            print(phone_number,"-----------------118")
-                            if phone_number:
-                                request.data["customer_phone"] = phone_number
+                    # if call_id or appointment_id:
+                    #     try:
+                    #         phone_number = get_phone_from_call_or_appointment(
+                    #             user=request.user,
+                    #             call_id=call_id,
+                    #             appointment_id=appointment_id
+                    #         )
+                    #         print(phone_number,"-----------------118")
+                    #         if phone_number:
+                    #             request.data["customer_phone"] = phone_number
 
-                        except Exception:
-                            return Response(
-                                {"error": "Failed to fetch patient phone number"},
-                                status=status.HTTP_400_BAD_REQUEST
-                            ) 
+                    #     except Exception:
+                    #         return Response(
+                    #             {"error": "Failed to fetch patient phone number"},
+                    #             status=status.HTTP_400_BAD_REQUEST
+                    #         ) 
                     else:
                         return f"No reference_order found for : {reference_order}"
             print(request.data,"---------------------120")
