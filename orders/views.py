@@ -127,6 +127,7 @@ class OrderAPIView(APIView):
         try:
             state = Customer_State.objects.get(name=request.data['customer_state'])
             lead_id = request.data.get('lead_id')
+            print(lead_id,"------------------94")
             if lead_id:
                 try:
                     # 1️⃣ Try to fetch from Lead
