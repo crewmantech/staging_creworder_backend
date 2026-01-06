@@ -189,11 +189,33 @@ def get_price_breakdown(order_qs):
         "gst_amount": round(gst_amount, 2),
         "total_amount": round(total_amount, 2),
     }
-
+from phonenumber_field.phonenumber import PhoneNumber
 def normalize_phone(phone):
-    digits = re.sub(r"\D", "", phone or "")
+    """
+    Accepts:
+    - string phone
+    - PhoneNumber object
+    Returns:
+    - ['9876543210', '+919876543210']
+    """
+
+    if not phone:
+        return None
+
+    # ✅ Handle PhoneNumber object safely
+    if isinstance(phone, PhoneNumber):
+        phone = phone.as_e164  # '+918489895444'
+
+    # Safety: force string
+    phone = str(phone)
+
+    digits = re.sub(r"\D", "", phone)
+
     if len(digits) < 10:
         return None
 
     core = digits[-10:]
-    return [core, f"+91{core}"]
+    return [
+        core,
+        f"+91{core}",
+    ]
