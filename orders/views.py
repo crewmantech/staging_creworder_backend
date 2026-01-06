@@ -14,7 +14,7 @@ from accounts.models import Attendance, Branch, CompanyUserAPIKey, Employees, Us
 from accounts.permissions import CanCreateAndDeleteCustomerState, CanCreateOrDeletePaymentStatus, IsSuperAdmin
 from cloud_telephony.models import CloudTelephonyChannel, CloudTelephonyChannelAssign
 from follow_up.models import Follow_Up, Appointment
-from follow_up.utils import get_phone_from_call_or_appointment
+from follow_up.utils import get_phone_by_reference_id, get_phone_from_call_or_appointment
 from lead_management.models import Lead
 from orders.perrmissions import CategoryPermissions, OrderPermissions
 from orders.utils import get_price_breakdown
@@ -102,6 +102,7 @@ from services.orders.order_service import (
     ivoiceDeatail,
     checkServiceability,
 )
+from rest_framework.exceptions import ValidationError
 from datetime import datetime
 from rest_framework.decorators import action
 from django.db.models import Sum, F
@@ -4914,48 +4915,110 @@ class OFDListView(GenericAPIView):
 
 
 class CheckPhoneDuplicateAPIView(APIView):
-    permission_classes = [IsAuthenticated]  # remove if you want it public
+    permission_classes = [IsAuthenticated]
 
-    def get(self, request, *args, **kwargs):
+    def normalize_phone(self, phone: str):
         """
-        Check if a phone number already exists in orders_table.
-        Accepts phone with or without +91.
-        Example: GET /check-phone-duplicate/?phone=9876543210
-                 GET /check-phone-duplicate/?phone=+919876543210
+        Normalize phone to last 10 digits and generate variants
         """
-        phone = request.query_params.get("phone")
-        company = request.user.profile.company 
-        if not phone:
-            return Response(
-                {"Success": False, "message": "Phone number is required."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # Keep only digits
-        digits = re.sub(r"\D", "", phone)
-
-        # Basic validation
+        digits = re.sub(r"\D", "", phone or "")
         if len(digits) < 10:
-            return Response(
-                {"Success": False, "message": "Invalid phone number."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return None
 
-        # Take last 10 digits as the core mobile number
-        core_number = digits[-10:]
-
-        possible_numbers = [
-            core_number,          # 9876543210
-            f"+91{core_number}",  # +919876543210
+        core = digits[-10:]
+        return [
+            core,
+            f"+91{core}",
         ]
 
-        # Check both primary and alternate phone fields
+    def get(self, request, *args, **kwargs):
+        phone = request.query_params.get("phone")
+        reference_id = request.query_params.get("reference_id")
+        company = request.user.profile.company
+
+        resolved_phone = None
+        source = None
+
+        # ---------------------------------------------------
+        # 1️⃣ Direct phone provided & NOT masked
+        # ---------------------------------------------------
+        if phone and "**" not in phone:
+            normalized = self.normalize_phone(phone)
+            if not normalized:
+                return Response(
+                    {"Success": False, "message": "Invalid phone number."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            resolved_phone = normalized
+            source = "direct"
+
+        # ---------------------------------------------------
+        # 2️⃣ Phone masked OR missing → resolve using reference_id
+        # ---------------------------------------------------
+        else:
+            if not reference_id:
+                return Response(
+                    {
+                        "Success": False,
+                        "message": "reference_id is required when phone is masked or missing.",
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            try:
+                # Try Lead / FollowUp / Call
+                ref_result = get_phone_by_reference_id(
+                    request.user,
+                    reference_id
+                )
+
+                if ref_result and ref_result.get("phone_number"):
+                    resolved_phone = self.normalize_phone(
+                        ref_result["phone_number"]
+                    )
+                    source = ref_result["type"]
+
+                # Fallback → Appointment
+                if not resolved_phone:
+                    appointment_phone = get_phone_from_call_or_appointment(
+                        user=request.user,
+                        appointment_id=reference_id
+                    )
+                    if appointment_phone:
+                        resolved_phone = self.normalize_phone(appointment_phone)
+                        source = "appointment"
+
+            except ValidationError as e:
+                return Response(
+                    {
+                        "Success": False,
+                        "message": "Unable to resolve phone from reference_id.",
+                        "details": e.detail,
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        # ---------------------------------------------------
+        # 3️⃣ If still no phone
+        # ---------------------------------------------------
+        if not resolved_phone:
+            return Response(
+                {
+                    "Success": False,
+                    "message": "Phone number could not be resolved.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # ---------------------------------------------------
+        # 4️⃣ Duplicate check in orders
+        # ---------------------------------------------------
         exists = Order_Table.objects.filter(
             (
-                Q(customer_phone__in=possible_numbers) |
-                Q(customer_alter_phone__in=possible_numbers)
+                Q(customer_phone__in=resolved_phone) |
+                Q(customer_alter_phone__in=resolved_phone)
             ),
-            company=company   # or company_id=company_id
+            company=company
         ).exists()
 
         if exists:
@@ -4963,6 +5026,7 @@ class CheckPhoneDuplicateAPIView(APIView):
                 {
                     "Success": False,
                     "number_exists": True,
+                    "source": source,
                     "message": "This number already exists in orders.",
                 },
                 status=status.HTTP_200_OK,
@@ -4972,6 +5036,7 @@ class CheckPhoneDuplicateAPIView(APIView):
             {
                 "Success": True,
                 "number_exists": False,
+                "source": source,
                 "message": "This number is not associated with any order.",
             },
             status=status.HTTP_200_OK,
