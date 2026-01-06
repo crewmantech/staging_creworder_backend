@@ -1315,6 +1315,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                 filters = Q(company=company)
                 user_id = self.request.query_params.get("user")
                 branch_id = self.request.query_params.get("branch")
+                print(branch,"-------------1318")
                 if branch_id:
                     filters &= Q(branch__id=branch_id)
                 else:
