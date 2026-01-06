@@ -42,6 +42,7 @@ class AppointmentSerializer(serializers.ModelSerializer):
         allow_blank=True
     )
     doctor_full_name = serializers.SerializerMethodField()
+    user_full_name = serializers.SerializerMethodField()
     doctor_email = serializers.EmailField(
         source="doctor.user.email", read_only=True
     )
@@ -88,6 +89,12 @@ class AppointmentSerializer(serializers.ModelSerializer):
             return None
         first = obj.doctor.user.first_name or ""
         last = obj.doctor.user.last_name or ""
+        return f"{first} {last}".strip()
+    def get_user_full_name(self, obj):
+        if not obj.created_by:
+            return None
+        first = obj.created_by.first_name or ""
+        last = obj.created_by.last_name or ""
         return f"{first} {last}".strip()
     def get_doctor_phone(self, obj):
         if (

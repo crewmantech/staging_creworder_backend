@@ -31,32 +31,52 @@ class FollowUpView(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     queryset = Follow_Up.objects.all()
     serializer_class = FollowUpSerializer
+
+    # =====================================================
+    # 🔐 PHONE MASKING (RESPONSE ONLY)
+    # =====================================================
     def to_representation(self, instance):
         data = super().to_representation(instance)
         request = self.context.get("request")
 
-        if request and request.user.has_perm("accounts.view_number_masking_others"):
-            phone = data.get("customer_phone")
-            if phone and len(phone) >= 10:
+        if (
+            request
+            and request.user.has_perm("accounts.view_number_masking_others")
+            and data.get("customer_phone")
+        ):
+            phone = data["customer_phone"]
+            if len(phone) >= 10:
                 data["customer_phone"] = phone[:2] + "******" + phone[-2:]
 
         return data
-    def resolve_phone_number(self,call_id, phone_number, user):
+
+    # =====================================================
+    # 📞 PHONE RESOLUTION (SAFE)
+    # =====================================================
+    def resolve_phone_number(self, call_id, phone_number, user):
         """
-        Resolves the phone number from Lead or using external API.
+        Priority:
+        1. Direct unmasked phone
+        2. Lead table
+        3. Cloud Telephony API
         """
+
+        # ✅ 1. Direct clean phone
         if phone_number and "*" not in phone_number:
-            return phone_number  # Already clean
+            return phone_number
 
-        # -------- Try finding number in Lead Model --------
-        try:
-            lead  = (Lead.objects.filter(Q(lead_id=call_id) | Q(id=call_id)).only("customer_phone").first()) 
-            if lead.customer_phone:
-                return lead.customer_phone
-        except Lead.DoesNotExist:
-            pass
+        # ✅ 2. Lead lookup (SAFE .first())
+        lead = (
+            Lead.objects
+            .filter(Q(lead_id=call_id) | Q(id=call_id))
+            .only("customer_phone")
+            .first()
+        )
 
-        # -------- Try external API: GetNumberAPIView logic --------
+        if lead and lead.customer_phone:
+            return lead.customer_phone
+
+        # ✅ 3. Cloud telephony lookup
         try:
             channel_assign = CloudTelephonyChannelAssign.objects.get(user_id=user.id)
             channel = channel_assign.cloud_telephony_channel
@@ -64,83 +84,72 @@ class FollowUpView(viewsets.ModelViewSet):
             return None
 
         vendor = channel.cloudtelephony_vendor.name.lower()
-        tenent = channel.tenent_id
+        tenant = channel.tenent_id
         token = channel.token
-        print(vendor,"-----------------55")
-        # Cloud Connect
+
+        # 🔹 Cloud Connect
         if vendor == "cloud connect":
-            # from telephony.cloud_connect import CloudConnectService
-            service = CloudConnectService(token, tenent)
+            service = CloudConnectService(token, tenant)
             resp = service.call_details(call_id)
-            # if resp.get("code") == 200:
-            print(resp,"==========62")
             return resp.get("result", {}).get("phone_number")
 
-        # Sanssoftware
-        elif vendor == "sansoftwares":
-            # from telephony.sans_service import SansSoftwareService
-            service = SansSoftwareService(process_id=tenent)
+        # 🔹 SansSoftwares
+        if vendor == "sansoftwares":
+            service = SansSoftwareService(process_id=tenant)
             resp = service.get_number(call_id)
-            print(resp, "--------------69")
-
-            # Correct structure handling
             result = resp.get("result", [])
-            print(result,"--------------74")
-            if isinstance(result, list) and len(result) > 0:
+
+            if isinstance(result, list) and result:
                 return result[0].get("Phone_number")
 
         return None
 
+    # =====================================================
+    # 🔐 PERMISSIONS
+    # =====================================================
     def get_permissions(self):
         permission_map = {
             'create': ['superadmin_assets.show_submenusmodel_follow_up', 'superadmin_assets.add_submenusmodel'],
             'update': ['superadmin_assets.show_submenusmodel_follow_up', 'superadmin_assets.change_submenusmodel'],
             'destroy': ['superadmin_assets.show_submenusmodel_follow_up', 'superadmin_assets.delete_submenusmodel'],
             'retrieve': ['superadmin_assets.show_submenusmodel_follow_up', 'superadmin_assets.view_submenusmodel'],
-            'list': ['superadmin_assets.show_submenusmodel_follow_up', 'superadmin_assets.view_submenusmodel']
+            'list': ['superadmin_assets.show_submenusmodel_follow_up', 'superadmin_assets.view_submenusmodel'],
         }
-        
-        action = self.action
-        if action in permission_map:
-            permissions = permission_map[action]
-            return [HasPermission(perm) for perm in permissions]  # Return a list of permission checks
-    
-        return super().get_permissions() # Return a list of permission checks
+
+        if self.action in permission_map:
+            return [HasPermission(p) for p in permission_map[self.action]]
+
+        return super().get_permissions()
+
+    # =====================================================
+    # 📂 QUERYSET RULES
+    # =====================================================
     def get_queryset(self):
-        """
-        Retrieve follow-ups based on user role and assigned permissions.
-        """
         user = self.request.user
         queryset = Follow_Up.objects.all()
 
-        # =====================================================
-        # 🔐 Company Isolation
-        # =====================================================
+        # Company isolation
         if hasattr(user, "profile") and user.profile.company:
             queryset = queryset.filter(company=user.profile.company)
 
-        # =====================================================
-        # 🏢 Admin Filters (Admin sees company data)
-        # =====================================================
+        # Admin filters
         if hasattr(user, "profile") and user.profile.user_type == "admin":
-            status_id = self.request.query_params.get("status")
-            branch_id = self.request.query_params.get("branch")
-            follow_add_by = self.request.query_params.get("follow_add_by")
-            search = self.request.query_params.get("search")
+            params = self.request.query_params
 
-            if status_id:
-                queryset = queryset.filter(follow_status_id=status_id)
+            if params.get("status"):
+                queryset = queryset.filter(follow_status_id=params["status"])
 
-            if branch_id:
-                queryset = queryset.filter(branch_id=branch_id)
+            if params.get("branch"):
+                queryset = queryset.filter(branch_id=params["branch"])
 
-            if follow_add_by:
+            if params.get("follow_add_by"):
                 queryset = queryset.filter(
-                    Q(follow_add_by_id=follow_add_by) |
-                    Q(assign_user_id=follow_add_by)
+                    Q(follow_add_by_id=params["follow_add_by"]) |
+                    Q(assign_user_id=params["follow_add_by"])
                 )
 
-            if search:
+            if params.get("search"):
+                search = params["search"]
                 queryset = queryset.filter(
                     Q(follow_status__name__icontains=search) |
                     Q(follow_add_by__first_name__icontains=search) |
@@ -152,25 +161,18 @@ class FollowUpView(viewsets.ModelViewSet):
 
             return queryset.order_by("-created_at")
 
-        # =====================================================
-        # 🌿 Non-admin → Branch Restriction
-        # =====================================================
+        # Branch restriction
         if hasattr(user, "profile") and user.profile.branch:
             queryset = queryset.filter(branch=user.profile.branch)
 
-        # =====================================================
-        # 🧑‍💼 Agent / Staff Permission-Based Visibility
-        # =====================================================
+        # Agent visibility
         if hasattr(user, "profile") and user.profile.user_type == "agent":
 
-            # 🔹 Own followups (created OR assigned)
             if user.has_perm("accounts.view_own_followup_others"):
                 queryset = queryset.filter(
-                    Q(follow_add_by=user) |
-                    Q(assign_user=user)
+                    Q(follow_add_by=user) | Q(assign_user=user)
                 )
 
-            # 🔹 Team Lead
             elif user.has_perm("accounts.view_teamlead_followup_others"):
                 team_users = Employees.objects.filter(
                     teamlead=user
@@ -181,7 +183,6 @@ class FollowUpView(viewsets.ModelViewSet):
                     Q(assign_user__in=team_users)
                 )
 
-            # 🔹 Manager
             elif user.has_perm("accounts.view_manager_followup_others"):
                 team_leads = Employees.objects.filter(
                     manager=user
@@ -191,99 +192,79 @@ class FollowUpView(viewsets.ModelViewSet):
                     teamlead__in=team_leads
                 ).values_list("user", flat=True)
 
-                all_users = list(team_leads) + list(team_users)
-
                 queryset = queryset.filter(
-                    Q(follow_add_by__in=all_users) |
-                    Q(assign_user__in=all_users)
+                    Q(follow_add_by__in=team_leads) |
+                    Q(follow_add_by__in=team_users)
                 )
 
-            # 🔹 Full access
             elif user.has_perm("accounts.view_all_followup_others"):
                 pass
-
             else:
                 queryset = Follow_Up.objects.none()
 
-        else:
-            queryset = Follow_Up.objects.none()
-
         return queryset.order_by("-created_at")
 
-    # def get_permissions(self):
-    #     if self.action == 'create':
-    #         return [HasPermission('add_followup')]
-    #     elif self.action == 'update':
-    #         return [HasPermission('change_follow_up')]
-    #     elif self.action == 'destroy':
-    #         return [HasPermission('delete_follow_up')]
-    #     elif self.action == 'retrieve':  # For getting a specific email address
-    #         return [HasPermission('view_follow_up')]
-    #     elif self.action == 'list':  # For listing all email addresses
-    #         return [HasPermission('view_follow_up')]
-    #     return super().get_permissions()
+    # =====================================================
+    # ➕ CREATE
+    # =====================================================
     @transaction.atomic
     def create(self, request, *args, **kwargs):
         user = request.user
         data = request.data.copy()
 
-        # Auto-assign company & branch
         data.setdefault("branch", user.profile.branch.id)
         data.setdefault("company", user.profile.company.id)
 
         call_id = data.get("call_id")
         incoming_phone = data.get("customer_phone")
 
-        # ❌ NEVER trust masked phone
+        # ❌ ignore masked phone
         if incoming_phone and "*" in incoming_phone:
+            incoming_phone = None
             data.pop("customer_phone", None)
 
-        # ✅ Resolve phone ONLY from trusted sources
-        resolved_number = None
-        if call_id:
-            resolved_number = self.resolve_phone_number(
-                call_id=call_id,
-                phone_number=None,
-                user=user
-            )
+        resolved_phone = self.resolve_phone_number(
+            call_id=call_id,
+            phone_number=incoming_phone,
+            user=user
+        )
 
-        if not resolved_number:
+        if not resolved_phone:
             return Response(
-                {
-                    "customer_phone": [
-                        "Unable to resolve phone number. Please provide a valid phone."
-                    ]
-                },
+                {"customer_phone": ["Unable to resolve phone number"]},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        data["customer_phone"] = resolved_number
+        data["customer_phone"] = resolved_phone
 
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         serializer.save(follow_add_by=user)
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
-    
+
+    # =====================================================
+    # ✏️ UPDATE
+    # =====================================================
     @transaction.atomic
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
         user = request.user
         data = request.data.copy()
 
-        # data.setdefault("branch", user.profile.branch.id)
-        # data.setdefault("company", user.profile.company.id)
-
         incoming_phone = data.get("customer_phone")
 
-        # ❌ Ignore masked phone from frontend
         if incoming_phone and "*" in incoming_phone:
             data.pop("customer_phone", None)
 
         call_id = data.get("call_id") or instance.call_id
 
-        if call_id and "customer_phone" not in data:
-            resolved = self.resolve_phone_number(call_id, instance.customer_phone, user)
+        if "customer_phone" not in data:
+            resolved = self.resolve_phone_number(
+                call_id=call_id,
+                phone_number=instance.customer_phone,
+                user=user
+            )
             if resolved:
                 data["customer_phone"] = resolved
 
@@ -293,14 +274,17 @@ class FollowUpView(viewsets.ModelViewSet):
 
         return Response(serializer.data)
 
-    @action(detail=False, methods=['post'], url_path='bulk-assign')
+    # =====================================================
+    # 🔄 BULK ASSIGN
+    # =====================================================
+    @action(detail=False, methods=["post"], url_path="bulk-assign")
     @transaction.atomic
     def bulk_assign(self, request):
         serializer = BulkFollowupAssignSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        user_ids = serializer.validated_data['user_ids']
-        followup_ids = serializer.validated_data['followup_ids']
+        user_ids = serializer.validated_data["user_ids"]
+        followup_ids = serializer.validated_data["followup_ids"]
 
         users = list(User.objects.filter(id__in=user_ids))
         followups = list(Follow_Up.objects.filter(followup_id__in=followup_ids))
@@ -312,23 +296,24 @@ class FollowUpView(viewsets.ModelViewSet):
             )
 
         assigned = []
-        user_count = len(users)
-
-        # 🔄 ROUND ROBIN ASSIGNMENT
-        for index, followup in enumerate(followups):
-            user = users[index % user_count]
+        for i, followup in enumerate(followups):
+            user = users[i % len(users)]
             followup.assign_user = user
-            followup.save(update_fields=['assign_user'])
+            followup.save(update_fields=["assign_user"])
             assigned.append({
                 "followup_id": followup.followup_id,
                 "assigned_to": user.id
             })
 
-        return Response({
-            "message": "Followups assigned successfully",
-            "total_assigned": len(assigned),
-            "assignments": assigned
-        }, status=status.HTTP_200_OK)
+        return Response(
+            {
+                "message": "Followups assigned successfully",
+                "total_assigned": len(assigned),
+                "assignments": assigned
+            },
+            status=status.HTTP_200_OK
+        )
+    
 class NotepadCreateOrUpdate(APIView):
     permission_classes = [IsAuthenticated]
     def post(self, request):
@@ -624,9 +609,12 @@ class AppointmentViewSet(viewsets.ModelViewSet):
                 created_by__in=list(team_leads) + list(team_users)
             )
 
-        elif not user.has_perm("accounts.view_all_appointment_others"):
+        elif  user.has_perm("accounts.view_all_appointment_others"):
             queryset = queryset.filter(company=user.profile.company)
 
+        else:
+            print("-----------int his")
+            queryset = queryset.none()
         queryset = self.apply_appointment_filters(queryset)
         return queryset.order_by("-created_at")
 

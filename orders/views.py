@@ -5000,6 +5000,7 @@ class CheckPhoneDuplicateAPIView(APIView):
             Q(customer_alter_phone__in=resolved_phone),
             company=company
         ).exists()
+
         if exists:
             return Response(
                 {
