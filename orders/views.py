@@ -41,6 +41,7 @@ from .models import (
     SmsConfig,
     invoice_layout,
 )
+from collections import defaultdict
 from .serializers import (
     AllowStatusSerializer,
     CustomerStateSerializer,
@@ -4575,6 +4576,10 @@ class OrderAggregationByPerformance(APIView):
         total_rto_amount = 0
         rto_orders_percentage = 0
         rto_amount_percentage = 0
+        
+        team_price_breakdown_total = defaultdict(float)
+        team_price_breakdown_delivered = defaultdict(float)
+        team_price_breakdown_rto = defaultdict(float)
         for agent in agents:
             user = agent.user
 
@@ -4669,6 +4674,15 @@ class OrderAggregationByPerformance(APIView):
             price_breakdown_delivered = get_price_breakdown(delivered_orders)
             price_breakdown_rto = get_price_breakdown(rto_orders)
             
+            # ---- TEAM LEVEL AGGREGATION ----
+            for key, value in price_breakdown_total.items():
+                team_price_breakdown_total[key] += float(value or 0)
+
+            for key, value in price_breakdown_delivered.items():
+                team_price_breakdown_delivered[key] += float(value or 0)
+
+            for key, value in price_breakdown_rto.items():
+                team_price_breakdown_rto[key] += float(value or 0)
             order_percentage = (
                 (float(achieved_orders) / float(order_target)) * 100
                 if order_target else 0
@@ -4764,7 +4778,12 @@ class OrderAggregationByPerformance(APIView):
             "total_rto_orders":total_rto_orders,
             "total_rto_amount":total_rto_amount,
             "rto_orders_percentage":rto_orders_percentage,
-            "rto_amount_percentage":rto_amount_percentage
+            "rto_amount_percentage":rto_amount_percentage,
+            "price_breakdown": {
+                "total": dict(team_price_breakdown_total),
+                "delivered": dict(team_price_breakdown_delivered),
+                "rto": dict(team_price_breakdown_rto),
+            }
 
         }
         data = {
