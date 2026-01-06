@@ -227,22 +227,43 @@ class FollowUpView(viewsets.ModelViewSet):
         user = request.user
         data = request.data.copy()
 
-        # Auto-assign company/branch if missing
-        data.setdefault('branch', user.profile.branch.id)
-        data.setdefault('company', user.profile.company.id)
+        # Auto-assign company & branch
+        data.setdefault("branch", user.profile.branch.id)
+        data.setdefault("company", user.profile.company.id)
 
-        # Resolve phone number
         call_id = data.get("call_id")
-        customer_phone = data.get("customer_phone")
+        incoming_phone = data.get("customer_phone")
 
-        if call_id and (not customer_phone or "*" in customer_phone):
-            resolved_number = self.resolve_phone_number(call_id, customer_phone, user)
-            print(resolved_number,"-------------172")
-            if resolved_number:
-                data["customer_phone"] = resolved_number
+        # ❌ NEVER trust masked phone
+        if incoming_phone and "*" in incoming_phone:
+            data.pop("customer_phone", None)
 
-        request._full_data = data
-        return super().create(request, *args, **kwargs)
+        # ✅ Resolve phone ONLY from trusted sources
+        resolved_number = None
+        if call_id:
+            resolved_number = self.resolve_phone_number(
+                call_id=call_id,
+                phone_number=None,
+                user=user
+            )
+
+        if not resolved_number:
+            return Response(
+                {
+                    "customer_phone": [
+                        "Unable to resolve phone number. Please provide a valid phone."
+                    ]
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        data["customer_phone"] = resolved_number
+
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(follow_add_by=user)
+
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
     
     @transaction.atomic
     def update(self, request, *args, **kwargs):
