@@ -133,8 +133,21 @@ class OrderAPIView(APIView):
                     # 1️⃣ Try to fetch from Lead
                     lead = (Lead.objects.filter(Q(lead_id=lead_id) | Q(id=lead_id)).only("customer_phone").first()         )
                     # lead = Lead.objects.get(lead_id=lead_id)
-                    request.data['customer_phone'] = lead.customer_phone
-
+                    if lead:
+                        request.data['customer_phone'] = lead.customer_phone
+                    else:
+                        followup = Follow_Up.objects.filter(
+                        followup_id=lead_id
+                        ).only("customer_phone").first()
+                        print("------------------",followup)
+                        if followup:
+                            request.data['customer_phone'] = followup.customer_phone
+                        else:
+                            # 3️⃣ If neither found → return DRF Response (not string)
+                            return Response(
+                                {"error": f"No customer phone found for Lead ID {lead_id} or FollowUp ID {lead_id}"},
+                                status=status.HTTP_404_NOT_FOUND
+                            )
                 except Lead.DoesNotExist:
                     # 2️⃣ If NOT in Lead, check in FollowUp
                     followup = Follow_Up.objects.filter(
