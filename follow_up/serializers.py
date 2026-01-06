@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from follow_up.utils import get_phone_by_reference_id
+from orders.models import Order_Table
 from .models import Appointment, Appointment_layout, Follow_Up,Notepad
 from rest_framework.exceptions import ValidationError
 
@@ -47,7 +48,16 @@ class AppointmentSerializer(serializers.ModelSerializer):
         source="doctor.user.email", read_only=True
     )
     doctor_phone = serializers.SerializerMethodField()
+    is_order = serializers.SerializerMethodField()
 
+    def get_order_done(self, obj):
+        """
+        Returns True if at least one order exists for this appointment
+        """
+        return Order_Table.objects.filter(
+            appointment=obj,
+            is_deleted=False
+        ).exists()
     # doctor_name = serializers.SerializerMethodField()
     doctor_registration_number = serializers.CharField(
         source="doctor.registration_number", read_only=True
