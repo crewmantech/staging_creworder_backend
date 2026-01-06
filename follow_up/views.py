@@ -250,17 +250,21 @@ class FollowUpView(viewsets.ModelViewSet):
         user = request.user
         data = request.data.copy()
 
-        data.setdefault('branch', user.profile.branch.id)
-        data.setdefault('company', user.profile.company.id)
+        # data.setdefault("branch", user.profile.branch.id)
+        # data.setdefault("company", user.profile.company.id)
 
-        # Resolve phone number
+        incoming_phone = data.get("customer_phone")
+
+        # ❌ Ignore masked phone from frontend
+        if incoming_phone and "*" in incoming_phone:
+            data.pop("customer_phone", None)
+
         call_id = data.get("call_id") or instance.call_id
-        customer_phone = data.get("customer_phone") or instance.customer_phone
 
-        if call_id and (not customer_phone or "*" in customer_phone):
-            resolved_number = resolve_phone_number(call_id, customer_phone, user)
-            if resolved_number:
-                data["customer_phone"] = resolved_number
+        if call_id and "customer_phone" not in data:
+            resolved = self.resolve_phone_number(call_id, instance.customer_phone, user)
+            if resolved:
+                data["customer_phone"] = resolved
 
         serializer = self.get_serializer(instance, data=data, partial=True)
         serializer.is_valid(raise_exception=True)
