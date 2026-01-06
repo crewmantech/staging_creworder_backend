@@ -639,6 +639,26 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             branch=user.profile.branch,
             created_by=user
         )
+    @transaction.atomic
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        data = request.data.copy()
+
+        incoming_phone = data.get("patient_phone")
+
+        # ❌ Ignore masked phone coming from frontend
+        if incoming_phone and "*" in incoming_phone:
+            data.pop("patient_phone", None)
+
+        serializer = self.get_serializer(
+            instance,
+            data=data,
+            partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        return Response(serializer.data)
 
 class GetPhoneByReferenceAllAPIView(APIView):
     """
