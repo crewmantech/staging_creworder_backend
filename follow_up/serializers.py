@@ -99,32 +99,50 @@ class AppointmentSerializer(serializers.ModelSerializer):
         return None
     def validate(self, data):
         request = self.context["request"]
-        user = request.user
-
-        doctor = data.get("doctor")
+        instance = getattr(self, "instance", None)
 
         patient_phone = data.get("patient_phone")
         reference_id = data.get("reference_id")
 
-        # 🔴 Rule 1: At least one is required
-        if not patient_phone and not reference_id:
-            raise serializers.ValidationError(
-                "Either patient_phone or reference_id is required."
-            )
+        # ✅ CREATE
+        if instance is None:
+            if not patient_phone and not reference_id:
+                raise serializers.ValidationError(
+                    "Either patient_phone or reference_id is required."
+                )
 
-        # 🔐 Doctor validations
+        # ✅ UPDATE
+        else:
+            # 🔑 Use EXISTING instance values
+            existing_phone = instance.patient_phone
+            existing_reference = instance.reference_id
+
+            if (
+                not patient_phone
+                and not reference_id
+                and not existing_phone
+                and not existing_reference
+            ):
+                raise serializers.ValidationError(
+                    "Either patient_phone or reference_id is required."
+                )
+
+        # 🔐 Doctor validation (unchanged)
+        doctor = data.get("doctor")
+        user = request.user
+
         if doctor and doctor.company != user.profile.company:
             raise serializers.ValidationError(
                 "Doctor does not belong to your company."
             )
 
-        # 🔐 Doctor must be available in user's branch
         if doctor and user.profile.branch not in doctor.branches.all():
             raise serializers.ValidationError(
                 "Doctor is not available in your branch."
             )
 
         return data
+
 
     def create(self, validated_data):
         request = self.context["request"]
