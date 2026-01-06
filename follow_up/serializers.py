@@ -48,9 +48,9 @@ class AppointmentSerializer(serializers.ModelSerializer):
         source="doctor.user.email", read_only=True
     )
     doctor_phone = serializers.SerializerMethodField()
-    piles = serializers.SerializerMethodField()
+    is_order = serializers.SerializerMethodField()
 
-    def get_order_done(self, obj):
+    def get_is_order(self, obj):
         """
         Returns True if at least one order exists for this appointment
         """
