@@ -139,7 +139,7 @@ class OrderAPIView(APIView):
                     followup = Follow_Up.objects.filter(
                         followup_id=lead_id
                     ).only("customer_phone").first()
-
+                    print("------------------",followup)
                     if followup:
                         request.data['customer_phone'] = followup.customer_phone
                     else:
