@@ -1,3 +1,4 @@
+import re
 from django.db.models import Sum, F, FloatField
 from django.db.models.functions import Coalesce
 
@@ -188,3 +189,11 @@ def get_price_breakdown(order_qs):
         "gst_amount": round(gst_amount, 2),
         "total_amount": round(total_amount, 2),
     }
+
+def normalize_phone(phone):
+    digits = re.sub(r"\D", "", phone or "")
+    if len(digits) < 10:
+        return None
+
+    core = digits[-10:]
+    return [core, f"+91{core}"]
