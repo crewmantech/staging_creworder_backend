@@ -48,7 +48,7 @@ class AppointmentSerializer(serializers.ModelSerializer):
         source="doctor.user.email", read_only=True
     )
     doctor_phone = serializers.SerializerMethodField()
-    is_order = serializers.SerializerMethodField()
+    piles = serializers.SerializerMethodField()
 
     def get_order_done(self, obj):
         """
