@@ -5000,12 +5000,29 @@ class CheckPhoneDuplicateAPIView(APIView):
             Q(customer_alter_phone__in=resolved_phone),
             company=company
         ).exists()
+        if exists:
+            return Response(
+                {
+                    "Success": False,
+                    "number_exists": True,
+                    "message": "This number already exists in orders.",
+                },
+                status=status.HTTP_200_OK,
+            )
 
         return Response(
             {
                 "Success": True,
-                "number_exists": exists,
-                "source": source
+                "number_exists": False,
+                "message": "This number is not associated with any order.",
             },
-            status=status.HTTP_200_OK
+            status=status.HTTP_200_OK,
         )
+        # return Response(
+        #     {
+        #         "Success": True,
+        #         "number_exists": exists,
+        #         "source": source
+        #     },
+        #     status=status.HTTP_200_OK
+        # )
