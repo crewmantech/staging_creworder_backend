@@ -294,33 +294,58 @@ class AssetAssignmentViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        condition = request.data.get("return_condition", "")
+        # Normalize condition (case-insensitive)
+        condition = (request.data.get("return_condition") or "").strip().lower()
         notes = request.data.get("notes", "")
 
-        with transaction.atomic():
-            assignment.returned_on = timezone.now().date()
-            assignment.return_condition = condition
-            assignment.active = False
-            assignment.notes = (assignment.notes or "") + f"\nReturn notes: {notes}"
-            assignment.save()
+        asset = assignment.asset
+        user = request.user
 
-            asset = assignment.asset
-            asset.status = (
-                "damaged" if condition.lower() in ["damaged", "broken"] else "available"
-            )
+        with transaction.atomic():
+
+            # -----------------------------
+            # ASSET STATUS MAPPING
+            # -----------------------------
+            if condition == "broken":
+                asset.status = "broken"
+            elif condition == "damaged":
+                asset.status = "damaged"
+            elif condition in ["not working", "not_working", "not-working"]:
+                asset.status = "not working"
+            else:
+                asset.status = "available"
+
+            asset.status = asset.status.lower()
             asset.save()
 
+            # -----------------------------
+            # STORE FULL HISTORY IN LOG
+            # -----------------------------
             AssetLog.objects.create(
                 asset=asset,
                 event="returned",
-                by_user=request.user,
-                metadata={"condition": condition}
+                by_user=user,
+                metadata={
+                    "assigned_to": assignment.employee_id,
+                    "company": assignment.company_id,
+                    "branch": assignment.branch_id,
+                    "assigned_on": str(assignment.assigned_on),
+                    "returned_on": str(timezone.now().date()),
+                    "return_condition": condition,
+                    "notes": notes,
+                }
             )
 
+            # -----------------------------
+            # DELETE ASSIGNMENT (IMPORTANT)
+            # -----------------------------
+            assignment.delete()
+
         return Response(
-            AssetAssignmentSerializer(assignment).data,
+            {"detail": "Asset returned successfully"},
             status=status.HTTP_200_OK
         )
+
 
 # ====================================================
 # AssetLog (Read only)
