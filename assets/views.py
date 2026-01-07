@@ -3,7 +3,8 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
 from django.utils import timezone
-
+from rest_framework.exceptions import ValidationError
+from accounts.models import Company
 from accounts.views import StandardResultsSetPagination
 
 from .models import AssetType, Asset, AssetAssignment, AssetLog
@@ -21,21 +22,46 @@ class AssetTypeViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
     serializer_class = AssetTypeSerializer
 
-    def get_queryset(self):
+    def _get_company(self):
         user = self.request.user
-        company = user.profile.company
+
+        # 1️⃣ Try from query params (GET)
+        company_id = self.request.query_params.get("company")
+
+        # 2️⃣ Try from request body (POST / PUT / PATCH)
+        if not company_id:
+            company_id = self.request.data.get("company")
+
+        # 3️⃣ If company_id provided, fetch manually
+        if company_id:
+            company = Company.objects.filter(id=company_id).first()
+            if not company:
+                raise ValidationError({"company": "Invalid company id"})
+            return company
+
+        # 4️⃣ Fallback to user's company
+        if hasattr(user, "profile") and user.profile.company:
+            return user.profile.company
+
+        raise ValidationError({"company": "Company is required"})
+    
+    def get_queryset(self):
+        company = self._get_company()
         branch_id = self.request.query_params.get("branch")
 
-        qs = AssetType.objects.select_related("company", "branch").filter(company=company)
+        qs = (
+            AssetType.objects
+            .select_related("company", "branch")
+            .filter(company=company)
+        )
 
         if branch_id:
             qs = qs.filter(branch_id=branch_id)
 
         return qs
-
+    
     def perform_create(self, serializer):
-        user = self.request.user
-        company = user.profile.company
+        company = self._get_company()
         branch = self.request.data.get("branch") or None
 
         serializer.save(
@@ -53,10 +79,31 @@ class AssetViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
     serializer_class = AssetSerializer
 
-
-    def get_queryset(self):
+    def _get_company(self):
         user = self.request.user
-        company = user.profile.company
+
+        # 1️⃣ Try from query params (GET)
+        company_id = self.request.query_params.get("company")
+
+        # 2️⃣ Try from request body (POST / PUT / PATCH)
+        if not company_id:
+            company_id = self.request.data.get("company")
+
+        # 3️⃣ If company_id provided, resolve manually (NO get_object_or_404)
+        if company_id:
+            company = Company.objects.filter(id=company_id).first()
+            if not company:
+                raise ValidationError({"company": "Invalid company id"})
+            return company
+
+        # 4️⃣ Fallback to user's company
+        if hasattr(user, "profile") and user.profile.company:
+            return user.profile.company
+
+        raise ValidationError({"company": "Company is required"})
+    
+    def get_queryset(self):
+        company = self._get_company()
         branch_id = self.request.query_params.get("branch")
 
         qs = Asset.objects.select_related(
@@ -67,10 +114,12 @@ class AssetViewSet(viewsets.ModelViewSet):
             qs = qs.filter(branch_id=branch_id)
 
         return qs
+    
+    
 
     def perform_create(self, serializer):
         user = self.request.user
-        company = user.profile.company
+        company = self._get_company()
         branch = self.request.data.get("branch") or None
 
         asset = serializer.save(
@@ -85,7 +134,6 @@ class AssetViewSet(viewsets.ModelViewSet):
             metadata={"asset_id": asset.id}
         )
 
-
 # ====================================================
 # AssetAssignment
 # ====================================================
@@ -94,9 +142,35 @@ class AssetAssignmentViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
     serializer_class = AssetAssignmentSerializer
 
+    # -------------------------------------------------
+    # Company Resolver (same pattern as other ViewSets)
+    # -------------------------------------------------
+    def _get_company(self):
+        user = self.request.user
+
+        # 1️⃣ From query params (GET)
+        company_id = self.request.query_params.get("company")
+
+        # 2️⃣ From request body (POST / PUT / PATCH)
+        if not company_id:
+            company_id = self.request.data.get("company")
+
+        # 3️⃣ Resolve explicitly passed company
+        if company_id:
+            company = Company.objects.filter(id=company_id).first()
+            if not company:
+                raise ValidationError({"company": "Invalid company id"})
+            return company
+
+        # 4️⃣ Fallback to user's company
+        if hasattr(user, "profile") and user.profile.company:
+            return user.profile.company
+
+        raise ValidationError({"company": "Company is required"})
+
     def get_queryset(self):
         user = self.request.user
-        company = user.profile.company
+        company = self._get_company()
         branch_id = self.request.query_params.get("branch")
 
         qs = AssetAssignment.objects.select_related(
@@ -116,13 +190,13 @@ class AssetAssignmentViewSet(viewsets.ModelViewSet):
     # -----------------------------------------------
     @action(detail=False, methods=["post"], url_path="assign")
     def assign(self, request):
-        user = self.request.user
-        company = user.profile.company
+        user = request.user
+        company = self._get_company()
+
         asset_id = request.data.get("asset")
         employee_id = request.data.get("employee")
         expected_return = request.data.get("expected_return_date")
         notes = request.data.get("notes", "")
-        
 
         if not asset_id or not employee_id:
             return Response(
@@ -133,6 +207,13 @@ class AssetAssignmentViewSet(viewsets.ModelViewSet):
         try:
             with transaction.atomic():
                 asset = Asset.objects.select_for_update().get(pk=asset_id)
+
+                # 🔒 Ensure asset belongs to same company
+                if asset.company_id != company.id:
+                    return Response(
+                        {"detail": "Asset does not belong to this company"},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
 
                 if asset.status != "available":
                     return Response(
@@ -148,12 +229,12 @@ class AssetAssignmentViewSet(viewsets.ModelViewSet):
                 assignment = AssetAssignment.objects.create(
                     asset=asset,
                     employee_id=employee_id,
-                    assigned_by=request.user,
+                    assigned_by=user,
                     expected_return_date=expected_return,
                     notes=notes,
                     active=True,
                     company=company,
-                    branch=asset.branch   # branch stays optional
+                    branch=asset.branch
                 )
 
                 asset.status = "assigned"
@@ -162,7 +243,7 @@ class AssetAssignmentViewSet(viewsets.ModelViewSet):
                 AssetLog.objects.create(
                     asset=asset,
                     event="assigned",
-                    by_user=request.user,
+                    by_user=user,
                     metadata={"assignment_id": assignment.id}
                 )
 
@@ -216,7 +297,6 @@ class AssetAssignmentViewSet(viewsets.ModelViewSet):
             AssetAssignmentSerializer(assignment).data,
             status=status.HTTP_200_OK
         )
-
 # ====================================================
 # AssetLog (Read only)
 # ====================================================
