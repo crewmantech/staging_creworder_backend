@@ -143,27 +143,23 @@ class AssetAssignmentViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
     serializer_class = AssetAssignmentSerializer
 
-    # -------------------------------------------------
-    # Company Resolver (same pattern as other ViewSets)
-    # -------------------------------------------------
+    # -------------------------------
+    # Company Resolver
+    # -------------------------------
     def _get_company(self):
         user = self.request.user
 
-        # 1️⃣ From query params (GET)
-        company_id = self.request.query_params.get("company")
+        company_id = (
+            self.request.query_params.get("company")
+            or self.request.data.get("company")
+        )
 
-        # 2️⃣ From request body (POST / PUT / PATCH)
-        if not company_id:
-            company_id = self.request.data.get("company")
-
-        # 3️⃣ Resolve explicitly passed company
         if company_id:
             company = Company.objects.filter(id=company_id).first()
             if not company:
                 raise ValidationError({"company": "Invalid company id"})
             return company
 
-        # 4️⃣ Fallback to user's company
         if hasattr(user, "profile") and user.profile.company:
             return user.profile.company
 
@@ -171,20 +167,46 @@ class AssetAssignmentViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
+        profile = getattr(user, "profile", None)
+
         company = self._get_company()
         branch_id = self.request.query_params.get("branch")
 
         qs = AssetAssignment.objects.select_related(
             "asset", "employee", "company", "branch"
-        ).filter(company=company)
+        )
+
+        # ---------------------------
+        # SUPERADMIN
+        # ---------------------------
+        if profile and profile.user_type == "superadmin":
+            if company:
+                qs = qs.filter(company=company)
+            if branch_id:
+                qs = qs.filter(branch_id=branch_id)
+            return qs
+
+        # ---------------------------
+        # ADMIN
+        # ---------------------------
+        if profile and profile.user_type == "admin":
+            qs = qs.filter(company=profile.company)
+
+            if branch_id:
+                qs = qs.filter(branch_id=branch_id)
+
+            return qs
+
+        # ---------------------------
+        # AGENT (DEFAULT USER)
+        # ---------------------------
+        qs = qs.filter(employee=user)
 
         if branch_id:
             qs = qs.filter(branch_id=branch_id)
 
-        if user.user_type == "employee":
-            qs = qs.filter(employee=user)
-
         return qs
+
 
     # -----------------------------------------------
     # Assign Asset
