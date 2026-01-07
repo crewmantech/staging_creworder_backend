@@ -8,14 +8,26 @@ from follow_up.models import Follow_Up
 
 def followup_reminder_scheduler():
     """
-    Runs every minute and checks reminder_date
+    Runs every 10 minutes
+    Checks reminders in fixed 10-minute windows
     """
 
     now = timezone.localtime(timezone.now())
+
     print("Current IST Time:", now, now.tzinfo)
-    print(now,"------------------15")
-    start_time = now.replace(second=0, microsecond=0)
-    end_time = start_time + timedelta(minutes=1)
+
+    # ⏱ Round DOWN to nearest 10-minute mark
+    end_time = now.replace(
+        minute=(now.minute // 10) * 10,
+        second=0,
+        microsecond=0
+    )
+
+    start_time = end_time - timedelta(minutes=10)
+
+    print(
+        f"⏳ Checking followups from {start_time} → {end_time}"
+    )
 
     followups = Follow_Up.objects.filter(
         reminder_date__gte=start_time,
@@ -25,15 +37,15 @@ def followup_reminder_scheduler():
     for followup in followups:
         users_to_notify = set()
 
-        # Assigned user
+        # 👤 Assigned user
         if followup.assign_user:
             users_to_notify.add(followup.assign_user)
 
-        # Created by user
+        # 👤 Created by user
         if followup.follow_add_by:
             users_to_notify.add(followup.follow_add_by)
 
-        # Updated by user (if exists in BaseModel)
+        # 👤 Updated by user (optional)
         if hasattr(followup, "updated_by") and followup.updated_by:
             users_to_notify.add(followup.updated_by)
 

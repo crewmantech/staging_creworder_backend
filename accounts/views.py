@@ -122,27 +122,20 @@ class UserViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         user = self.request.user
 
-        # 🔑 Conditional logic for retrieve & list
+        # 🔑 Conditional permissions for retrieve & list
         if self.action in ['retrieve', 'list']:
 
-            has_show_permission = (
-                user.has_perm('superadmin_assets.show_submenusmodel_attendance') or
-                user.has_perm('superadmin_assets.show_submenusmodel_employee')
-            )
+            if not (
+                (
+                    user.has_perm('superadmin_assets.show_submenusmodel_attendance') or
+                    user.has_perm('superadmin_assets.show_submenusmodel_employee')
+                )
+                and user.has_perm('superadmin_assets.view_submenusmodel')
+            ):
+                raise PermissionDenied("You do not have permission to view this resource")
 
-            has_view_permission = user.has_perm(
-                'superadmin_assets.view_submenusmodel'
-            )
+            return [IsAuthenticated()] 
 
-            if has_show_permission and has_view_permission:
-                return [IsAuthenticated()]
-
-            # ❌ Explicit deny if condition fails
-            return [permissions.DenyAny()]
-
-        # -----------------------------
-        # Default permission mapping
-        # -----------------------------
         permission_map = {
             'create': [
                 HasPermission('superadmin_assets.show_submenusmodel_employee'),
