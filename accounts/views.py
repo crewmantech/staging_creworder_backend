@@ -4739,3 +4739,64 @@ class DoctorViewSet(viewsets.ModelViewSet):
 
         serializer.save(company=company)
 
+
+
+
+class BranchWiseAttendanceAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        today = date.today()
+
+        branch_id = request.query_params.get("branch")
+        exact_date = request.query_params.get("date")
+        month = request.query_params.get("date__month")
+        year = request.query_params.get("date__year")
+
+        # ---------------- ROLE BASE FILTER ----------------
+        user_filters = Q()
+
+        if user.profile.user_type == "superadmin":
+            pass
+        else:
+            user_filters &= Q(company=user.profile.company)
+
+        if branch_id:
+            user_filters &= Q(branch__id=branch_id)
+
+        user_filters &= Q(status__in=[0, 1])
+
+        users = Employees.objects.select_related(
+            "user", "branch"
+        ).filter(user_filters)
+
+        response_data = []
+
+        for emp in users:
+            attendance_filters = Q(user=emp.user)
+
+            if exact_date:
+                attendance_filters &= Q(date=exact_date)
+            elif month and year:
+                attendance_filters &= Q(
+                    date__month=int(month),
+                    date__year=int(year)
+                )
+            else:
+                attendance_filters &= Q(
+                    date__month=today.month,
+                    date__year=today.year
+                )
+
+            attendances = Attendance.objects.filter(attendance_filters)
+
+            response_data.append({
+                "user_id": emp.user.id,
+                "user_name": emp.user.username,
+                "employee_id": emp.employee_id,
+                "branch": emp.branch.name if emp.branch else None,
+                "attendance": AttendanceSerializer(attendances, many=True).data
+            })
+
+        return Response(response_data)

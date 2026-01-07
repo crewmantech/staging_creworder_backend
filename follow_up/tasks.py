@@ -8,22 +8,21 @@ from follow_up.models import Follow_Up
 
 def followup_reminder_scheduler():
     """
-    Runs every 10 minutes
-    Checks reminders in fixed 10-minute windows
+    Runs every 5 minutes
+    Checks reminders in fixed 5-minute windows
     """
 
     now = timezone.localtime(timezone.now())
-
     print("Current IST Time:", now, now.tzinfo)
 
-    # ⏱ Round DOWN to nearest 10-minute mark
+    # ⏱ Round DOWN to nearest 5-minute mark
     end_time = now.replace(
-        minute=(now.minute // 10) * 10,
+        minute=(now.minute // 5) * 5,
         second=0,
         microsecond=0
     )
 
-    start_time = end_time - timedelta(minutes=10)
+    start_time = end_time - timedelta(minutes=5)
 
     print(
         f"⏳ Checking followups from {start_time} → {end_time}"

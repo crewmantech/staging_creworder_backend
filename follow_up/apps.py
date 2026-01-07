@@ -24,7 +24,7 @@ class FollowUpConfig(AppConfig):
                 except Exception as e:
                     print("❌ Scheduler Error:", e)
 
-                time.sleep(600)  # ✅ 10 minutes
+                time.sleep(300)   # ✅ 5 minutes
 
         threading.Thread(
             target=run_scheduler,

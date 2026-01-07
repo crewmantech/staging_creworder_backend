@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
 
-from .views import AgentAttendanceUserWiseAPIView, AgreementViewSet, AssignRole,AgentListByManagerAPIView, AgentListByTeamleadAPIView, CSVUserUploadView, CompanyInquiryViewSet, CompanyMonthlySalaryPreviewAPIView, CompanyMonthlySummaryView, CompanySalaryViewSet, CompanyUserAPIKeyViewSet, CompanyUserViewSet, CustomPasswordResetView, DeleteUserListView, DoctorViewSet, EnquiryViewSet, ForceLogoutView, InterviewApplicationViewSet, ManagerTeamLeadAgentAPIView, ManagerViewSet, MonthlyCompanyStatsView, QcScoreViewSet, ReminderNotesViewSet, ResetPasswordAPIView, StickyNoteViewSet, TeamleadViewSet, UpdateTeamLeadManagerAPIView, UserExportView, UserPermissionStatusView, UserViewSet, CompanyViewSet, PackageViewSet, UserPermissionsView, \
+from .views import AgentAttendanceUserWiseAPIView, AgreementViewSet, AssignRole,AgentListByManagerAPIView, AgentListByTeamleadAPIView, BranchWiseAttendanceAPIView, CSVUserUploadView, CompanyInquiryViewSet, CompanyMonthlySalaryPreviewAPIView, CompanyMonthlySummaryView, CompanySalaryViewSet, CompanyUserAPIKeyViewSet, CompanyUserViewSet, CustomPasswordResetView, DeleteUserListView, DoctorViewSet, EnquiryViewSet, ForceLogoutView, InterviewApplicationViewSet, ManagerTeamLeadAgentAPIView, ManagerViewSet, MonthlyCompanyStatsView, QcScoreViewSet, ReminderNotesViewSet, ResetPasswordAPIView, StickyNoteViewSet, TeamleadViewSet, UpdateTeamLeadManagerAPIView, UserExportView, UserPermissionStatusView, UserViewSet, CompanyViewSet, PackageViewSet, UserPermissionsView, \
     UserProfileViewSet, \
     NoticeViewSet, BranchViewSet, AdminSelfSignUp, FormEnquiryViewSet, SupportTicketViewSet, ModuleViewSet, \
     GetSpecificUsers, \
@@ -88,6 +88,6 @@ urlpatterns = [
     path('ndr-users/', UsersNdrAPIView.as_view(), name='ndr-users'),
     path('attendance-summary/', AgentAttendanceUserWiseAPIView.as_view(), name='attendance-summary'),
     path('user-performance-dashboard/', UserMonthlyPerformanceAPIView.as_view(), name='user-monthly-performance'),
-    path("company-salary-preview/",CompanyMonthlySalaryPreviewAPIView.as_view(),name="company-salary-preview",
-)
+    path("company-salary-preview/",CompanyMonthlySalaryPreviewAPIView.as_view(),name="company-salary-preview"),
+    path("attendance-branch-wise/",BranchWiseAttendanceAPIView.as_view(),name="branch-wise-attendance"),
 ]
