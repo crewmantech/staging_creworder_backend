@@ -4805,6 +4805,7 @@ class BranchWiseAttendanceAPIView(APIView):
             response_data.append({
                 "user_id": emp.user.id,
                 "user_name": emp.user.username,
+                "full_name": emp.user.get_full_name(),
                 "employee_id": emp.employee_id,
                 "branch": emp.branch.name if emp.branch else None,
                 "attendance": AttendanceSerializer(attendances, many=True).data
