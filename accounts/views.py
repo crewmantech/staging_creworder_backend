@@ -67,6 +67,8 @@ from django.shortcuts import redirect
 import uuid
 from accounts.utils import reassign_user_assets_on_suspension
 
+from accounts import permissions
+
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 10000                     # default page size = 20
     page_size_query_param = "page_size"  # allow client to override
@@ -118,19 +120,47 @@ class UserViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination  # ✅ Pagination enabled
 
     def get_permissions(self):
+        user = self.request.user
+
+        # 🔑 Conditional logic for retrieve & list
+        if self.action in ['retrieve', 'list']:
+
+            has_show_permission = (
+                user.has_perm('superadmin_assets.show_submenusmodel_attendance') or
+                user.has_perm('superadmin_assets.show_submenusmodel_employee')
+            )
+
+            has_view_permission = user.has_perm(
+                'superadmin_assets.view_submenusmodel'
+            )
+
+            if has_show_permission and has_view_permission:
+                return [IsAuthenticated()]
+
+            # ❌ Explicit deny if condition fails
+            return [permissions.DenyAny()]
+
+        # -----------------------------
+        # Default permission mapping
+        # -----------------------------
         permission_map = {
-            'create': ['superadmin_assets.show_submenusmodel_employee', 'superadmin_assets.add_submenusmodel'],
-            'update': ['superadmin_assets.show_submenusmodel_employee', 'superadmin_assets.change_submenusmodel'],
-            'destroy': ['superadmin_assets.show_submenusmodel_employee', 'superadmin_assets.delete_submenusmodel'],
-            'retrieve': ['superadmin_assets.show_submenusmodel_employee', 'superadmin_assets.view_submenusmodel'],
-            'list': ['superadmin_assets.show_submenusmodel_employee', 'superadmin_assets.view_submenusmodel']
+            'create': [
+                HasPermission('superadmin_assets.show_submenusmodel_employee'),
+                HasPermission('superadmin_assets.add_submenusmodel'),
+            ],
+            'update': [
+                HasPermission('superadmin_assets.show_submenusmodel_employee'),
+                HasPermission('superadmin_assets.change_submenusmodel'),
+            ],
+            'destroy': [
+                HasPermission('superadmin_assets.show_submenusmodel_employee'),
+                HasPermission('superadmin_assets.delete_submenusmodel'),
+            ],
         }
-        
-        action = self.action
-        if action in permission_map:
-            permissions = permission_map[action]
-            return [HasPermission(perm) for perm in permissions]  # Return a list of permission checks
-    
+
+        if self.action in permission_map:
+            return permission_map[self.action]
+
         return super().get_permissions()
     @action(detail=True, methods=['post','patch'], url_path='update-password', url_name='update_password')
     def update_password(self, request, pk=None):
