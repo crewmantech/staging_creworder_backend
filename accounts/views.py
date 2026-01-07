@@ -283,6 +283,7 @@ class UserViewSet(viewsets.ModelViewSet):
             
             queryset = User.objects.all()
             attendance = self.request.query_params.get("attendance")
+            admin = self.request.query_params.get("admin")
             if attendance:
                 
                 queryset = queryset.filter(profile__login_allowed=True,profile__user_type="agent")
@@ -308,7 +309,8 @@ class UserViewSet(viewsets.ModelViewSet):
                     queryset = queryset.filter(profile__company_id=company_id)
                 else:
                     queryset = queryset.filter(profile__company=None)
-
+            elif admin:
+                queryset = queryset.filter(profile__company=user.profile.company,profile__user_type="admin")
             elif user.profile.user_type == "admin":
                 queryset = queryset.filter(profile__company=user.profile.company)
                 branch_id = self.request.query_params.get("branch_id")
