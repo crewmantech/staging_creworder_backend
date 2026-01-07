@@ -4744,11 +4744,13 @@ class DoctorViewSet(viewsets.ModelViewSet):
 
 class BranchWiseAttendanceAPIView(APIView):
     permission_classes = [IsAuthenticated]
-
+    REQUIRED_PERMISSION = "superadmin_assets.show_submenusmodel_attendance"
     def get(self, request):
         user = request.user
         today = date.today()
-
+        # ---------------- PERMISSION CHECK ----------------
+        if not user.has_perm(self.REQUIRED_PERMISSION):
+            raise PermissionDenied("You do not have permission to view branch-wise attendance.")
         branch_id = request.query_params.get("branch")
         exact_date = request.query_params.get("date")
         month = request.query_params.get("date__month")
@@ -4764,7 +4766,16 @@ class BranchWiseAttendanceAPIView(APIView):
 
         if branch_id:
             user_filters &= Q(branch__id=branch_id)
+            
+        elif user.profile.user_type == "admin":
+            user_filters &= Q(company=user.profile.company)
 
+        # Agent → only own branch
+        elif user.profile.user_type == "agent":
+            user_filters &= Q(
+                company=user.profile.company,
+                branch=user.profile.branch
+            )
         user_filters &= Q(status__in=[0, 1])
 
         users = Employees.objects.select_related(
