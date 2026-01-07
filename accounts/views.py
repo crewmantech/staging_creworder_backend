@@ -319,7 +319,7 @@ class UserViewSet(viewsets.ModelViewSet):
 
             elif user.profile.user_type == "agent":
                 print("----------------------272")
-                queryset = queryset.filter(profile__branch=user.profile.branch)
+               
                 branch_id = self.request.query_params.get("branch_id")
                 if branch_id:
                     queryset = queryset.filter(profile__branch=branch_id)
@@ -329,15 +329,17 @@ class UserViewSet(viewsets.ModelViewSet):
                    
                     # 🟢 1. Full Access: All departments
                     if user.has_perm('accounts.department_can_view_all'):
-                        
+                        queryset = queryset.filter(profile__branch=user.profile.branch)
                         pass  # full access
 
                     # 🟡 2. Own Department Access
                     
                     elif user.has_perm('accounts.department_can_view_own_department'):
+                        queryset = queryset.filter(profile__branch=user.profile.branch)
                         queryset = queryset.filter(profile__department=user.profile.department)
 
                     else:
+                        queryset = queryset.filter(profile__branch=user.profile.branch)
                         # 🔵 3. Specific Department(s) Access
                         department_permissions = [
                             perm.split('department_can_view_department_')[1]
@@ -350,6 +352,7 @@ class UserViewSet(viewsets.ModelViewSet):
                                 profile__department__name__in=department_permissions
                             )
                         else:
+                            queryset = queryset.filter(profile__branch=user.profile.branch)
                             # 🔴 4. Default: Only self (no permission)
                             queryset = queryset.filter(id=user.id)
             

@@ -134,6 +134,7 @@ class AssetViewSet(viewsets.ModelViewSet):
             metadata={"asset_id": asset.id}
         )
 
+
 # ====================================================
 # AssetAssignment
 # ====================================================
@@ -197,6 +198,7 @@ class AssetAssignmentViewSet(viewsets.ModelViewSet):
         employee_id = request.data.get("employee")
         expected_return = request.data.get("expected_return_date")
         notes = request.data.get("notes", "")
+        
 
         if not asset_id or not employee_id:
             return Response(
@@ -297,6 +299,7 @@ class AssetAssignmentViewSet(viewsets.ModelViewSet):
             AssetAssignmentSerializer(assignment).data,
             status=status.HTTP_200_OK
         )
+
 # ====================================================
 # AssetLog (Read only)
 # ====================================================
