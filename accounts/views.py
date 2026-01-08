@@ -1213,7 +1213,7 @@ class ShiftViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         # Assign branch automatically from the user's profile
         
-        request.data["branch"] = request.user.profile.branch.id if hasattr(request.user, 'profile') and request.user.profile.branch else None
+        # request.data["branch"] = request.user.profile.branch.id if hasattr(request.user, 'profile') and request.user.profile.branch else None
         
 
         serializer = self.get_serializer(data=request.data)
