@@ -1204,12 +1204,12 @@ class ShiftViewSet(viewsets.ModelViewSet):
             )
 
 
-        if branch_id:
-            queryset = queryset.filter(branch__id=branch_id)
-        else:
-            # Optional fallback: user's branch
-            if hasattr(user, "profile") and user.profile.branch:
-                queryset = queryset.filter(branch=user.profile.branch)
+        # if branch_id:
+        #     queryset = queryset.filter(branch__id=branch_id)
+        # else:
+        #     # Optional fallback: user's branch
+        #     if hasattr(user, "profile") and user.profile.branch:
+        #         queryset = queryset.filter(branch=user.profile.branch)
 
         serializer = self.get_serializer(queryset, many=True)
         return Response(
