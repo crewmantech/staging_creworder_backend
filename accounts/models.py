@@ -279,7 +279,8 @@ class UserStatus(models.IntegerChoices):
 
 class ShiftTiming(BaseModel):
     name = models.CharField(max_length=100, null=False, blank=False)
-    branch = models.ForeignKey(Branch, null=True, blank=True, related_name="shifts", on_delete=models.CASCADE)
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, null=True, blank=True)
+
     start_time = models.TimeField(null=False, blank=False)
     end_time = models.TimeField(null=False, blank=False)
 
