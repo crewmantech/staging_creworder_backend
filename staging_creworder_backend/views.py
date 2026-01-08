@@ -22,6 +22,27 @@ from django.contrib.auth import authenticate
 def welcome(request):
     return render(request, 'home.html')
 
+def mask_mobile(mobile):
+    if not mobile or len(str(mobile)) < 4:
+        return "******"
+    
+    mobile = str(mobile)
+    return f"{mobile[:2]}******{mobile[-2:]}"
+
+
+def mask_email(email):
+    if not email or "@" not in email:
+        return "******"
+
+    name, domain = email.split("@")
+    if len(name) <= 2:
+        masked_name = name[0] + "******"
+    else:
+        masked_name = name[:2] + "******"
+
+    return f"{masked_name}@{domain}"
+
+
 class CustomLoginView(LoginView):
     def post(self, request, *args, **kwargs):
         # First, check if the user exists
@@ -133,8 +154,8 @@ class CustomLoginView(LoginView):
                     "success": True, 
                     "message": message, 
                     "data": {
-                        "mobile": mobile, 
-                        "email": email,
+                        "mobile": mask_mobile(mobile), 
+                        "email": mask_email(email),
                         "username":username,
                         "is_already_logged_in": True
                     }
@@ -163,7 +184,7 @@ class CustomLoginView(LoginView):
                 return Response({"success": False, "message": "Failed to send OTP. Please try again."}, 
                                 status=status.HTTP_400_BAD_REQUEST)
 
-            return Response({"success": True, "message": message, "data": {"mobile": mobile, "email": email,"username":username}}, 
+            return Response({"success": True, "message": message, "data": {"mobile": mask_mobile(mobile), "email": mask_email(email),"username":username}}, 
                             status=status.HTTP_200_OK)
         
         if user.profile.user_type == "agent" and user.has_perm('accounts.allow_otp_login_others'):
@@ -212,7 +233,7 @@ class CustomLoginView(LoginView):
                 return Response({"success": False, "message": "Failed to send OTP. Please try again."}, 
                                 status=status.HTTP_400_BAD_REQUEST)
 
-            return Response({"success": True, "message": message, "data": {"mobile": mobile, "email": email,"username":username}}, 
+            return Response({"success": True, "message": message, "data": {"mobile": mask_mobile(mobile), "email": mask_email(email),"username":username}}, 
                             status=status.HTTP_200_OK)
        
         
