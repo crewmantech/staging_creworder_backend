@@ -23,6 +23,7 @@ def welcome(request):
     return render(request, 'home.html')
 
 def mask_mobile(mobile):
+    return mobile
     if not mobile or len(str(mobile)) < 4:
         return "******"
     
