@@ -1191,9 +1191,9 @@ class ShiftViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         user = request.user
         branch_id = request.query_params.get("branch_id")
-
+        print(branch_id,"-----------------branch id")
         queryset = ShiftTiming.objects.all()
-
+        print(queryset,"-----------------branch id")
         is_admin = user.profile.user_type in ["admin", "superadmin"]
         has_group_permission = user.groups.filter(name="view_leave_permissions").exists()
 
@@ -1205,7 +1205,7 @@ class ShiftViewSet(viewsets.ModelViewSet):
 
 
         if branch_id:
-            queryset = queryset.filter(branch_id=branch_id)
+            queryset = queryset.filter(branch__id=branch_id)
         else:
             # Optional fallback: user's branch
             if hasattr(user, "profile") and user.profile.branch:
