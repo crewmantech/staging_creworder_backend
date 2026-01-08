@@ -443,7 +443,7 @@ class SupportTicket(BaseModel):
     solution = models.TextField(
         blank=True,
         null=True,
-        help_text="Solution provided by support/admin"
+        related_name="solution_support_ticket"
     )
     def save(self, *args, **kwargs):
         if not self.ticket_id:
