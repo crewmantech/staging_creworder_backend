@@ -332,7 +332,7 @@ class Employees(BaseModel):
     two_way_authentication = models.BooleanField(default=False)
     reffral_code = models.CharField(max_length=30, blank=True, null=True)
     refral_by = models.CharField(max_length=30, null=True, blank=True)
-
+    shift = models.ForeignKey(ShiftTiming, on_delete=models.SET_NULL, null=True, blank=True, related_name="employeesshift")
     def generate_reffral_code(self):
         """Generate a custom id with prefix CMP and 5 random alphanumeric characters"""
         random_suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=5))
