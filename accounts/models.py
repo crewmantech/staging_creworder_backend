@@ -277,10 +277,10 @@ class UserStatus(models.IntegerChoices):
     suspended = 2, "Suspended"
     deleted = 3, "Deleted"
 
+
 class ShiftTiming(BaseModel):
     name = models.CharField(max_length=100, null=False, blank=False)
-    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, null=True, blank=True)
-
+    branch = models.ForeignKey(Branch, null=True, blank=True, related_name="shifts", on_delete=models.CASCADE)
     start_time = models.TimeField(null=False, blank=False)
     end_time = models.TimeField(null=False, blank=False)
 
@@ -288,7 +288,6 @@ class ShiftTiming(BaseModel):
         branch_id = self.branch.branch_id if self.branch else None
         return f'{self.name} - {branch_id}'
         # return f'{self.name} - {self.branch.branch_id}'
-    
 class Employees(BaseModel):
     gender_choices = [
         ('m', 'Male'),
