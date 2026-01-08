@@ -1170,32 +1170,30 @@ class ShiftViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, DjangoObjectPermissions]
     queryset = ShiftTiming.objects.all()
     serializer_class = ShiftSerializer
+
+    # 🔐 Action-based permission mapping
     def get_permissions(self):
         permission_map = {
             'create': ['superadmin_assets.show_submenusmodel_shift', 'superadmin_assets.add_submenusmodel'],
             'update': ['superadmin_assets.show_submenusmodel_shift', 'superadmin_assets.change_submenusmodel'],
+            'partial_update': ['superadmin_assets.show_submenusmodel_shift', 'superadmin_assets.change_submenusmodel'],
             'destroy': ['superadmin_assets.show_submenusmodel_shift', 'superadmin_assets.delete_submenusmodel'],
-            'partial_update': ['superadmin_assets.show_submenusmodel_shift', 'superadmin_assets.delete_submenusmodel'],
             'retrieve': ['superadmin_assets.show_submenusmodel_shift', 'superadmin_assets.view_submenusmodel'],
-            'list': ['superadmin_assets.show_submenusmodel_shift', 'superadmin_assets.view_submenusmodel']
+            'list': ['superadmin_assets.show_submenusmodel_shift', 'superadmin_assets.view_submenusmodel'],
         }
-        
-        action = self.action
-        if action in permission_map:
-            permissions = permission_map[action]
-            return [HasPermission(perm) for perm in permissions]  # Return a list of permission checks
-    
+
+        if self.action in permission_map:
+            return [HasPermission(p) for p in permission_map[self.action]]
+
         return super().get_permissions()
 
-    # Override list method to fetch shifts for a specific branch or the user's shifts
+    # 📄 LIST SHIFTS (Branch + Company auto)
     def list(self, request, *args, **kwargs):
         user = request.user
         branch_id = request.query_params.get("branch_id")
 
-        # Base queryset
         queryset = ShiftTiming.objects.all()
 
-        # Permission check
         is_admin = user.profile.user_type in ["admin", "superadmin"]
         has_group_permission = user.groups.filter(name="view_leave_permissions").exists()
 
@@ -1205,43 +1203,62 @@ class ShiftViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        # Filter by branch_id if provided
-        if branch_id:
-            queryset = queryset.filter(branch_id=branch_id)
+        # 🔹 Auto company filter
+        if hasattr(user.profile, "company") and user.profile.company:
+            queryset = queryset.filter(company=user.profile.company)
         else:
-            # Optional fallback: user's branch
-            if hasattr(user, "profile") and user.profile.branch:
-                queryset = queryset.filter(branch=user.profile.branch)
+            queryset = queryset.filter(company__isnull=True)
 
+        # 🔹 Branch filter (ManyToMany)
+        if branch_id:
+            queryset = queryset.filter(branches__id=branch_id)
+        else:
+            if hasattr(user.profile, "branch") and user.profile.branch:
+                queryset = queryset.filter(branches=user.profile.branch)
+
+        queryset = queryset.distinct()
         serializer = self.get_serializer(queryset, many=True)
-        return Response(
-            {"results": serializer.data},
-            status=status.HTTP_200_OK
-        )
+        return Response({"results": serializer.data}, status=status.HTTP_200_OK)
 
-
-    # Create ShiftTiming with the branch automatically assigned from user's profile
+    # ➕ CREATE SHIFT (Company auto-assigned)
     def create(self, request, *args, **kwargs):
-        # Assign branch automatically from the user's profile
-        
-        # request.data["branch"] = request.user.profile.branch.id if hasattr(request.user, 'profile') and request.user.profile.branch else None
-        
+        data = request.data.copy()
+        user = request.user
 
-        serializer = self.get_serializer(data=request.data)
+        # ❌ Ignore company from request
+        data.pop("company", None)
+
+        serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        return Response({"results":serializer.data}, status=status.HTTP_201_CREATED)
 
-    # Update ShiftTiming with branch permission logic
+        # ✅ Auto assign company
+        company = user.profile.company if hasattr(user.profile, "company") else None
+        shift = serializer.save(company=company)
+
+        # 🔗 Assign branches
+        if "branches" in request.data:
+            shift.branches.set(request.data.get("branches", []))
+
+        return Response({"results": serializer.data}, status=status.HTTP_201_CREATED)
+
+    # ✏️ UPDATE SHIFT (Company remains unchanged)
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
-        # Ensure only users in the same branch or admin can edit
-        # if not (request.user.profile.user_type == "admin" or (hasattr(request.user, 'profile') and request.user.profile.branch == instance.branch)):
-        #     raise PermissionDenied({"detail": "You do not have permission to edit this ShiftTiming."})
-        serializer = self.get_serializer(instance, data=request.data, partial=kwargs.pop('partial', False))
+
+        # ❌ Prevent company override
+        data = request.data.copy()
+        data.pop("company", None)
+
+        partial = kwargs.pop("partial", False)
+        serializer = self.get_serializer(instance, data=data, partial=partial)
         serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-        return Response({"results":serializer.data}, status=status.HTTP_200_OK)
+        shift = serializer.save()
+
+        # 🔄 Update branches if provided
+        if "branches" in request.data:
+            shift.branches.set(request.data.get("branches", []))
+
+        return Response({"results": serializer.data}, status=status.HTTP_200_OK)
 
 class ShiftRosterViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, DjangoObjectPermissions]

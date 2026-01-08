@@ -278,15 +278,26 @@ class UserStatus(models.IntegerChoices):
     deleted = 3, "Deleted"
 
 class ShiftTiming(BaseModel):
-    name = models.CharField(max_length=100, null=False, blank=False)
-    branch = models.ForeignKey(Branch, null=True, blank=True, related_name="shifts", on_delete=models.CASCADE)
+    name = models.CharField(max_length=100)
+    
+    company = models.ForeignKey(
+        Company,
+        on_delete=models.CASCADE,
+        related_name="shifts",null=False, blank=False
+    )
+
+    branches = models.ManyToManyField(
+        Branch,
+        related_name="shift_timings",
+        null=False, blank=False
+    )
+
     start_time = models.TimeField(null=False, blank=False)
     end_time = models.TimeField(null=False, blank=False)
 
     def __str__(self):
-        branch_id = self.branch.branch_id if self.branch else None
-        return f'{self.name} - {branch_id}'
-        # return f'{self.name} - {self.branch.branch_id}'
+        return f"{self.name} - {self.company.name}"
+
     
 class Employees(BaseModel):
     gender_choices = [

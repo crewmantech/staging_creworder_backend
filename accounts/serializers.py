@@ -431,9 +431,22 @@ class AppreciationSerializer(serializers.ModelSerializer):
 
 
 class ShiftSerializer(serializers.ModelSerializer):
+    branches = serializers.PrimaryKeyRelatedField(
+        queryset=Branch.objects.all(),
+        many=True
+    )
+
     class Meta:
         model = ShiftTiming
-        fields = '__all__'
+        fields = [
+            "id",
+            "name",
+            "company",
+            "branches",
+            "start_time",
+            "end_time",
+            "created_at",
+        ]
 
 class ShiftRosterSerializer(serializers.ModelSerializer):
     class Meta:
