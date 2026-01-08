@@ -381,6 +381,7 @@ class SupportTicketSerializer(serializers.ModelSerializer):
     class Meta:
         model = SupportTicket
         fields = '__all__'
+        read_only_fields = ('company', 'agent', 'ticket_id')
 
 
 class DepartmentSerializer(serializers.ModelSerializer):

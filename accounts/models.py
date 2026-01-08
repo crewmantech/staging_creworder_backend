@@ -440,7 +440,11 @@ class SupportTicket(BaseModel):
     priority = models.CharField(max_length=15, blank=True, null=True, choices=priority_choices)
     created_at = models.DateField(auto_now_add=True)
     updated_at = models.DateField(auto_now=True)
-
+    solution = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Solution provided by support/admin"
+    )
     def save(self, *args, **kwargs):
         if not self.ticket_id:
             self.ticket_id = self.generate_ticket_id()
