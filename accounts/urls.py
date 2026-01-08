@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
 
-from .views import AgentAttendanceUserWiseAPIView, AgreementViewSet, AssignRole,AgentListByManagerAPIView, AgentListByTeamleadAPIView, BranchWiseAttendanceAPIView, CSVUserUploadView, CompanyInquiryViewSet, CompanyMonthlySalaryPreviewAPIView, CompanyMonthlySummaryView, CompanySalaryViewSet, CompanyUserAPIKeyViewSet, CompanyUserViewSet, CustomPasswordResetView, DeleteUserListView, DoctorViewSet, EnquiryViewSet, ForceLogoutView, InterviewApplicationViewSet, ManagerTeamLeadAgentAPIView, ManagerViewSet, MonthlyCompanyStatsView, QcScoreViewSet, ReminderNotesViewSet, ResetPasswordAPIView, StickyNoteViewSet, TeamleadViewSet, UpdateTeamLeadManagerAPIView, UserExportView, UserPermissionStatusView, UserViewSet, CompanyViewSet, PackageViewSet, UserPermissionsView, \
+from .views import AgentAttendanceUserWiseAPIView, AgreementViewSet, AssignRole,AgentListByManagerAPIView, AgentListByTeamleadAPIView, BranchWiseAttendanceAPIView, BulkAttendanceMarkAPIView, CSVUserUploadView, CompanyInquiryViewSet, CompanyMonthlySalaryPreviewAPIView, CompanyMonthlySummaryView, CompanySalaryViewSet, CompanyUserAPIKeyViewSet, CompanyUserViewSet, CustomPasswordResetView, DeleteUserListView, DoctorViewSet, EnquiryViewSet, ForceLogoutView, InterviewApplicationViewSet, ManagerTeamLeadAgentAPIView, ManagerViewSet, MonthlyCompanyStatsView, QcScoreViewSet, ReminderNotesViewSet, ResetPasswordAPIView, StickyNoteViewSet, TeamleadViewSet, UpdateTeamLeadManagerAPIView, UserExportView, UserPermissionStatusView, UserViewSet, CompanyViewSet, PackageViewSet, UserPermissionsView, \
     UserProfileViewSet, \
     NoticeViewSet, BranchViewSet, AdminSelfSignUp, FormEnquiryViewSet, SupportTicketViewSet, ModuleViewSet, \
     GetSpecificUsers, \
@@ -90,4 +90,5 @@ urlpatterns = [
     path('user-performance-dashboard/', UserMonthlyPerformanceAPIView.as_view(), name='user-monthly-performance'),
     path("company-salary-preview/",CompanyMonthlySalaryPreviewAPIView.as_view(),name="company-salary-preview"),
     path("attendance-branch-wise/",BranchWiseAttendanceAPIView.as_view(),name="branch-wise-attendance"),
+    path("attendance-bulk-mark/",BulkAttendanceMarkAPIView.as_view(),name="bulk-mark-attendance"),
 ]

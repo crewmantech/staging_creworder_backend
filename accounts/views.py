@@ -4741,7 +4741,7 @@ class DoctorViewSet(viewsets.ModelViewSet):
 
 
 
-
+from django.utils.timezone import localtime
 class BranchWiseAttendanceAPIView(APIView):
     permission_classes = [IsAuthenticated]
     REQUIRED_PERMISSION = "superadmin_assets.show_submenusmodel_attendance"
@@ -4812,3 +4812,146 @@ class BranchWiseAttendanceAPIView(APIView):
             })
 
         return Response(response_data)
+
+
+
+class BulkAttendanceMarkAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    REQUIRED_PERMISSION = "attendance.bulk_mark_attendance"
+
+    def post(self, request):
+        user = request.user
+        data = request.data
+
+        # ---------- PERMISSION ----------
+        if not user.has_perm(self.REQUIRED_PERMISSION):
+            raise PermissionDenied("You do not have permission to bulk mark attendance.")
+
+        # ---------- PAYLOAD ----------
+        employee_ids = data.get("employee_ids", [])
+        department_id = data.get("department_id")
+        date_range = data.get("date_range")
+        clock_in = data.get("clock_in")
+        clock_out = data.get("clock_out")
+        working_from = data.get("working_from", "office")
+        overwrite = data.get("overwrite_attendance", False)
+        shift_id = data.get("shift_id")
+
+        # ---------- BASIC VALIDATION ----------
+        if not employee_ids or not isinstance(employee_ids, list):
+            raise ValidationError("employee_ids must be a list.")
+
+        if not date_range or "startDate" not in date_range or "endDate" not in date_range:
+            raise ValidationError("date_range with startDate and endDate is required.")
+
+        if not clock_in or not clock_out:
+            raise ValidationError("clock_in and clock_out are required.")
+
+        if not shift_id:
+            raise ValidationError("shift_id is required.")
+
+        # ---------- SHIFT VALIDATION ----------
+        try:
+            shift = ShiftTiming.objects.get(id=shift_id)
+        except ShiftTiming.DoesNotExist:
+            raise ValidationError("Invalid shift_id.")
+
+        clock_in_time = datetime.strptime(clock_in, "%H:%M").time()
+        clock_out_time = datetime.strptime(clock_out, "%H:%M").time()
+
+        if clock_in_time >= clock_out_time:
+            raise ValidationError("clock_in must be before clock_out.")
+
+        if clock_in_time < shift.start_time or clock_out_time > shift.end_time:
+            raise ValidationError(
+                f"Clock time must be between shift timing "
+                f"({shift.start_time} - {shift.end_time})."
+            )
+
+        # ---------- DATE CONVERSION ----------
+        start_date = localtime(
+            datetime.fromisoformat(date_range["startDate"].replace("Z", "+00:00"))
+        ).date()
+
+        end_date = localtime(
+            datetime.fromisoformat(date_range["endDate"].replace("Z", "+00:00"))
+        ).date()
+
+        if start_date > end_date:
+            raise ValidationError("startDate cannot be greater than endDate.")
+
+        # ---------- COMPANY + USER VALIDATION (IMPORTANT) ----------
+        emp_filters = Q(user__id__in=employee_ids, status__in=[0, 1])
+
+        if department_id:
+            emp_filters &= Q(department__id=department_id)
+
+        if user.profile.user_type != "superadmin":
+            emp_filters &= Q(company=user.profile.company)
+
+        employees = Employees.objects.select_related(
+            "user", "company", "branch"
+        ).filter(emp_filters)
+
+        # STRICT CHECK: every sent user must be valid
+        found_user_ids = set(employees.values_list("user__id", flat=True))
+        sent_user_ids = set(employee_ids)
+
+        invalid_users = sent_user_ids - found_user_ids
+        if invalid_users:
+            raise ValidationError({
+                "invalid_user_ids": list(invalid_users),
+                "detail": "Some users do not exist or do not belong to your company."
+            })
+
+        # ---------- MAIN LOOP ----------
+        marked = 0
+        skipped = 0
+
+        current_date = start_date
+        while current_date <= end_date:
+
+            for emp in employees:
+
+                attendance = Attendance.objects.filter(
+                    user=emp.user,
+                    date=current_date
+                ).first()
+
+                if attendance:
+                    if not overwrite:
+                        skipped += 1
+                        continue
+                else:
+                    attendance = Attendance.objects.create(
+                        user=emp.user,
+                        date=current_date,
+                        company=emp.company,
+                        branch=emp.branch
+                    )
+
+                attendance.sessions.all().delete()
+
+                AttendanceSession.objects.create(
+                    attendance=attendance,
+                    clock_in=clock_in_time,
+                    clock_out=clock_out_time
+                )
+
+                attendance.shift = shift
+                attendance.working_from = working_from
+                attendance.attendance = "P"
+                attendance.update_summary()
+
+                marked += 1
+
+            current_date += timedelta(days=1)
+
+        return Response({
+            "status": "success",
+            "shift": shift.name,
+            "marked_records": marked,
+            "skipped_records": skipped,
+            "from_date": str(start_date),
+            "to_date": str(end_date)
+        })
