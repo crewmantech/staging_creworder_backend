@@ -803,6 +803,23 @@ class FormEnquiryViewSet(viewsets.ModelViewSet):
 class SupportTicketViewSet(viewsets.ModelViewSet):
     queryset = SupportTicket.objects.all()
     serializer_class = SupportTicketSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+
+        if user.is_superuser or getattr(user, "role", None) == "superadmin":
+            return SupportTicket.objects.all().order_by('-created_at')
+
+        return SupportTicket.objects.filter(
+            company=user.profile.company
+        ).order_by('-created_at')
+
+    def perform_create(self, serializer):
+        serializer.save(
+            company=self.request.user.profile.company,
+            agent=self.request.user
+        )
 
 
 class ModuleViewSet(viewsets.ModelViewSet):
