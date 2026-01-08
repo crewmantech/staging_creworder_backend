@@ -800,7 +800,7 @@ class FormEnquiryViewSet(viewsets.ModelViewSet):
     serializer_class = FormEnquirySerializer
 
 
-class SupportTicketViewSet(viewsets.ModelViewSet):
+    queryset = SupportTicket.objects.all()   # ✅ REQUIRED
     serializer_class = SupportTicketSerializer
     permission_classes = [IsAuthenticated]
 
