@@ -1190,25 +1190,35 @@ class ShiftViewSet(viewsets.ModelViewSet):
     # Override list method to fetch shifts for a specific branch or the user's shifts
     def list(self, request, *args, **kwargs):
         user = request.user
-        # Check if user has admin permissions or is assigned a branch
-        if request.user.profile.user_type == "admin" or request.user.profile.user_type == "superadmin" or request.user.groups.filter(name="view_leave_permissions").exists():
-            # Fetch all shifts if admin or has permission
-            branch_id = request.user.profile.branch.id if hasattr(request.user, 'profile') and request.user.profile.branch else None
-            # shifts = ShiftTiming.objects.all()
-            shifts = ShiftTiming.objects.filter(branch=branch_id)
-        else:
-            
-            shifts = ShiftTiming.objects.none()
-        # else:
-        #     # Otherwise, filter by user's branch
-        #     if hasattr(user, 'profile') and user.profile.branch:
-        #         shifts = ShiftTiming.objects.filter(branch=user.profile.branch)
-        #     else:
-        #         shifts = ShiftTiming.objects.none()
+        branch_id = request.query_params.get("branch_id")
 
-        # Serialize filtered data
-        serializer = self.get_serializer(shifts, many=True)
-        return Response({"results":serializer.data}, status=status.HTTP_200_OK)
+        # Base queryset
+        queryset = ShiftTiming.objects.all()
+
+        # Permission check
+        is_admin = user.profile.user_type in ["admin", "superadmin"]
+        has_group_permission = user.groups.filter(name="view_leave_permissions").exists()
+
+        if not (is_admin or has_group_permission):
+            return Response(
+                {"detail": "You do not have permission to view shifts."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Filter by branch_id if provided
+        if branch_id:
+            queryset = queryset.filter(branch_id=branch_id)
+        else:
+            # Optional fallback: user's branch
+            if hasattr(user, "profile") and user.profile.branch:
+                queryset = queryset.filter(branch=user.profile.branch)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(
+            {"results": serializer.data},
+            status=status.HTTP_200_OK
+        )
+
 
     # Create ShiftTiming with the branch automatically assigned from user's profile
     def create(self, request, *args, **kwargs):
