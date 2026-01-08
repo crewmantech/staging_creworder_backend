@@ -484,8 +484,8 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         phone = params.get("phone")
         patient_name = params.get("patient_name")
         appointment_date = params.get("appointment_date")
-        date_from = params.get("date_from")
-        date_to = params.get("date_to")
+        date_from = params.get("start_date")
+        date_to = params.get("end_date")
         created_by = params.get("created_by")
         reference_id = params.get("reference_id")
 
