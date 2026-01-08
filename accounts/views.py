@@ -4824,8 +4824,8 @@ class BulkAttendanceMarkAPIView(APIView):
         data = request.data
 
         # ---------- PERMISSION ----------
-        if not user.has_perm(self.REQUIRED_PERMISSION):
-            raise PermissionDenied("You do not have permission to bulk mark attendance.")
+        # if not user.has_perm(self.REQUIRED_PERMISSION):
+        #     raise PermissionDenied("You do not have permission to bulk mark attendance.")
 
         # ---------- PAYLOAD ----------
         employee_ids = data.get("employee_ids", [])
