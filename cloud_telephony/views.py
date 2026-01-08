@@ -283,6 +283,7 @@ class CallServiceViewSet(viewsets.ViewSet):
         lead_id = request.data.get("lead_id")
         order_id = request.data.get("order_id")
         followup_id = request.data.get("followup_id")
+        appointment_id = request.data.get("appointment_id")
 
         user = self.request.user  # Proper user instance
         try:
@@ -322,8 +323,14 @@ class CallServiceViewSet(viewsets.ViewSet):
                 phone_number = Follow_Up.objects.get(followup_id=followup_id).customer_phone
             except Follow_Up.DoesNotExist:
                 return Response({"error": "Follow-up not found."}, status=status.HTTP_404_NOT_FOUND)
+        elif appointment_id:
+            try:
+                from follow_up.models import Appointment
+                phone_number = Appointment.objects.get(id=appointment_id).patient_phone
+            except Appointment.DoesNotExist:
+                return Response({"error": "Appointment not found."}, status=status.HTTP_404_NOT_FOUND)
         else:
-            return Response({"error": "Provide either lead_id, order_id, or followup_id."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Provide either lead_id, order_id,appointment_id, or followup_id."}, status=status.HTTP_400_BAD_REQUEST)
 
         if not phone_number:
             return Response({"error": "Phone number is missing."}, status=status.HTTP_400_BAD_REQUEST)
