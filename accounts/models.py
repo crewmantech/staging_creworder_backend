@@ -279,20 +279,27 @@ class UserStatus(models.IntegerChoices):
 
 class ShiftTiming(BaseModel):
     name = models.CharField(max_length=100)
-    
-    company = models.ForeignKey('shifts-balnk', blank=True, null=True, on_delete=models.CASCADE)
+
+    company = models.ForeignKey(
+        Company,                 # ✅ DIRECT reference (BEST)
+        on_delete=models.CASCADE,
+        related_name="shifts",
+        null=True,
+        blank=True
+    )
 
     branches = models.ManyToManyField(
         Branch,
         related_name="shift_timings",
-        null=False, blank=False
+        null=True, blank=True
     )
 
     start_time = models.TimeField(null=False, blank=False)
     end_time = models.TimeField(null=False, blank=False)
 
     def __str__(self):
-        return f"{self.name} - {self.company.name}"
+        return self.name
+
 
     
 class Employees(BaseModel):
