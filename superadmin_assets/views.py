@@ -150,7 +150,7 @@ class SupportTicketViewSet(viewsets.ModelViewSet):
         if getattr(user, 'is_support', False):
             return SupportTickets.objects.filter(assigned_to=user)
 
-        return SupportTickets.objects.filter(company=user.company)
+        return SupportTickets.objects.filter(company=user.profile.company)
 
     def get_serializer_class(self):
         if self.action == 'create':
