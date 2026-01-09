@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
-from accounts.models import SupportTicket
-from .models import EmailCredentials, SMSCredentials, SandboxCredentials, MenuModel,SubMenusModel,SettingsMenu,PixelCodeModel,BennerModel, SupportQuestion,ThemeSettingModel,SuperAdminCompany
+# from accounts.models import SupportTicket
+from .models import EmailCredentials, SMSCredentials,SupportTicket, SandboxCredentials, MenuModel,SubMenusModel,SettingsMenu,PixelCodeModel,BennerModel, SupportQuestion,ThemeSettingModel,SuperAdminCompany
 from phonenumber_field.serializerfields import PhoneNumberField
 from rest_framework.serializers import ModelSerializer
 from django.contrib.auth.models import User
