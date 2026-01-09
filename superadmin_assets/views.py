@@ -2,7 +2,7 @@ from django.shortcuts import render
 
 from accounts.models import SupportTicket
 from superadmin_assets.permissions import IsAssignedOrSuperAdmin, IsSuperAdmin
-from .serializers import APISandboxSerializer, EmailCredentialsSerializer, MenuSerializer, SMSCredentialsSerializer,SubMenuSerializer,SettingMenuSerializer,PixelCodeModelSerializer,BannerModelSerializer, SuperAdminCompanySerializer, SupportQuestionSerializer, SupportTicketCreateSerializer, SupportTicketDetailSerializer, SupportTicketListSerializer,ThemeSettingSerializer
+from .serializers import APISandboxSerializer, EmailCredentialsSerializer, MenuSerializer, SMSCredentialsSerializer,SubMenuSerializer,SettingMenuSerializer,PixelCodeModelSerializer,BannerModelSerializer, SuperAdminCompanySerializer, SupportQuestionSerializer, SupportTicketCreateSerializer, SupportTicketDetailSerializer, SupportTicketListSerializer,ThemeSettingSerializer,TicketSolutionSerializer,AssignTicketSerializer
 from rest_framework.views import APIView
 from rest_framework import viewsets, status
 from .models import EmailCredentials, SMSCredentials, SandboxCredentials, MenuModel,SubMenusModel,SettingsMenu,PixelCodeModel,BennerModel, SuperAdminCompany, SupportQuestion,ThemeSettingModel
@@ -147,7 +147,7 @@ class SupportTicketViewSet(viewsets.ModelViewSet):
         if user.is_superadmin:
             return SupportTicket.objects.all()
 
-        if user.is_support:
+        if getattr(user, 'is_support', False):
             return SupportTicket.objects.filter(assigned_to=user)
 
         return SupportTicket.objects.filter(company=user.company)
@@ -159,7 +159,7 @@ class SupportTicketViewSet(viewsets.ModelViewSet):
             return SupportTicketListSerializer
         return SupportTicketDetailSerializer
 
-    @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated])
+    @action(detail=True, methods=['patch'])
     def assign(self, request, pk=None):
         ticket = self.get_object()
         serializer = AssignTicketSerializer(data=request.data)
@@ -174,10 +174,14 @@ class SupportTicketViewSet(viewsets.ModelViewSet):
             "status": ticket.status
         })
 
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    @action(detail=True, methods=['post'])
     def solution(self, request, pk=None):
         ticket = self.get_object()
-        serializer = TicketSolutionSerializer(ticket, data=request.data, partial=True)
+        serializer = TicketSolutionSerializer(
+            ticket,
+            data=request.data,
+            partial=True
+        )
         serializer.is_valid(raise_exception=True)
         serializer.save(status='resolved')
 
