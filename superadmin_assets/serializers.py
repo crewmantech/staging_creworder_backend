@@ -103,7 +103,12 @@ class SupportTicketCreateSerializer(serializers.ModelSerializer):
 
 class SupportTicketListSerializer(serializers.ModelSerializer):
     question = SupportQuestionSerializer(read_only=True)
-    assigned_to = serializers.StringRelatedField()
+
+    company_id = serializers.IntegerField(source='company.id', read_only=True)
+    company_name = serializers.CharField(source='company.name', read_only=True)
+
+    assigned_user_name = serializers.SerializerMethodField()
+    created_user_name = serializers.SerializerMethodField()
 
     class Meta:
         model = SupportTickets
@@ -111,9 +116,22 @@ class SupportTicketListSerializer(serializers.ModelSerializer):
             'ticket_id',
             'question',
             'status',
-            'assigned_to',
-            'created_at'
+            'company_id',
+            'company_name',
+            'assigned_user_name',
+            'created_user_name',
+            'created_at',
         ]
+
+    def get_assigned_user_name(self, obj):
+        if obj.assigned_to:
+            return obj.assigned_to.get_full_name() or obj.assigned_to.username
+        return None
+
+    def get_created_user_name(self, obj):
+        if obj.created_by:
+            return obj.created_by.get_full_name() or obj.created_by.username
+        return None
 
 
 class SupportTicketDetailSerializer(serializers.ModelSerializer):
