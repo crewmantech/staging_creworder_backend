@@ -350,7 +350,12 @@ class SupportTicket(BaseModel):
 
     ticket_id = models.CharField(max_length=30, unique=True, editable=False)
 
-    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    company = models.ForeignKey(
+    Company,
+    on_delete=models.CASCADE,
+    related_name="superadmin_support_tickets"
+)
+
     question = models.ForeignKey(SupportQuestion, on_delete=models.CASCADE)
 
     description = models.TextField(blank=True)
