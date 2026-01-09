@@ -75,7 +75,8 @@ class SupportQuestionSerializer(serializers.ModelSerializer):
     class Meta:
         model = SupportQuestion
         fields = [
-            'question_id',
+            'id',            # 🔹 auto-generated DB id
+            'question_id',   # 🔹 string id (QST-0001)
             'question',
             'priority',
             'is_active',
