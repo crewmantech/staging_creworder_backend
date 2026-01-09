@@ -96,7 +96,7 @@ class SupportTicketCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         request = self.context['request']
         return SupportTickets.objects.create(
-            company=request.user.company,
+            company=request.user.profile.company,
             **validated_data
         )
 
