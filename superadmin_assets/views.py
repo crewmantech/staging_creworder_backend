@@ -144,7 +144,7 @@ class SupportTicketViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
 
-        if user.is_superadmin:
+        if user.profile.user_type == 'superadmin':
             return SupportTickets.objects.all()
 
         if getattr(user, 'is_support', False):
