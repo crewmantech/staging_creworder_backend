@@ -109,6 +109,10 @@ class SupportTicketListSerializer(serializers.ModelSerializer):
 
     assigned_user_name = serializers.SerializerMethodField()
     created_user_name = serializers.SerializerMethodField()
+    updated_user_name = serializers.SerializerMethodField()
+
+    issue_image_url = serializers.SerializerMethodField()
+    solution_image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = SupportTickets
@@ -116,14 +120,30 @@ class SupportTicketListSerializer(serializers.ModelSerializer):
             'id',
             'ticket_id',
             'question',
+
             'status',
+
             'company_id',
             'company_name',
+
+            'description',
+            'issue_image_url',
+
+            'solution_description',
+            'solution_image_url',
+
+            'assigned_to',
             'assigned_user_name',
+
             'created_user_name',
+            'updated_user_name',
             'created_at',
+            'updated_at',
         ]
 
+    # ---------------------------
+    # User Names
+    # ---------------------------
     def get_assigned_user_name(self, obj):
         if obj.assigned_to:
             return obj.assigned_to.get_full_name() or obj.assigned_to.username
@@ -133,6 +153,27 @@ class SupportTicketListSerializer(serializers.ModelSerializer):
         if obj.created_by:
             return obj.created_by.get_full_name() or obj.created_by.username
         return None
+
+    def get_updated_user_name(self, obj):
+        if obj.updated_by:
+            return obj.updated_by.get_full_name() or obj.updated_by.username
+        return None
+
+    # ---------------------------
+    # Image URLs
+    # ---------------------------
+    def get_issue_image_url(self, obj):
+        request = self.context.get('request')
+        if obj.issue_image:
+            return request.build_absolute_uri(obj.issue_image.url) if request else obj.issue_image.url
+        return None
+
+    def get_solution_image_url(self, obj):
+        request = self.context.get('request')
+        if obj.solution_image:
+            return request.build_absolute_uri(obj.solution_image.url) if request else obj.solution_image.url
+        return None
+    
 
 
 class SupportTicketDetailSerializer(serializers.ModelSerializer):
