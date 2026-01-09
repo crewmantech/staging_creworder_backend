@@ -159,7 +159,7 @@ class SupportTicketViewSet(viewsets.ModelViewSet):
             return SupportTicketListSerializer
         return SupportTicketDetailSerializer
 
-    @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated, IsSuperAdmin])
+    @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated])
     def assign(self, request, pk=None):
         ticket = self.get_object()
         serializer = AssignTicketSerializer(data=request.data)
@@ -174,7 +174,7 @@ class SupportTicketViewSet(viewsets.ModelViewSet):
             "status": ticket.status
         })
 
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsAssignedOrSuperAdmin])
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def solution(self, request, pk=None):
         ticket = self.get_object()
         serializer = TicketSolutionSerializer(ticket, data=request.data, partial=True)
