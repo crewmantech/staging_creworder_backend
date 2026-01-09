@@ -351,21 +351,21 @@ class SupportTickets(BaseModel):
     ticket_id = models.CharField(max_length=30, unique=True, editable=False)
 
     company = models.ForeignKey(
-    Company,
-    on_delete=models.CASCADE,
-    related_name="superadmin_support_tickets"
-)
+        Company,
+        on_delete=models.CASCADE,
+        related_name='accounts_support_tickets'
+    )
 
     question = models.ForeignKey(SupportQuestion, on_delete=models.CASCADE)
 
     description = models.TextField(blank=True)
     issue_image = models.ImageField(
-        upload_to='support/tickets/issues/', null=True, blank=True
+        upload_to='support/issues/', null=True, blank=True
     )
 
     solution_description = models.TextField(null=True, blank=True)
     solution_image = models.ImageField(
-        upload_to='support/tickets/solutions/', null=True, blank=True
+        upload_to='support/solutions/', null=True, blank=True
     )
 
     assigned_to = models.ForeignKey(
@@ -373,11 +373,13 @@ class SupportTickets(BaseModel):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="assigned_support_tickets"
+        related_name='assigned_support_tickets'
     )
 
     status = models.CharField(
-        max_length=20, choices=STATUS_CHOICES, default='open'
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='open'
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -389,11 +391,6 @@ class SupportTickets(BaseModel):
             last = SupportTickets.objects.filter(
                 ticket_id__startswith=f"TCK-{year}"
             ).order_by('id').last()
-
             last_no = int(last.ticket_id.split('-')[-1]) if last else 0
             self.ticket_id = f"TCK-{year}-{last_no + 1:05d}"
-
         super().save(*args, **kwargs)
-
-    def __str__(self):
-        return self.ticket_id
