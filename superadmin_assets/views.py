@@ -1,8 +1,11 @@
 from django.shortcuts import render
-from .serializers import APISandboxSerializer, EmailCredentialsSerializer, MenuSerializer, SMSCredentialsSerializer,SubMenuSerializer,SettingMenuSerializer,PixelCodeModelSerializer,BannerModelSerializer, SuperAdminCompanySerializer,ThemeSettingSerializer
+
+from accounts.models import SupportTicket
+from superadmin_assets.permissions import IsAssignedOrSuperAdmin, IsSuperAdmin
+from .serializers import APISandboxSerializer, EmailCredentialsSerializer, MenuSerializer, SMSCredentialsSerializer,SubMenuSerializer,SettingMenuSerializer,PixelCodeModelSerializer,BannerModelSerializer, SuperAdminCompanySerializer, SupportQuestionSerializer, SupportTicketCreateSerializer, SupportTicketDetailSerializer, SupportTicketListSerializer,ThemeSettingSerializer
 from rest_framework.views import APIView
 from rest_framework import viewsets, status
-from .models import EmailCredentials, SMSCredentials, SandboxCredentials, MenuModel,SubMenusModel,SettingsMenu,PixelCodeModel,BennerModel, SuperAdminCompany,ThemeSettingModel
+from .models import EmailCredentials, SMSCredentials, SandboxCredentials, MenuModel,SubMenusModel,SettingsMenu,PixelCodeModel,BennerModel, SuperAdminCompany, SupportQuestion,ThemeSettingModel
 from django.db.models import Q
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -123,3 +126,62 @@ class SuperAdminCompanyViewSet(viewsets.ModelViewSet):
 class EmailCredentialsViewSet(viewsets.ModelViewSet):
     queryset = EmailCredentials.objects.all()
     serializer_class = EmailCredentialsSerializer
+
+class SupportQuestionViewSet(viewsets.ModelViewSet):
+    queryset = SupportQuestion.objects.filter(is_active=True)
+    serializer_class = SupportQuestionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [IsSuperAdmin()]
+        return super().get_permissions()
+
+
+class SupportTicketViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+
+        if user.is_superadmin:
+            return SupportTicket.objects.all()
+
+        if user.is_support:
+            return SupportTicket.objects.filter(assigned_to=user)
+
+        return SupportTicket.objects.filter(company=user.company)
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return SupportTicketCreateSerializer
+        if self.action == 'list':
+            return SupportTicketListSerializer
+        return SupportTicketDetailSerializer
+
+    @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated, IsSuperAdmin])
+    def assign(self, request, pk=None):
+        ticket = self.get_object()
+        serializer = AssignTicketSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        ticket.assigned_to = serializer.validated_data['assigned_to']
+        ticket.status = 'in_progress'
+        ticket.save()
+
+        return Response({
+            "ticket_id": ticket.ticket_id,
+            "status": ticket.status
+        })
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsAssignedOrSuperAdmin])
+    def solution(self, request, pk=None):
+        ticket = self.get_object()
+        serializer = TicketSolutionSerializer(ticket, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(status='resolved')
+
+        return Response({
+            "ticket_id": ticket.ticket_id,
+            "status": ticket.status
+        })

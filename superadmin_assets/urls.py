@@ -1,5 +1,7 @@
 from rest_framework.routers import DefaultRouter
-from .views import APISandboxViewSet, EmailCredentialsViewSet, MenuViewSet, SMSCredentialsViewSet,SubMenuViewSet,SettingMenuViewSet,PixelCodeView,BannerView,ThemeSetting,SuperAdminCompanyViewSet
+
+from accounts.views import SupportTicketViewSet
+from .views import APISandboxViewSet, EmailCredentialsViewSet, MenuViewSet, SMSCredentialsViewSet,SubMenuViewSet,SettingMenuViewSet,PixelCodeView,BannerView, SupportQuestionViewSet,ThemeSetting,SuperAdminCompanyViewSet
 from django.urls import path, include
 
 router = DefaultRouter()
@@ -13,6 +15,8 @@ router.register(r'sandbox-credentials', APISandboxViewSet)
 router.register(r'sms-credentials', SMSCredentialsViewSet)
 router.register(r'superadmincompany', SuperAdminCompanyViewSet)  
 router.register(r'email-credentials', EmailCredentialsViewSet)
+router.register(r'support/questions', SupportQuestionViewSet, basename='support-questions')
+router.register(r'support/tickets', SupportTicketViewSet, basename='support-tickets')
 urlpatterns = [
     path('', include(router.urls)),
 ]

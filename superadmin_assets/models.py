@@ -9,6 +9,7 @@ from django.core.exceptions import ValidationError
 from django.utils.crypto import get_random_string
 import random, string, hashlib
 from phonenumber_field.modelfields import PhoneNumberField
+from django.utils import timezone
 
 class BaseModel(models.Model):
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="%(app_label)s_%(class)s_created_by")
@@ -312,3 +313,82 @@ class EmailCredentials(models.Model):
 
     def __str__(self):
         return f"{self.id} by {self.name}"
+    
+class SupportQuestion(BaseModel):
+    PRIORITY_CHOICES = (
+        ('low', 'Low'),
+        ('medium', 'Medium'),
+        ('high', 'High'),
+    )
+
+    question_id = models.CharField(max_length=20, unique=True, editable=False)
+    question = models.CharField(max_length=255)
+    priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES)
+    is_active = models.BooleanField(default=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        if not self.question_id:
+            last = SupportQuestion.objects.order_by('id').last()
+            next_id = last.id + 1 if last else 1
+            self.question_id = f"QST-{next_id:04d}"
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.question_id
+
+
+class SupportTicket(BaseModel):
+    STATUS_CHOICES = (
+        ('open', 'Open'),
+        ('in_progress', 'In Progress'),
+        ('resolved', 'Resolved'),
+        ('closed', 'Closed'),
+    )
+
+    ticket_id = models.CharField(max_length=30, unique=True, editable=False)
+
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    question = models.ForeignKey(SupportQuestion, on_delete=models.CASCADE)
+
+    description = models.TextField(blank=True)
+    issue_image = models.ImageField(
+        upload_to='support/tickets/issues/', null=True, blank=True
+    )
+
+    solution_description = models.TextField(null=True, blank=True)
+    solution_image = models.ImageField(
+        upload_to='support/tickets/solutions/', null=True, blank=True
+    )
+
+    assigned_to = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assigned_support_tickets"
+    )
+
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default='open'
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        if not self.ticket_id:
+            year = timezone.now().year
+            last = SupportTicket.objects.filter(
+                ticket_id__startswith=f"TCK-{year}"
+            ).order_by('id').last()
+
+            last_no = int(last.ticket_id.split('-')[-1]) if last else 0
+            self.ticket_id = f"TCK-{year}-{last_no + 1:05d}"
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.ticket_id

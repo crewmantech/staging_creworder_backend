@@ -1,7 +1,10 @@
 from rest_framework import serializers
-from .models import EmailCredentials, SMSCredentials, SandboxCredentials, MenuModel,SubMenusModel,SettingsMenu,PixelCodeModel,BennerModel,ThemeSettingModel,SuperAdminCompany
+
+from accounts.models import SupportTicket
+from .models import EmailCredentials, SMSCredentials, SandboxCredentials, MenuModel,SubMenusModel,SettingsMenu,PixelCodeModel,BennerModel, SupportQuestion,ThemeSettingModel,SuperAdminCompany
 from phonenumber_field.serializerfields import PhoneNumberField
 from rest_framework.serializers import ModelSerializer
+from django.contrib.auth.models import User
 
 class SubMenuSerializer(serializers.ModelSerializer):
     class Meta:
@@ -67,3 +70,71 @@ class EmailCredentialsSerializer(serializers.ModelSerializer):
     class Meta:
         model = EmailCredentials
         fields = '__all__'
+
+class SupportQuestionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SupportQuestion
+        fields = [
+            'question_id',
+            'question',
+            'priority',
+            'is_active',
+            'created_at'
+        ]
+
+
+class SupportTicketCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SupportTicket
+        fields = [
+            'question',
+            'description',
+            'issue_image'
+        ]
+
+    def create(self, validated_data):
+        request = self.context['request']
+        return SupportTicket.objects.create(
+            company=request.user.company,
+            **validated_data
+        )
+
+
+class SupportTicketListSerializer(serializers.ModelSerializer):
+    question = SupportQuestionSerializer(read_only=True)
+    assigned_to = serializers.StringRelatedField()
+
+    class Meta:
+        model = SupportTicket
+        fields = [
+            'ticket_id',
+            'question',
+            'status',
+            'assigned_to',
+            'created_at'
+        ]
+
+
+class SupportTicketDetailSerializer(serializers.ModelSerializer):
+    question = SupportQuestionSerializer(read_only=True)
+    assigned_to = serializers.StringRelatedField()
+
+    class Meta:
+        model = SupportTicket
+        fields = '__all__'
+
+
+class AssignTicketSerializer(serializers.Serializer):
+    assigned_to = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.all()
+    )
+
+
+class TicketSolutionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SupportTicket
+        fields = [
+            'solution_description',
+            'solution_image'
+        ]
+
