@@ -131,6 +131,8 @@ class SupportQuestionViewSet(viewsets.ModelViewSet):
     queryset = SupportQuestion.objects.filter(is_active=True)
     serializer_class = SupportQuestionSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = StandardResultsSetPagination
+
 
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
@@ -140,6 +142,7 @@ class SupportQuestionViewSet(viewsets.ModelViewSet):
 
 class SupportTicketViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
+    pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
         user = self.request.user
