@@ -104,7 +104,7 @@ class SupportTicketCreateSerializer(serializers.ModelSerializer):
 class SupportTicketListSerializer(serializers.ModelSerializer):
     question = SupportQuestionSerializer(read_only=True)
 
-    company_id = serializers.IntegerField(source='company.id', read_only=True)
+    company_id = serializers.CharField(source='company.id', read_only=True)
     company_name = serializers.CharField(source='company.name', read_only=True)
 
     assigned_user_name = serializers.SerializerMethodField()
