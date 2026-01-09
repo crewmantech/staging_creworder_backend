@@ -113,6 +113,7 @@ class SupportTicketListSerializer(serializers.ModelSerializer):
     class Meta:
         model = SupportTickets
         fields = [
+            'id',
             'ticket_id',
             'question',
             'status',
