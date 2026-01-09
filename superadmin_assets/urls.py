@@ -1,7 +1,7 @@
 from rest_framework.routers import DefaultRouter
 
-from accounts.views import SupportTicketViewSet
-from .views import APISandboxViewSet, EmailCredentialsViewSet, MenuViewSet, SMSCredentialsViewSet,SubMenuViewSet,SettingMenuViewSet,PixelCodeView,BannerView, SupportQuestionViewSet,ThemeSetting,SuperAdminCompanyViewSet
+# from accounts.views import SupportTicketViewSet
+from .views import APISandboxViewSet,SupportTicketViewSet, EmailCredentialsViewSet, MenuViewSet, SMSCredentialsViewSet,SubMenuViewSet,SettingMenuViewSet,PixelCodeView,BannerView, SupportQuestionViewSet,ThemeSetting,SuperAdminCompanyViewSet
 from django.urls import path, include
 
 router = DefaultRouter()
