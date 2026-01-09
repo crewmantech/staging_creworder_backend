@@ -340,7 +340,7 @@ class SupportQuestion(BaseModel):
         return self.question_id
 
 
-class SupportTicket(BaseModel):
+class SupportTickets(BaseModel):
     STATUS_CHOICES = (
         ('open', 'Open'),
         ('in_progress', 'In Progress'),
@@ -386,7 +386,7 @@ class SupportTicket(BaseModel):
     def save(self, *args, **kwargs):
         if not self.ticket_id:
             year = timezone.now().year
-            last = SupportTicket.objects.filter(
+            last = SupportTickets.objects.filter(
                 ticket_id__startswith=f"TCK-{year}"
             ).order_by('id').last()
 

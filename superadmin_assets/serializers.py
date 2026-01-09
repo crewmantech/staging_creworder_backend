@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 # from accounts.models import SupportTicket
-from .models import EmailCredentials, SMSCredentials,SupportTicket, SandboxCredentials, MenuModel,SubMenusModel,SettingsMenu,PixelCodeModel,BennerModel, SupportQuestion,ThemeSettingModel,SuperAdminCompany
+from .models import EmailCredentials, SMSCredentials,SupportTickets, SandboxCredentials, MenuModel,SubMenusModel,SettingsMenu,PixelCodeModel,BennerModel, SupportQuestion,ThemeSettingModel,SuperAdminCompany
 from phonenumber_field.serializerfields import PhoneNumberField
 from rest_framework.serializers import ModelSerializer
 from django.contrib.auth.models import User
@@ -86,7 +86,7 @@ class SupportQuestionSerializer(serializers.ModelSerializer):
 
 class SupportTicketCreateSerializer(serializers.ModelSerializer):
     class Meta:
-        model = SupportTicket
+        model = SupportTickets
         fields = [
             'question',
             'description',
@@ -95,7 +95,7 @@ class SupportTicketCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         request = self.context['request']
-        return SupportTicket.objects.create(
+        return SupportTickets.objects.create(
             company=request.user.company,
             **validated_data
         )
@@ -106,7 +106,7 @@ class SupportTicketListSerializer(serializers.ModelSerializer):
     assigned_to = serializers.StringRelatedField()
 
     class Meta:
-        model = SupportTicket
+        model = SupportTickets
         fields = [
             'ticket_id',
             'question',
@@ -121,7 +121,7 @@ class SupportTicketDetailSerializer(serializers.ModelSerializer):
     assigned_to = serializers.StringRelatedField()
 
     class Meta:
-        model = SupportTicket
+        model = SupportTickets
         fields = '__all__'
 
 
@@ -133,7 +133,7 @@ class AssignTicketSerializer(serializers.Serializer):
 
 class TicketSolutionSerializer(serializers.ModelSerializer):
     class Meta:
-        model = SupportTicket
+        model = SupportTickets
         fields = [
             'solution_description',
             'solution_image'

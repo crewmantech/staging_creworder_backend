@@ -1,11 +1,11 @@
 from django.shortcuts import render
 
-from accounts.models import SupportTicket
+# from accounts.models import SupportTicket
 from superadmin_assets.permissions import IsAssignedOrSuperAdmin, IsSuperAdmin
 from .serializers import APISandboxSerializer, EmailCredentialsSerializer, MenuSerializer, SMSCredentialsSerializer,SubMenuSerializer,SettingMenuSerializer,PixelCodeModelSerializer,BannerModelSerializer, SuperAdminCompanySerializer, SupportQuestionSerializer, SupportTicketCreateSerializer, SupportTicketDetailSerializer, SupportTicketListSerializer,ThemeSettingSerializer,TicketSolutionSerializer,AssignTicketSerializer
 from rest_framework.views import APIView
 from rest_framework import viewsets, status
-from .models import EmailCredentials, SMSCredentials, SandboxCredentials, MenuModel,SubMenusModel,SettingsMenu,PixelCodeModel,BennerModel, SuperAdminCompany, SupportQuestion,ThemeSettingModel
+from .models import EmailCredentials, SMSCredentials, SandboxCredentials, MenuModel,SubMenusModel,SettingsMenu,PixelCodeModel,BennerModel, SuperAdminCompany, SupportQuestion, SupportTickets,ThemeSettingModel
 from django.db.models import Q
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -145,12 +145,12 @@ class SupportTicketViewSet(viewsets.ModelViewSet):
         user = self.request.user
 
         if user.is_superadmin:
-            return SupportTicket.objects.all()
+            return SupportTickets.objects.all()
 
         if getattr(user, 'is_support', False):
-            return SupportTicket.objects.filter(assigned_to=user)
+            return SupportTickets.objects.filter(assigned_to=user)
 
-        return SupportTicket.objects.filter(company=user.company)
+        return SupportTickets.objects.filter(company=user.company)
 
     def get_serializer_class(self):
         if self.action == 'create':
