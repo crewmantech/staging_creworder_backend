@@ -16,7 +16,7 @@ router.register(r'sms-credentials', SMSCredentialsViewSet)
 router.register(r'superadmincompany', SuperAdminCompanyViewSet)  
 router.register(r'email-credentials', EmailCredentialsViewSet)
 router.register(r'support/questions', SupportQuestionViewSet, basename='support-questions')
-router.register(r'support/tickets', SupportTicketViewSet, basename='support-tickets')
+router.register(r'supports/tickets', SupportTicketViewSet, basename='supports-tickets')
 urlpatterns = [
     path('', include(router.urls)),
 ]
