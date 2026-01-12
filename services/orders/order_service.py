@@ -27,7 +27,6 @@ from phonenumbers import NumberParseException
 from django.db.models import Q
 from datetime import datetime,time
 from services.email.email_service import send_email
-from services.shipment.schedule_orders import NimbuspostAPI
 from shipment.models import ShipmentModel
 from shipment.serializers import ShipmentSerializer
 from accounts.models import PickUpPoint,User
