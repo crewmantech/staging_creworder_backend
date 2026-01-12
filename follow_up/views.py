@@ -489,7 +489,7 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         date_to = params.get("end_date")
         created_by = params.get("created_by")
         reference_id = params.get("reference_id")
-
+        appointment_status = params.get("appointment_status")  # ✅ NEW
         # =====================================================
         # 🔍 Global Search (single keyword)
         # =====================================================
@@ -502,12 +502,18 @@ class AppointmentViewSet(viewsets.ModelViewSet):
                 Q(patient_phone=search) |
                 Q(doctor__user__first_name__icontains=search) |
                 Q(doctor__user__last_name__icontains=search) |
-                Q(doctor__registration_number__icontains=search)
+                Q(doctor__registration_number__icontains=search)|
+                Q(appointment_status__name__icontains=search)
             )
 
         # =====================================================
         # 🎯 Specific Filters
         # =====================================================
+        if appointment_status:
+            queryset = queryset.filter(
+                Q(appointment_status_id=appointment_status) |
+                Q(appointment_status__name__iexact=appointment_status)
+            )   
         if doctor:
             queryset = queryset.filter(doctor_id=doctor)
 

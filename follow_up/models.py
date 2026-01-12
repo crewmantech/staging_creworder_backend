@@ -28,6 +28,42 @@ class BaseModel(models.Model):
         super().save(*args, **kwargs)
     class Meta:
         abstract = True
+from django.contrib.contenttypes.models import ContentType
+from django.contrib.auth.models import Permission
+class AppointmentStatus(models.Model):
+    id = models.CharField(max_length=50, primary_key=True, unique=True)
+    name = models.CharField(max_length=50)
+    description = models.TextField(default="Appointment Status")
+    # branch = models.ForeignKey(Branch, on_delete=models.CASCADE, default=1)
+    # company = models.ForeignKey(Company, on_delete=models.CASCADE, default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    class Meta:
+        db_table = 'appointment_status_table'
+        permissions = (
+            ('view_appointmentatatus_customer_information', 'AppointmentStatus view Customer Information'),
+            ('view_appointmentstatus_order_status_tracking', 'AppointmentStatus view Order Status Tracking'),
+            ('view_appointmentstatus_order_payment_status', 'AppointmentStatus view Order Payment Status')
+            # ('view_orderstatus_order_number_masking', 'OrderStatus view Order Number Masking')
+            )
+    def __str__(self):
+        return self.name
+    
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = generate_unique_id(AppointmentStatus, prefix='ASI')
+        super().save(*args, **kwargs)
+        content_type, created = ContentType.objects.get_or_create(
+            app_label="follow_up",  # Fixed app label
+            model="AppointmentStatus"  # Fixed model name
+        )
+        permission_names = ["can_work_on_this"]
+        for perm_name in permission_names:
+            Permission.objects.get_or_create(
+                name=f"AppointmentStatus {perm_name.replace('_', ' ').capitalize()} {self.name.replace('_', ' ')}",
+                codename=f"appointmentstatus{perm_name}_{self.name.lower().replace(' ', '_')}",
+                content_type=content_type
+            )
         
 class Follow_Up(BaseModel):
     # FOLLOW_STATUS_CHOICES = [
@@ -171,18 +207,32 @@ class Appointment(BaseModel):
     appointment_time = models.TimeField(null=True, blank=True)
     expected_duration = models.PositiveIntegerField(default=15)
 
-    status = models.CharField(max_length=20, choices=APPOINTMENT_STATUS, default="pending")
-    appointment_type = models.CharField(max_length=20, choices=APPOINTMENT_TYPE, default="online")
-    drug_allergies = models.TextField(
+    # 🔁 OLD STATUS (optional – can be removed later)
+    status = models.CharField(
+        max_length=20,
+        choices=APPOINTMENT_STATUS,
+        default="pending"
+    )
+
+    # ✅ NEW MASTER STATUS (IMPORTANT)
+    appointment_status = models.ForeignKey(
+        AppointmentStatus,
+        on_delete=models.PROTECT,
         null=True,
         blank=True,
-        default=None
+        related_name="appointments",
+        db_index=True
     )
-    diet_allergies = models.TextField(
-        null=True,
-        blank=True,
-        default=None
+
+    appointment_type = models.CharField(
+        max_length=20,
+        choices=APPOINTMENT_TYPE,
+        default="online"
     )
+
+    drug_allergies = models.TextField(null=True, blank=True,default=None)
+    diet_allergies = models.TextField(null=True, blank=True,default=None)
+
     created_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -190,6 +240,7 @@ class Appointment(BaseModel):
         blank=True,
         related_name="created_appointments"
     )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -229,11 +280,18 @@ class Appointment(BaseModel):
             height_m = float(self.height_cm) / 100
             self.bmi = round(float(self.weight_kg) / (height_m ** 2), 2)
 
+        # 🔄 Auto-map legacy status → AppointmentStatus
+        if not self.appointment_status and self.status:
+            status_obj = AppointmentStatus.objects.filter(
+                name__iexact=self.status
+            ).first()
+            if status_obj:
+                self.appointment_status = status_obj
+
         super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.id} - {self.patient_name or 'Patient'}"
-    
 
 
 class Appointment_layout(BaseModel):
@@ -277,39 +335,3 @@ class Appointment_layout(BaseModel):
             self.id = generate_unique_id(Appointment_layout, prefix="ALI")
         super().save(*args, **kwargs)
 
-from django.contrib.contenttypes.models import ContentType
-from django.contrib.auth.models import Permission
-class AppointmentStatus(models.Model):
-    id = models.CharField(max_length=50, primary_key=True, unique=True)
-    name = models.CharField(max_length=50)
-    description = models.TextField(default="Appointment Status")
-    # branch = models.ForeignKey(Branch, on_delete=models.CASCADE, default=1)
-    # company = models.ForeignKey(Company, on_delete=models.CASCADE, default=1)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    class Meta:
-        db_table = 'appointment_status_table'
-        permissions = (
-            ('view_appointmentatatus_customer_information', 'AppointmentStatus view Customer Information'),
-            ('view_appointmentstatus_order_status_tracking', 'AppointmentStatus view Order Status Tracking'),
-            ('view_appointmentstatus_order_payment_status', 'AppointmentStatus view Order Payment Status')
-            # ('view_orderstatus_order_number_masking', 'OrderStatus view Order Number Masking')
-            )
-    def __str__(self):
-        return self.name
-    
-    def save(self, *args, **kwargs):
-        if not self.id:
-            self.id = generate_unique_id(AppointmentStatus, prefix='ASI')
-        super().save(*args, **kwargs)
-        content_type, created = ContentType.objects.get_or_create(
-            app_label="follow_up",  # Fixed app label
-            model="AppointmentStatus"  # Fixed model name
-        )
-        permission_names = ["can_work_on_this"]
-        for perm_name in permission_names:
-            Permission.objects.get_or_create(
-                name=f"AppointmentStatus {perm_name.replace('_', ' ').capitalize()} {self.name.replace('_', ' ')}",
-                codename=f"appointmentstatus{perm_name}_{self.name.lower().replace(' ', '_')}",
-                content_type=content_type
-            )
