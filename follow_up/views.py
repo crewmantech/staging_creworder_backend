@@ -694,13 +694,13 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         # --------------------
         # Permission check (optional but recommended)
         # --------------------
-        if not request.user.has_perm(
-            f"follow_up.appointmentstatus_can_work_on_{status_obj.name.lower().replace(' ', '_')}"
-        ):
-            return Response(
-                {"error": "You do not have permission to update to this status"},
-                status=status.HTTP_403_FORBIDDEN
-            )
+        # if not request.user.has_perm(
+        #     f"follow_up.appointmentstatus_can_work_on_{status_obj.name.lower().replace(' ', '_')}"
+        # ):
+        #     return Response(
+        #         {"error": "You do not have permission to update to this status"},
+        #         status=status.HTTP_403_FORBIDDEN
+        #     )
 
         # --------------------
         # Filter appointments (company safe)
