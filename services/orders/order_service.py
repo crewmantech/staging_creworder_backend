@@ -653,7 +653,7 @@ def checkServiceability(branch_id,company_id,data):
                 "weight": 0.5,
                 "cod": 1
                 })
-                print(payload,"------------------------------------655",token)
+                print(payload,"------------------------------------655",f'Bearer {token}')
                 headers = {
                 'Content-Type': 'application/json',
                 'Authorization': f'Bearer {token}'
