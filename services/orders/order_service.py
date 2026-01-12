@@ -653,13 +653,15 @@ def checkServiceability(branch_id,company_id,data):
                 "weight": 0.5,
                 "cod": 1
                 })
-                print(payload,"------------------------------------655")
+                print(payload,"------------------------------------655",token)
                 headers = {
                 'Content-Type': 'application/json',
                 'Authorization': f'Bearer {token}'
                 }
                 response = requests.request("GET", url, headers=headers, data=payload)
-                print(response,"-------------------------------660",response.json())
+                
+                print("STATUS:", response.status_code)
+                print("RESPONSE:", response.json())
                 a=0
                 shortestDayData={}
                 cutomerCity=''
