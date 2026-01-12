@@ -643,56 +643,49 @@ def checkServiceability(branch_id,company_id,data):
             EddDataShowDict['pickupname']= pickUpPinCode['contact_person_name']
             EddDataShowDict['pickup_city']=pickUpPinCode['city']
             EddDataShowDict['pickup_id']=pickUpPinCode['id']
-            EddDataShowDict['eddtime']=None
-            EddDataShowDict['delivery_city']="NA"
-            EddDataShowDict['delivery_state']="NA"
-            EddDataShowDict['odablock'] = "NA"
-            EddList.append(EddDataShowDict)
-            # if data['shipment_vendor']['name'].lower()=='shiprocket':
-            #     if data['credential_username']!='' or data['credential_username']!=None:
-            #         token=getShipRocketToken(data['credential_username'],data['credential_password'])
-            #     url = "https://apiv2.shiprocket.in/v1/external/courier/serviceability/"
-            #     payload = json.dumps({
-            #     "pickup_postcode": f"{pickUpPinCode['pincode']}",
-            #     "delivery_postcode": f"{pincode}",
-            #     "weight": 0.5,
-            #     "cod": 1
-            #     })
-            #     print(payload,"------------------------------------655",f'Bearer {token}')
-            #     headers = {
-            #     'Content-Type': 'application/json',
-            #     'Authorization': f'Bearer {token}'
-            #     }
-            #     response = requests.request("GET", url, headers=headers, data=payload)
-                
-            #     print("STATUS:", response.status_code)
-            #     print("RESPONSE:", response.json())
-            #     a=0
-            #     shortestDayData={}
-            #     cutomerCity=''
-            #     cutomerState=''
-            #     if response.json()['status']==200:
-            #         for apiData in response.json()['data']['available_courier_companies']:
-            #             if apiData['odablock']==True:
-            #                 odablock = True
-            #             if int(eddshortestTime)>int(apiData['estimated_delivery_days']):
-            #                 eddshortestTime=int(apiData['estimated_delivery_days'])
-            #                 shortestDayData['courier_name']=apiData['courier_name']
-            #                 shortestDayData['EDD']=apiData['estimated_delivery_days']
-            #                 cutomerCity=apiData['city']
-            #                 cutomerState=apiData['state']
-            #         EddDataShowDict['eddtime']=eddshortestTime
-            #         EddDataShowDict['delivery_city']=cutomerCity
-            #         EddDataShowDict['delivery_state']=cutomerState
-            #         EddDataShowDict['odablock'] = odablock
-            #         EddList.append(EddDataShowDict)
-            #         eddshortestTime=365
-            #     else:
-            #         return 2
-            #         # EddDataShowDict['massage']=response.json()['message']
-            #         # EddList.append(EddDataShowDict)
-            # else:
-            #     pass
+            if data['shipment_vendor']['name'].lower()=='shiprocket':
+                if data['credential_username']!='' or data['credential_username']!=None:
+                    token=getShipRocketToken(data['credential_username'],data['credential_password'])
+                url = "https://apiv2.shiprocket.in/v1/external/courier/serviceability/"
+                payload = json.dumps({
+                "pickup_postcode": f"{pickUpPinCode['pincode']}",
+                "delivery_postcode": f"{pincode}",
+                "weight": 0.5,
+                "cod": 1
+                })
+                print(payload,"------------------------------------655")
+                headers = {
+                'Content-Type': 'application/json',
+                'Authorization': f'Bearer {token}'
+                }
+                response = requests.request("GET", url, headers=headers, data=payload)
+                print(response,"-------------------------------660",response.json())
+                a=0
+                shortestDayData={}
+                cutomerCity=''
+                cutomerState=''
+                if response.json()['status']==200:
+                    for apiData in response.json()['data']['available_courier_companies']:
+                        if apiData['odablock']==True:
+                            odablock = True
+                        if int(eddshortestTime)>int(apiData['estimated_delivery_days']):
+                            eddshortestTime=int(apiData['estimated_delivery_days'])
+                            shortestDayData['courier_name']=apiData['courier_name']
+                            shortestDayData['EDD']=apiData['estimated_delivery_days']
+                            cutomerCity=apiData['city']
+                            cutomerState=apiData['state']
+                    EddDataShowDict['eddtime']=eddshortestTime
+                    EddDataShowDict['delivery_city']=cutomerCity
+                    EddDataShowDict['delivery_state']=cutomerState
+                    EddDataShowDict['odablock'] = odablock
+                    EddList.append(EddDataShowDict)
+                    eddshortestTime=365
+                else:
+                    return 2
+                    # EddDataShowDict['massage']=response.json()['message']
+                    # EddList.append(EddDataShowDict)
+            else:
+                pass
         print(EddList,"---------------eddlist")
     return EddList
 
