@@ -655,6 +655,89 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         self.perform_update(serializer)
 
         return Response(serializer.data)
+    @action(detail=False,methods=["post"],url_path="bulk-status-update" )
+    @transaction.atomic
+    def bulk_status_update(self, request):
+        """
+        Bulk update appointment status
+        """
+
+        appointment_ids = request.data.get("appointment_ids", [])
+        appointment_status_id = request.data.get("appointment_status")
+        # sync_legacy = request.data.get("sync_legacy_status", False)
+
+        # --------------------
+        # Validations
+        # --------------------
+        if not appointment_ids or not isinstance(appointment_ids, list):
+            return Response(
+                {"error": "appointment_ids must be a non-empty list"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not appointment_status_id:
+            return Response(
+                {"error": "appointment_status is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            status_obj = AppointmentStatus.objects.get(
+                id=appointment_status_id
+            )
+        except AppointmentStatus.DoesNotExist:
+            return Response(
+                {"error": "Invalid appointment_status"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # --------------------
+        # Permission check (optional but recommended)
+        # --------------------
+        if not request.user.has_perm(
+            f"follow_up.appointmentstatus_can_work_on_{status_obj.name.lower().replace(' ', '_')}"
+        ):
+            return Response(
+                {"error": "You do not have permission to update to this status"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # --------------------
+        # Filter appointments (company safe)
+        # --------------------
+        queryset = Appointment.objects.filter(
+            id__in=appointment_ids
+        )
+
+        if hasattr(request.user, "profile") and request.user.profile.user_type != "superadmin":
+            queryset = queryset.filter(
+                company=request.user.profile.company
+            )
+
+        updated_count = queryset.update(
+            appointment_status=status_obj
+        )
+
+        # --------------------
+        # Optional legacy sync
+        # --------------------
+        # if sync_legacy:
+        #     queryset.update(
+        #         status=status_obj.name.lower()
+        #     )
+
+        return Response(
+            {
+                "message": "Appointment status updated successfully",
+                "updated_count": updated_count,
+                "appointment_status": {
+                    "id": status_obj.id,
+                    "name": status_obj.name
+                }
+            },
+            status=status.HTTP_200_OK
+        )
+
 
 class GetPhoneByReferenceAllAPIView(APIView):
     """
