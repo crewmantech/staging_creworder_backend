@@ -11,6 +11,7 @@ from cloud_telephony.models import CloudTelephonyChannelAssign
 from follow_up.permissions import AppointmentStatusPermission
 from follow_up.utils import get_phone_by_reference_id
 from lead_management.models import Lead
+from orders.views import FilterOrdersPagination
 from services.cloud_telephoney.cloud_telephoney_service import CloudConnectService, SansSoftwareService
 from .models import Appointment, Appointment_layout, AppointmentStatus, Follow_Up
 from .serializers import AppointmentLayoutSerializer, AppointmentSerializer, AppointmentStatusSerializer, BulkFollowupAssignSerializer, FollowUpSerializer,NotepadSerializer
@@ -467,7 +468,7 @@ class GetPhoneByReferenceAPIView(APIView):
 class AppointmentViewSet(viewsets.ModelViewSet):
     serializer_class = AppointmentSerializer
     permission_classes = [IsAuthenticated]
-
+    pagination_class = FilterOrdersPagination 
     queryset = Appointment.objects.select_related(
         "doctor", "branch", "company", "created_by"
     )
