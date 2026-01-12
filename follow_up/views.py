@@ -822,4 +822,4 @@ class AppointmentLayoutViewSet(viewsets.ModelViewSet):
 class AppointmentStatusViewSet(viewsets.ModelViewSet):
     queryset = AppointmentStatus.objects.all().order_by('-created_at')
     serializer_class = AppointmentStatusSerializer
-    permission_classes = [IsAuthenticated, AppointmentStatusPermission]
+    permission_classes = [IsAuthenticated]
