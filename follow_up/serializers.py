@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from follow_up.utils import get_phone_by_reference_id
 from orders.models import Order_Table
-from .models import Appointment, Appointment_layout, Follow_Up,Notepad
+from .models import Appointment, Appointment_layout, AppointmentStatus, Follow_Up,Notepad
 from rest_framework.exceptions import ValidationError
 
 class FollowUpSerializer(serializers.ModelSerializer):
@@ -204,3 +204,15 @@ class AppointmentLayoutSerializer(serializers.ModelSerializer):
         fields = "__all__"
         read_only_fields = ["id", "company", "created_at", "updated_at"]
 
+
+class AppointmentStatusSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AppointmentStatus
+        fields = [
+            'id',
+            'name',
+            'description',
+            'created_at',
+            'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']

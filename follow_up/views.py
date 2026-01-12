@@ -8,11 +8,12 @@ from accounts.models import Employees
 from accounts.permissions import HasPermission
 
 from cloud_telephony.models import CloudTelephonyChannelAssign
+from follow_up.permissions import AppointmentStatusPermission
 from follow_up.utils import get_phone_by_reference_id
 from lead_management.models import Lead
 from services.cloud_telephoney.cloud_telephoney_service import CloudConnectService, SansSoftwareService
-from .models import Appointment, Appointment_layout, Follow_Up
-from .serializers import AppointmentLayoutSerializer, AppointmentSerializer, BulkFollowupAssignSerializer, FollowUpSerializer,NotepadSerializer
+from .models import Appointment, Appointment_layout, AppointmentStatus, Follow_Up
+from .serializers import AppointmentLayoutSerializer, AppointmentSerializer, AppointmentStatusSerializer, BulkFollowupAssignSerializer, FollowUpSerializer,NotepadSerializer
 from django.db import transaction
 from services.follow_up.notepad_service import createOrUpdateNotepad,getNotepadByAuthid
 from rest_framework.permissions import IsAuthenticated
@@ -727,3 +728,8 @@ class AppointmentLayoutViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK
         )
 
+
+class AppointmentStatusViewSet(viewsets.ModelViewSet):
+    queryset = AppointmentStatus.objects.all().order_by('-created_at')
+    serializer_class = AppointmentStatusSerializer
+    permission_classes = [IsAuthenticated, AppointmentStatusPermission]

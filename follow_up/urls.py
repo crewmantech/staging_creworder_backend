@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import ( AppointmentLayoutViewSet, AppointmentViewSet, FollowUpExportAPIView, GetPhoneByReferenceAPIView, GetPhoneByReferenceAllAPIView, NotepadCreateOrUpdate,
+from .views import ( AppointmentLayoutViewSet, AppointmentStatusViewSet, AppointmentViewSet, FollowUpExportAPIView, GetPhoneByReferenceAPIView, GetPhoneByReferenceAllAPIView, NotepadCreateOrUpdate,
                     NotepadDetail,
                     FollowUpView)
 router = DefaultRouter()
@@ -10,6 +10,11 @@ router.register(
     r"appointment-layout",
     AppointmentLayoutViewSet,
     basename="appointment-layout"
+)
+router.register(
+    r'appointment-status',
+    AppointmentStatusViewSet,
+    basename='appointment-status'
 )
 urlpatterns = [
     path('', include(router.urls)),
