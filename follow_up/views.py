@@ -117,8 +117,8 @@ class FollowUpView(viewsets.ModelViewSet):
     def get_permissions(self):
         permission_map = {
             'create': ['superadmin_assets.show_submenusmodel_follow_up', 'superadmin_assets.add_submenusmodel'],
-            'update': ['accounts.can_edit_follow_up_curd'],
-            'destroy': ['accounts.can_delete_follow_up_curd'],
+            'update': ['accounts.can_edit_follow_up_crud'],
+            'destroy': ['accounts.can_delete_follow_up_crud'],
             'retrieve': ['superadmin_assets.show_submenusmodel_follow_up', 'superadmin_assets.view_submenusmodel'],
             'list': ['superadmin_assets.show_submenusmodel_follow_up', 'superadmin_assets.view_submenusmodel'],
         }
@@ -642,7 +642,7 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         )
     @transaction.atomic
     def update(self, request, *args, **kwargs):
-        if not request.user.has_perm("accounts.can_edit_appointment_curd"):
+        if not request.user.has_perm("accounts.can_edit_appointment_crud"):
             raise PermissionDenied("You do not have permission to edit appointments")
         instance = self.get_object()
         data = request.data.copy()
@@ -746,7 +746,7 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         user = request.user
 
         # 🔐 Permission check for delete
-        if not user.has_perm("accounts.can_delete_appointment_curd"):
+        if not user.has_perm("accounts.can_delete_appointment_crud"):
             raise PermissionDenied("You do not have permission to delete appointments")
 
         instance = self.get_object()
