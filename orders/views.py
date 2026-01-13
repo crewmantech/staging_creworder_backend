@@ -178,6 +178,9 @@ class OrderAPIView(APIView):
                         if not phone_str.startswith('+'):
                             phone_str = '+91' + phone_str
                         request.data['customer_phone'] = phone_str
+                    reference_id = appointment.reference_id
+                    if reference_id and not phone:
+                        request.data['call_id'] = reference_id
                     print(type(request.data['customer_phone']))
                     print(request.data['customer_phone'])
                 except Appointment.DoesNotExist:

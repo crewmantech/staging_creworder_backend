@@ -288,6 +288,7 @@ class ShiftTiming(BaseModel):
         branch_id = self.branch.branch_id if self.branch else None
         return f'{self.name} - {branch_id}'
         # return f'{self.name} - {self.branch.branch_id}'
+    
 class Employees(BaseModel):
     gender_choices = [
         ('m', 'Male'),

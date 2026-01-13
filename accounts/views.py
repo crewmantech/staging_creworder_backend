@@ -3691,7 +3691,7 @@ class UserPermissionStatusView(APIView):
                 "force_appointment_others": user.has_perm(
                     'accounts.force_appointment_others'
                 ),
-                "edit_appointment__others":True
+                "edit_appointment__others":False
             }
         else:
             # Fallback to permission-based checks
