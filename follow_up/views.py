@@ -1,10 +1,11 @@
+from accounts.models import ExpiringToken as Token
 import csv
 from django.http import HttpResponse
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import viewsets,status
 from rest_framework.decorators import action
-from accounts.models import Employees
+from accounts.models import Attendance, Employees, UserTargetsDelails
 from accounts.permissions import HasPermission
 
 from cloud_telephony.models import CloudTelephonyChannelAssign
@@ -26,9 +27,12 @@ from django.db import transaction
 from django.utils.datastructures import MultiValueDict
 from django.utils.dateparse import parse_date
 import pdb
-from django.db.models import Q
+from django.db.models import Q,Count
 from django.shortcuts import get_object_or_404
 from .models import User
+from datetime import datetime, date, time, timedelta
+from django.utils import timezone
+
 class FollowUpView(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     queryset = Follow_Up.objects.all()
@@ -823,3 +827,214 @@ class AppointmentStatusViewSet(viewsets.ModelViewSet):
     queryset = AppointmentStatus.objects.all().order_by('-created_at')
     serializer_class = AppointmentStatusSerializer
     permission_classes = [IsAuthenticated]
+
+
+class AppointmentAggregationByStatusAPIView(APIView):
+
+    def get(self, request, *args, **kwargs):
+
+        params = request.query_params
+        user = request.user
+
+        branch_id = params.get("branch") or user.profile.branch_id
+        company_id = user.profile.company_id
+
+        start_date = params.get("start_date")
+        end_date = params.get("end_date")
+        date_range = params.get("date_range")
+
+        manager_id = params.get("manager_id")
+        tl_id = params.get("tl_id")
+        agent_id = params.get("agent_id")
+
+        # ===============================
+        # 📅 Date Range Handling
+        # ===============================
+        if date_range:
+            start_str, end_str = date_range.split(" ")
+            start_date = datetime.fromisoformat(start_str).date()
+            end_date = datetime.fromisoformat(end_str).date()
+        else:
+            start_date = datetime.strptime(start_date, "%Y-%m-%d").date() if start_date else date.today()
+            end_date = datetime.strptime(end_date, "%Y-%m-%d").date() if end_date else date.today()
+
+        start_datetime = datetime.combine(start_date, time.min)
+        end_datetime = datetime.combine(end_date, time.max)
+
+        month_year = start_date.strftime("%Y-%m")
+
+        # ===============================
+        # 🔍 Base Filters
+        # ===============================
+        q_filters = Q(
+            company_id=company_id,
+            branch_id=branch_id,
+            created_at__range=(start_datetime, end_datetime)
+        )
+
+        # ===============================
+        # 👥 Role Based Filters
+        # ===============================
+        if manager_id:
+            users = Employees.objects.filter(manager_id=manager_id, status=1).values_list("user_id", flat=True)
+            q_filters &= Q(created_by_id__in=users)
+
+        if tl_id:
+            users = Employees.objects.filter(teamlead_id=tl_id, status=1).values_list("user_id", flat=True)
+            q_filters &= Q(created_by_id__in=users) | Q(created_by_id=tl_id)
+
+        if agent_id:
+            q_filters &= Q(created_by_id=agent_id)
+
+        # ===============================
+        # 📋 Appointment Query
+        # ===============================
+        appointments = Appointment.objects.filter(q_filters)
+
+        # ===============================
+        # 📊 Status Aggregation
+        # ===============================
+        status_summary = (
+            appointments
+            .values("appointment_status__id", "appointment_status__name")
+            .annotate(count=Count("id"))
+            .order_by()
+        )
+
+        status_data = [
+            {
+                "status_id": s["appointment_status__id"],
+                "status": s["appointment_status__name"],
+                "appointment_count": s["count"]
+            }
+            for s in status_summary
+        ]
+
+        # ===============================
+        # 📈 Total Summary
+        # ===============================
+        total_summary = {
+            "total_appointments": appointments.count()
+        }
+
+        # ===============================
+        # 🎯 Target Section
+        # ===============================
+        target_data = {}
+
+        for role, uid in [("manager", manager_id), ("tl", tl_id), ("agent", agent_id)]:
+            if uid:
+                target = UserTargetsDelails.objects.filter(
+                    user_id=uid,
+                    monthyear=month_year,
+                    in_use=True
+                ).first()
+                if target:
+                    target_data[f"{role}_target"] = {
+                        "daily_appointments_target": target.daily_orders_target,
+                        "monthly_appointments_target": target.monthly_orders_target,
+                        "achieve_target": target.achieve_target
+                    }
+
+        # ===============================
+        # 👤 Agent List Section
+        # ===============================
+        agents = Employees.objects.filter(
+            company_id=company_id,
+            branch_id=branch_id,
+            status=1
+        )
+
+        if manager_id:
+            agents = agents.filter(manager_id=manager_id)
+        if tl_id:
+            agents = agents.filter(teamlead_id=tl_id)
+        if agent_id:
+            agents = agents.filter(user_id=agent_id)
+
+        agent_list = []
+
+        for agent in agents:
+            u = agent.user
+
+            today_appointments = Appointment.objects.filter(
+                created_by=u,
+                created_at__range=(start_datetime, end_datetime)
+            )
+
+            today_total = today_appointments.count()
+            today_completed = today_appointments.filter(
+                appointment_status__name="Completed"
+            ).count()
+
+            target = UserTargetsDelails.objects.filter(user=u).first()
+            daily_target = target.daily_orders_target if target else 0
+
+            progress = (today_completed / daily_target) * 100 if daily_target else 0
+
+            has_clocked_in = Attendance.objects.filter(
+                user=u,
+                date=timezone.now().date(),
+                clock_in__isnull=False
+            ).exists()
+
+            token = Token.objects.filter(user=u).first()
+            activity = (
+                "online"
+                if token and timezone.now() - token.last_used < timedelta(minutes=15)
+                else "offline"
+            )
+
+            agent_list.append({
+                "agent_id": u.id,
+                "agent_name": u.get_full_name(),
+                "today_appointments": today_total,
+                "today_completed": today_completed,
+                "daily_target": daily_target,
+                "progress": round(progress, 2),
+                "agent_status": "Active" if has_clocked_in else "Inactive",
+                "activity": activity
+            })
+
+        # ===============================
+        # 🧮 Team Target Summary
+        # ===============================
+        team_total_target = 0
+        team_total_completed = 0
+
+        for agent in agents:
+            target = UserTargetsDelails.objects.filter(
+                user=agent.user,
+                monthyear=month_year,
+                in_use=True
+            ).first()
+            if target:
+                team_total_target += target.monthly_orders_target or 0
+
+            team_total_completed += Appointment.objects.filter(
+                created_by=agent.user,
+                appointment_status__name="Completed",
+                created_at__range=(start_datetime, end_datetime)
+            ).count()
+
+        percentage = (
+            (team_total_completed / team_total_target) * 100
+            if team_total_target else 0
+        )
+
+        team_target_summary = {
+            "team_total_target": team_total_target,
+            "team_total_completed": team_total_completed,
+            "percentage": round(percentage, 2)
+        }
+
+        # ===============================
+        # ✅ Final Response
+        # ===============================
+        return Response({
+            "total_summary": total_summary,
+            "status_data": status_data,
+            "target_data": target_data,
+            "agent_list": agent_list,
+            "team_target_summary": team_target_summary
+        })
