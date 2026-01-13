@@ -830,7 +830,7 @@ class AppointmentStatusViewSet(viewsets.ModelViewSet):
 
 
 class AppointmentAggregationByStatusAPIView(APIView):
-
+    permission_classes = [IsAuthenticated]
     def get(self, request, *args, **kwargs):
 
         params = request.query_params
