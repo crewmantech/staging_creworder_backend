@@ -1323,3 +1323,18 @@ class Doctor(BaseModel):
 
     def __str__(self):
         return self.user.username if self.user else f"Doctor - {self.id}"
+
+
+class Curd(models.Model):
+    name = models.CharField(max_length=50)
+    class Meta:
+        permissions = (
+            ('can_edit_lead_curd', 'Can edit lead curd'),
+            ('can_delete_lead_curd', 'Can delete lead curd'),
+            ('can_edit_follow_up_curd', 'Can edit follow up curd'),
+            ('can_delete_follow_up_curd', 'Can delete follow up curd'),
+            ('can_edit_appointment_curd', 'Can edit appointment curd'),
+            ('can_delete_appointment_curd', 'Can delete appointment curd'),
+            )
+    def __str__(self):
+        return self.name

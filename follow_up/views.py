@@ -7,7 +7,7 @@ from rest_framework import viewsets,status
 from rest_framework.decorators import action
 from accounts.models import Attendance, Employees, UserTargetsDelails
 from accounts.permissions import HasPermission
-
+from django.core.exceptions import PermissionDenied
 from cloud_telephony.models import CloudTelephonyChannelAssign
 from follow_up.permissions import AppointmentStatusPermission
 from follow_up.utils import get_phone_by_reference_id
@@ -117,8 +117,8 @@ class FollowUpView(viewsets.ModelViewSet):
     def get_permissions(self):
         permission_map = {
             'create': ['superadmin_assets.show_submenusmodel_follow_up', 'superadmin_assets.add_submenusmodel'],
-            'update': ['superadmin_assets.show_submenusmodel_follow_up', 'superadmin_assets.change_submenusmodel'],
-            'destroy': ['superadmin_assets.show_submenusmodel_follow_up', 'superadmin_assets.delete_submenusmodel'],
+            'update': ['accounts.can_edit_follow_up_curd'],
+            'destroy': ['accounts.can_delete_follow_up_curd'],
             'retrieve': ['superadmin_assets.show_submenusmodel_follow_up', 'superadmin_assets.view_submenusmodel'],
             'list': ['superadmin_assets.show_submenusmodel_follow_up', 'superadmin_assets.view_submenusmodel'],
         }
@@ -642,6 +642,8 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         )
     @transaction.atomic
     def update(self, request, *args, **kwargs):
+        if not request.user.has_perm("accounts.can_edit_appointment_curd"):
+            raise PermissionDenied("You do not have permission to edit appointments")
         instance = self.get_object()
         data = request.data.copy()
 
@@ -740,7 +742,20 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             },
             status=status.HTTP_200_OK
         )
+    def destroy(self, request, *args, **kwargs):
+        user = request.user
 
+        # 🔐 Permission check for delete
+        if not user.has_perm("accounts.can_delete_appointment_curd"):
+            raise PermissionDenied("You do not have permission to delete appointments")
+
+        instance = self.get_object()
+        self.perform_destroy(instance)
+
+        return Response(
+            {"message": "Appointment deleted successfully"},
+            status=status.HTTP_204_NO_CONTENT
+        )
 
 class GetPhoneByReferenceAllAPIView(APIView):
     """

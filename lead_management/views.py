@@ -265,8 +265,8 @@ class LeadViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         permission_map = {
             'create': ['superadmin_assets.show_submenusmodel_add_leads', 'superadmin_assets.add_submenusmodel'],
-            'update': ['superadmin_assets.show_submenusmodel_all_leads', 'superadmin_assets.change_submenusmodel'],
-            'destroy': ['superadmin_assets.show_submenusmodel_all_leads', 'superadmin_assets.delete_submenusmodel'],
+            'update': ['superadmin_assets.can_edit_lead_curd'],
+            'destroy': ['superadmin_assets.can_delete_lead_curd'],
             'retrieve': ['superadmin_assets.show_submenusmodel_all_leads', 'superadmin_assets.view_submenusmodel'],
             'list': ['superadmin_assets.show_submenusmodel_all_leads', 'superadmin_assets.view_submenusmodel']
         }
