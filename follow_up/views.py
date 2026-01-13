@@ -12,6 +12,7 @@ from cloud_telephony.models import CloudTelephonyChannelAssign
 from follow_up.permissions import AppointmentStatusPermission
 from follow_up.utils import get_phone_by_reference_id
 from lead_management.models import Lead
+from orders.models import Order_Table
 from orders.views import FilterOrdersPagination
 from services.cloud_telephoney.cloud_telephoney_service import CloudConnectService, SansSoftwareService
 from .models import Appointment, Appointment_layout, AppointmentStatus, Follow_Up
@@ -27,7 +28,7 @@ from django.db import transaction
 from django.utils.datastructures import MultiValueDict
 from django.utils.dateparse import parse_date
 import pdb
-from django.db.models import Q,Count
+from django.db.models import Q, Count, Sum, Exists, OuterRef
 from django.shortcuts import get_object_or_404
 from .models import User
 from datetime import datetime, date, time, timedelta
@@ -831,24 +832,25 @@ class AppointmentStatusViewSet(viewsets.ModelViewSet):
 
 class AppointmentAggregationByStatusAPIView(APIView):
     permission_classes = [IsAuthenticated]
-    def get(self, request, *args, **kwargs):
 
-        params = request.query_params
+    def get(self, request):
+
         user = request.user
+        params = request.query_params
 
-        branch_id = params.get("branch") or user.profile.branch_id
         company_id = user.profile.company_id
-
-        start_date = params.get("start_date")
-        end_date = params.get("end_date")
-        date_range = params.get("date_range")
+        branch_id = params.get("branch") or user.profile.branch_id
 
         manager_id = params.get("manager_id")
         tl_id = params.get("tl_id")
         agent_id = params.get("agent_id")
 
+        start_date = params.get("start_date")
+        end_date = params.get("end_date")
+        date_range = params.get("date_range")
+
         # ===============================
-        # 📅 Date Range Handling
+        # 📅 DATE HANDLING
         # ===============================
         if date_range:
             start_str, end_str = date_range.split(" ")
@@ -864,7 +866,7 @@ class AppointmentAggregationByStatusAPIView(APIView):
         month_year = start_date.strftime("%Y-%m")
 
         # ===============================
-        # 🔍 Base Filters
+        # 🔍 BASE FILTER
         # ===============================
         q_filters = Q(
             company_id=company_id,
@@ -873,7 +875,7 @@ class AppointmentAggregationByStatusAPIView(APIView):
         )
 
         # ===============================
-        # 👥 Role Based Filters
+        # 👥 ROLE FILTERING
         # ===============================
         if manager_id:
             users = Employees.objects.filter(manager_id=manager_id, status=1).values_list("user_id", flat=True)
@@ -887,12 +889,19 @@ class AppointmentAggregationByStatusAPIView(APIView):
             q_filters &= Q(created_by_id=agent_id)
 
         # ===============================
-        # 📋 Appointment Query
+        # 📋 APPOINTMENTS (ANNOTATED)
         # ===============================
-        appointments = Appointment.objects.filter(q_filters)
+        appointments = Appointment.objects.filter(q_filters).annotate(
+            has_order=Exists(
+                Order_Table.objects.filter(
+                    appointment=OuterRef("pk"),
+                    is_deleted=False
+                )
+            )
+        )
 
         # ===============================
-        # 📊 Status Aggregation
+        # 📊 STATUS AGGREGATION
         # ===============================
         status_summary = (
             appointments
@@ -911,14 +920,30 @@ class AppointmentAggregationByStatusAPIView(APIView):
         ]
 
         # ===============================
-        # 📈 Total Summary
+        # 📈 TOTAL SUMMARY
         # ===============================
         total_summary = {
-            "total_appointments": appointments.count()
+            "total_appointments": appointments.count(),
+            "appointments_with_orders": appointments.filter(has_order=True).count()
         }
 
         # ===============================
-        # 🎯 Target Section
+        # 📦 ORDER TOTALS USING APPOINTMENTS
+        # ===============================
+        appointment_orders = Order_Table.objects.filter(
+            appointment__in=appointments,
+            is_deleted=False
+        )
+
+        appointment_order_totals = appointment_orders.aggregate(
+            total_orders=Count("id"),
+            total_amount=Sum("total_amount"),
+            total_gross_amount=Sum("gross_amount"),
+            total_discount=Sum("discount")
+        )
+
+        # ===============================
+        # 🎯 TARGET SECTION
         # ===============================
         target_data = {}
 
@@ -931,13 +956,13 @@ class AppointmentAggregationByStatusAPIView(APIView):
                 ).first()
                 if target:
                     target_data[f"{role}_target"] = {
-                        "daily_appointments_target": target.daily_orders_target,
-                        "monthly_appointments_target": target.monthly_orders_target,
+                        "daily_target": target.daily_orders_target,
+                        "monthly_target": target.monthly_orders_target,
                         "achieve_target": target.achieve_target
                     }
 
         # ===============================
-        # 👤 Agent List Section
+        # 👤 AGENT LIST SECTION
         # ===============================
         agents = Employees.objects.filter(
             company_id=company_id,
@@ -957,20 +982,27 @@ class AppointmentAggregationByStatusAPIView(APIView):
         for agent in agents:
             u = agent.user
 
-            today_appointments = Appointment.objects.filter(
+            agent_appointments = Appointment.objects.filter(
                 created_by=u,
                 created_at__range=(start_datetime, end_datetime)
             )
 
-            today_total = today_appointments.count()
-            today_completed = today_appointments.filter(
-                appointment_status__name="Completed"
-            ).count()
+            agent_orders = Order_Table.objects.filter(
+                appointment__in=agent_appointments,
+                is_deleted=False
+            )
 
-            target = UserTargetsDelails.objects.filter(user=u).first()
-            daily_target = target.daily_orders_target if target else 0
+            today_total = agent_appointments.count()
+            appointments_with_orders = agent_appointments.filter(
+                id__in=agent_orders.values("appointment_id")
+            ).distinct().count()
 
-            progress = (today_completed / daily_target) * 100 if daily_target else 0
+            conversion_rate = (appointments_with_orders / today_total * 100) if today_total else 0
+
+            agent_order_totals = agent_orders.aggregate(
+                total_orders=Count("id"),
+                total_amount=Sum("total_amount")
+            )
 
             has_clocked_in = Attendance.objects.filter(
                 user=u,
@@ -988,19 +1020,20 @@ class AppointmentAggregationByStatusAPIView(APIView):
             agent_list.append({
                 "agent_id": u.id,
                 "agent_name": u.get_full_name(),
-                "today_appointments": today_total,
-                "today_completed": today_completed,
-                "daily_target": daily_target,
-                "progress": round(progress, 2),
+                "total_appointments": today_total,
+                "appointments_with_orders": appointments_with_orders,
+                "orders_created": agent_order_totals["total_orders"] or 0,
+                "order_total_amount": agent_order_totals["total_amount"] or 0,
+                "conversion_rate": round(conversion_rate, 2),
                 "agent_status": "Active" if has_clocked_in else "Inactive",
                 "activity": activity
             })
 
         # ===============================
-        # 🧮 Team Target Summary
+        # 🧮 TEAM SUMMARY
         # ===============================
         team_total_target = 0
-        team_total_completed = 0
+        team_completed_orders = 0
 
         for agent in agents:
             target = UserTargetsDelails.objects.filter(
@@ -1011,29 +1044,31 @@ class AppointmentAggregationByStatusAPIView(APIView):
             if target:
                 team_total_target += target.monthly_orders_target or 0
 
-            team_total_completed += Appointment.objects.filter(
-                created_by=agent.user,
-                appointment_status__name="Completed",
-                created_at__range=(start_datetime, end_datetime)
+            team_completed_orders += Order_Table.objects.filter(
+                appointment__created_by=agent.user,
+                is_deleted=False
             ).count()
 
-        percentage = (
-            (team_total_completed / team_total_target) * 100
-            if team_total_target else 0
-        )
+        team_percentage = (team_completed_orders / team_total_target * 100) if team_total_target else 0
 
         team_target_summary = {
             "team_total_target": team_total_target,
-            "team_total_completed": team_total_completed,
-            "percentage": round(percentage, 2)
+            "team_completed_orders": team_completed_orders,
+            "percentage": round(team_percentage, 2)
         }
 
         # ===============================
-        # ✅ Final Response
+        # ✅ FINAL RESPONSE
         # ===============================
         return Response({
             "total_summary": total_summary,
             "status_data": status_data,
+            "appointment_order_totals": {
+                "total_orders": appointment_order_totals["total_orders"] or 0,
+                "total_amount": appointment_order_totals["total_amount"] or 0,
+                "total_gross_amount": appointment_order_totals["total_gross_amount"] or 0,
+                "total_discount": appointment_order_totals["total_discount"] or 0,
+            },
             "target_data": target_data,
             "agent_list": agent_list,
             "team_target_summary": team_target_summary
