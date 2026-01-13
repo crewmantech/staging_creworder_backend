@@ -49,7 +49,9 @@ class AppointmentSerializer(serializers.ModelSerializer):
     )
     doctor_phone = serializers.SerializerMethodField()
     is_order = serializers.SerializerMethodField()
-
+    appointment_status_name = serializers.CharField(
+        source="appointment_status.name", read_only=True
+    )
     def get_is_order(self, obj):
         """
         Returns True if at least one order exists for this appointment
