@@ -3691,7 +3691,28 @@ class UserPermissionStatusView(APIView):
                 "force_appointment_others": user.has_perm(
                     'accounts.force_appointment_others'
                 ),
-                "edit_appointment__others":True
+                "edit_appointment__others":True,
+                "edit_lead_button": user.has_perm(
+                    "accounts.can_edit_lead_crud"
+                ),
+                "delete_lead_button": user.has_perm(
+                    "accounts.can_delete_lead_crud"
+                ),
+
+                "edit_follow_up_button": user.has_perm(
+                    "accounts.can_edit_follow_up_crud"
+                ),
+                "delete_follow_up_button": user.has_perm(
+                    "accounts.can_delete_follow_up_crud"
+                ),
+
+                "edit_appointment_button": user.has_perm(
+                    "accounts.can_edit_appointment_crud"
+                ),
+                "delete_appointment_button": user.has_perm(
+                    "accounts.can_delete_appointment_crud"
+                ),
+                
             }
         else:
             # Fallback to permission-based checks
@@ -3712,7 +3733,27 @@ class UserPermissionStatusView(APIView):
                 "force_appointment_others": user.has_perm(
                     'accounts.force_appointment_others'
                 ),
-                "edit_appointment_others":user.has_perm("accounts.edit_appointment_others")
+                "edit_appointment_others":user.has_perm("accounts.edit_appointment_others"),
+                "edit_lead_button": user.has_perm(
+                    "accounts.can_edit_lead_crud"
+                ),
+                "delete_lead_button": user.has_perm(
+                    "accounts.can_delete_lead_crud"
+                ),
+
+                "edit_follow_up_button": user.has_perm(
+                    "accounts.can_edit_follow_up_crud"
+                ),
+                "delete_follow_up_button": user.has_perm(
+                    "accounts.can_delete_follow_up_crud"
+                ),
+
+                "edit_appointment_button": user.has_perm(
+                    "accounts.can_edit_appointment_crud"
+                ),
+                "delete_appointment_button": user.has_perm(
+                    "accounts.can_delete_appointment_crud"
+                ),
             }   
 
         return Response(response_data)
