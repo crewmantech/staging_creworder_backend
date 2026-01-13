@@ -2939,7 +2939,7 @@ class ForceLogoutView(APIView):
 
 
 class CSVUserUploadView(APIView):
-    permission_classes = [IsAuthenticated, IsAdminOrSuperAdmin]
+    permission_classes = [IsAuthenticated]
 
     def clean_value(self, value):
         if value in ["", " ", None]:
@@ -3691,7 +3691,7 @@ class UserPermissionStatusView(APIView):
                 "force_appointment_others": user.has_perm(
                     'accounts.force_appointment_others'
                 ),
-                "edit_appointment__others":False
+                "edit_appointment__others":True
             }
         else:
             # Fallback to permission-based checks
