@@ -2937,14 +2937,14 @@ class ForceLogoutView(APIView):
     
 
 
-
 class CSVUserUploadView(APIView):
     permission_classes = [IsAuthenticated]
 
     def clean_value(self, value):
         if value in ["", " ", None]:
             return None
-        return value
+        return value.strip()
+
     def post(self, request, *args, **kwargs):
         if "file" not in request.FILES:
             return Response(
@@ -2968,28 +2968,43 @@ class CSVUserUploadView(APIView):
             users_data = []
 
             with transaction.atomic():
-                # 1) Build user data list from CSV
+                # -----------------------------
+                # 1️⃣ Build user data from CSV
+                # -----------------------------
                 for row in reader:
                     try:
-                        # --- NEW: handle login_allowed from CSV (0/1) ---
+                        # --- login_allowed ---
                         raw_login_allowed = (row.get("login_allowed") or "").strip()
 
                         if raw_login_allowed == "TRUE":
                             login_allowed = True
                         elif raw_login_allowed in ("FALSE", ""):
-                            # 0 or empty -> False (default behavior)
                             login_allowed = False
                         else:
-                            # If you want to hard-fail on invalid values:
                             return Response(
                                 {
                                     "Success": False,
-                                    "Message": "Invalid value for login_allowed.",
-                                    "Errors": f"Row: {row}, login_allowed must be 0 or 1.",
+                                    "Message": "Invalid login_allowed value",
+                                    "Errors": f"Row: {row}",
                                 },
                                 status=status.HTTP_400_BAD_REQUEST,
                             )
-                        # ------------------------------------------------
+
+                        # --- shift handling ---
+                        shift_id = self.clean_value(row.get("shift"))
+                        shift_obj = None
+                        if shift_id:
+                            try:
+                                shift_obj = ShiftTiming.objects.get(id=shift_id)
+                            except ShiftTiming.DoesNotExist:
+                                return Response(
+                                    {
+                                        "Success": False,
+                                        "Message": "Invalid shift ID",
+                                        "Errors": f"Shift ID {shift_id} not found",
+                                    },
+                                    status=status.HTTP_400_BAD_REQUEST,
+                                )
 
                         profile_data = {
                             "gender": self.clean_value(row.get("gender")),
@@ -3003,6 +3018,7 @@ class CSVUserUploadView(APIView):
                             "teamlead": self.clean_value(row.get("teamlead")),
                             "manager": self.clean_value(row.get("manager")),
                             "login_allowed": login_allowed,
+                            "shift": shift_obj,   # ✅ SHIFT ADDED
                         }
 
                         user_data = {
@@ -3020,19 +3036,21 @@ class CSVUserUploadView(APIView):
                         return Response(
                             {
                                 "Success": False,
-                                "Message": "Error processing one of the rows.",
-                                "Errors": f"Row: {row}, Error: {str(e)}",
+                                "Message": "Error processing row",
+                                "Errors": f"{str(e)}",
                             },
                             status=status.HTTP_400_BAD_REQUEST,
                         )
 
-                # 2) Create all users
+                # -----------------------------
+                # 2️⃣ Create Users
+                # -----------------------------
                 serializer = UserSerializer(data=users_data, many=True)
                 if not serializer.is_valid():
                     return Response(
                         {
                             "Success": False,
-                            "Message": "Invalid data.",
+                            "Message": "Invalid data",
                             "Errors": serializer.errors,
                         },
                         status=status.HTTP_400_BAD_REQUEST,
@@ -3040,31 +3058,30 @@ class CSVUserUploadView(APIView):
 
                 saved_users = serializer.save()
 
-                # 3) Rewind CSV and re-read for role assignment
-                io_string.seek(0)  # Reset to beginning
-                role_reader = csv.DictReader(io_string)  # new reader; header handled automatically
+                # -----------------------------
+                # 3️⃣ Assign Roles (Groups)
+                # -----------------------------
+                io_string.seek(0)
+                role_reader = csv.DictReader(io_string)
 
                 for user, row in zip(saved_users, role_reader):
-                    group_id = (row.get("role") or "").strip()  # CSV column "role" has CustomAuthGroup.id
+                    group_id = (row.get("role") or "").strip()
 
                     if not group_id:
-                        # No role provided for this row → skip
                         continue
 
                     try:
-                        # Find CustomAuthGroup by its alphanumeric id (e.g. 'CAG001')
                         custom_group = CustomAuthGroup.objects.select_related("group").get(
                             id=group_id
                         )
-                        # Attach the underlying Django Group to the user
                         user.groups.add(custom_group.group)
 
                     except CustomAuthGroup.DoesNotExist:
                         return Response(
                             {
                                 "Success": False,
-                                "Message": "CustomAuthGroup not found.",
-                                "Errors": f"Group with ID '{group_id}' not found for user '{user.username}'.",
+                                "Message": "CustomAuthGroup not found",
+                                "Errors": f"Group ID '{group_id}' not found",
                             },
                             status=status.HTTP_400_BAD_REQUEST,
                         )
@@ -3072,7 +3089,7 @@ class CSVUserUploadView(APIView):
                 return Response(
                     {
                         "Success": True,
-                        "Message": "Users uploaded and groups assigned successfully.",
+                        "Message": "Users created successfully with shift assigned",
                         "Data": serializer.data,
                     },
                     status=status.HTTP_201_CREATED,
@@ -3082,7 +3099,7 @@ class CSVUserUploadView(APIView):
             return Response(
                 {
                     "Success": False,
-                    "Message": "An error occurred while processing the file.",
+                    "Message": "CSV processing failed",
                     "Errors": str(e),
                 },
                 status=status.HTTP_400_BAD_REQUEST,
