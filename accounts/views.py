@@ -5026,3 +5026,150 @@ class BulkAttendanceMarkAPIView(APIView):
             "from_date": str(start_date),
             "to_date": str(end_date)
         })
+
+
+
+class CSVEmployeeUpdateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def clean(self, value):
+        if value in ("", " ", None):
+            return None
+        return value.strip()
+
+    def post(self, request):
+        if "file" not in request.FILES:
+            return Response(
+                {"success": False, "message": "CSV file is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        csv_file = request.FILES["file"]
+
+        if not csv_file.name.endswith(".csv"):
+            return Response(
+                {"success": False, "message": "Invalid file type"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        reader = csv.DictReader(
+            io.StringIO(csv_file.read().decode("utf-8"))
+        )
+
+        updated = []
+        errors = []
+
+        with transaction.atomic():
+            for row_no, row in enumerate(reader, start=2):
+                try:
+                    # -----------------------------
+                    # Identify User
+                    # -----------------------------
+                    user_id = self.clean(row.get("user_id"))
+                    username = self.clean(row.get("username"))
+                    employee_id = self.clean(row.get("employee_id"))
+
+                    if not any([user_id, username, employee_id]):
+                        errors.append(f"Row {row_no}: Missing identifier")
+                        continue
+
+                    try:
+                        if user_id:
+                            user = User.objects.select_related("profile").get(
+                                id=user_id
+                            )
+                        elif username:
+                            user = User.objects.select_related("profile").get(
+                                username=username
+                            )
+                        else:
+                            emp = Employees.objects.select_related("user").get(
+                                employee_id=employee_id
+                            )
+                            user = emp.user
+                    except Exception:
+                        errors.append(f"Row {row_no}: User not found")
+                        continue
+
+                    employee = user.profile
+
+                    # -----------------------------
+                    # Update User fields
+                    # -----------------------------
+                    for field in ["username", "first_name", "last_name", "email"]:
+                        value = self.clean(row.get(field))
+                        if value is not None:
+                            setattr(user, field, value)
+
+                    if self.clean(row.get("password")):
+                        user.set_password(row.get("password"))
+
+                    user.save()
+
+                    # -----------------------------
+                    # Employees simple fields
+                    # -----------------------------
+                    SIMPLE_FIELDS = [
+                        "gender",
+                        "marital_status",
+                        "status",
+                        "daily_order_target",
+                        "address",
+                        "date_of_birth",
+                        "professional_email",
+                        "employment_type",
+                        "user_type",
+                        "two_way_authentication",
+                        "enrolment_id",
+                        "contact_no",
+                    ]
+
+                    for field in SIMPLE_FIELDS:
+                        value = self.clean(row.get(field))
+                        if value is not None:
+                            setattr(employee, field, value)
+
+                    # -----------------------------
+                    # Boolean fields
+                    # -----------------------------
+                    for field in ["login_allowed"]:
+                        value = self.clean(row.get(field))
+                        if value is not None:
+                            setattr(employee, field, value.upper() == "TRUE")
+
+                    # -----------------------------
+                    # Foreign Keys
+                    # -----------------------------
+                    FK_MAP = {
+                        "company": Company,
+                        "branch": Branch,
+                        "department": Department,
+                        "designation": Designation,
+                        "teamlead": User,
+                        "manager": User,
+                        "reporting": User,
+                        "shift": ShiftTiming,  # ✅ SHIFT SUPPORT
+                    }
+
+                    for field, model in FK_MAP.items():
+                        value = self.clean(row.get(field))
+                        if value == "NULL":
+                            setattr(employee, field, None)
+                        elif value:
+                            setattr(employee, field, model.objects.get(id=value))
+
+                    employee.save()
+                    updated.append(employee.employee_id)
+
+                except Exception as e:
+                    errors.append(f"Row {row_no}: {str(e)}")
+
+        return Response(
+            {
+                "success": True,
+                "updated_count": len(updated),
+                "updated_employees": updated,
+                "errors": errors,
+            },
+            status=status.HTTP_200_OK,
+        )
