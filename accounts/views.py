@@ -1366,12 +1366,12 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                 company = getattr(user.profile.company, "id", None)
                 filters = Q(company=company)
                 user_id = self.request.query_params.get("user")
-                branch_id = self.request.query_params.get("branch")
+                # branch_id = self.request.query_params.get("branch")
                 # print(branch,"-------------1318")
-                if branch_id:
-                    filters &= Q(branch__id=branch_id)
-                else:
-                    filters &= Q(branch=branch)
+                # if branch_id:
+                #     filters &= Q(branch__id=branch_id)
+                # else:
+                #     filters &= Q(branch=branch)
                 if user_id:
                     filters &= Q(user__id=user_id)
                 if user.profile.user_type == 'admin':
@@ -1381,8 +1381,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                     
                 else:
                     filters &= Q(user=user)
-                filters &= Q(user__profile__login_allowed=True)
-                filters &= Q(user__profile__type='agent')
+                
                 filters &= (Q(user__profile__status=1) | Q(user__profile__status=0))
 
         except Exception as e:
@@ -4836,8 +4835,8 @@ class BranchWiseAttendanceAPIView(APIView):
         user = request.user
         today = date.today()
         # ---------------- PERMISSION CHECK ----------------
-        if not user.has_perm(self.REQUIRED_PERMISSION):
-            raise PermissionDenied("You do not have permission to view branch-wise attendance.")
+        #if not user.has_perm(self.REQUIRED_PERMISSION):
+         #   raise PermissionDenied("You do not have permission to view branch-wise attendance.")
         branch_id = request.query_params.get("branch")
         exact_date = request.query_params.get("date")
         month = request.query_params.get("date__month")
@@ -4864,7 +4863,8 @@ class BranchWiseAttendanceAPIView(APIView):
                 branch=user.profile.branch
             )
         user_filters &= Q(status__in=[0, 1])
-
+        user_filters &= Q(login_allowed=True)
+        user_filters &= Q(user_type='agent')
         users = Employees.objects.select_related(
             "user", "branch"
         ).filter(user_filters)
