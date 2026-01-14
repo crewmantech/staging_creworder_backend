@@ -1191,32 +1191,28 @@ class ShiftViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         user = request.user
         branch_id = request.query_params.get("branch_id")
-        print(branch_id,"-----------------branch id")
-        queryset = ShiftTiming.objects.all()
-        print(queryset,"-----------------branch id")
+
+        queryset = ShiftTiming.objects.select_related("branch").all()
+
         is_admin = user.profile.user_type in ["admin", "superadmin"]
-        has_group_permission = user.groups.filter(name="view_leave_permissions").exists()
+        # has_group_permission = user.groups.filter(
+        #     name="view_leave_permissions"
+        # ).exists()
 
-        if not (is_admin or has_group_permission):
-            return Response(
-                {"detail": "You do not have permission to view shifts."},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
+        # if not (is_admin or has_group_permission):
+        #     return Response(
+        #         {"detail": "You do not have permission to view shifts."},
+        #         status=status.HTTP_403_FORBIDDEN
+        #     )
 
         if branch_id:
-            queryset = queryset.filter(branch__id=branch_id)
-        else:
-            # Optional fallback: user's branch
-            if hasattr(user, "profile") and user.profile.branch:
-                queryset = queryset.filter(branch=user.profile.branch)
+            queryset = queryset.filter(branch_id=branch_id)
+        elif getattr(user.profile, "branch_id", None):
+            queryset = queryset.filter(branch_id=user.profile.branch_id)
 
         serializer = self.get_serializer(queryset, many=True)
-        return Response(
-            {"results": serializer.data},
+        return Response({"results": serializer.data}, status=status.HTTP_200_OK)
 
-
-            status=status.HTTP_200_OK)
 
 
 
@@ -2935,6 +2931,7 @@ class ForceLogoutView(APIView):
         # Respond that the user has been logged out
         return Response({"detail": f"User {user_to_logout.username} has been logged out."}, status=status.HTTP_200_OK)
     
+
 
 
 class CSVUserUploadView(APIView):

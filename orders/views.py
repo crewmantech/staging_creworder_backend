@@ -17,7 +17,7 @@ from follow_up.models import Follow_Up, Appointment
 from follow_up.utils import get_phone_by_reference_id, get_phone_from_call_or_appointment
 from lead_management.models import Lead
 from orders.perrmissions import CategoryPermissions, OrderPermissions
-from orders.utils import get_price_breakdown, normalize_phone
+from orders.utils import get_customer_state, get_price_breakdown, normalize_phone
 from services.cloud_telephoney.cloud_telephoney_service import CloudConnectService, get_phone_number_by_call_id
 from shipment.models import ShipmentVendor
 from .models import (
@@ -126,7 +126,7 @@ class OrderAPIView(APIView):
     @transaction.atomic
     def post(self, request, *args, **kwargs):
         try:
-            state = Customer_State.objects.get(name=request.data['customer_state'])
+            state = get_customer_state(request.data["customer_state"])
             lead_id = request.data.get('lead_id')
             print(lead_id,"------------------94")
             if lead_id:
@@ -3194,7 +3194,7 @@ class ExternalOrderCreateView(APIView):
                 delivery_city = None
                 return Response({"error": "Not Serviceability"}, status=status.HTTP_400_BAD_REQUEST)
             
-            state = Customer_State.objects.get(name=delivery_state)
+            state = get_customer_state(delivery_state)
             state_id = state.id
             payment_type_name = payment_type.name.lower()
             order_status = OrderStatus.objects.filter(name="Pending").first()

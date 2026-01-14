@@ -8,7 +8,7 @@ from accounts.utils import generate_unique_id
 from lead_management.models import LeadStatusModel
 from middleware.request_middleware import get_request
 from phonenumber_field.modelfields import PhoneNumberField
-
+from django.db import transaction
 
 phone_regex = RegexValidator(
     regex=r'^\+?1?\d{9,15}$',
@@ -280,12 +280,21 @@ class Appointment(BaseModel):
             height_m = float(self.height_cm) / 100
             self.bmi = round(float(self.weight_kg) / (height_m ** 2), 2)
 
-        # 🔄 Auto-map legacy status → AppointmentStatus
-        if not self.appointment_status and self.status:
-            status_obj = AppointmentStatus.objects.filter(
-                name__iexact=self.status
-            ).first()
-            if status_obj:
+        # ✅ ENSURE AppointmentStatus EXISTS (Pending fallback)
+        if not self.appointment_status:
+            status_name = (self.status or "Pending").strip()
+
+            with transaction.atomic():
+                status_obj = AppointmentStatus.objects.filter(
+                    name__iexact=status_name
+                ).first()
+
+                if not status_obj:
+                    status_obj = AppointmentStatus.objects.create(
+                        name=status_name.capitalize(),
+                        description="Auto-created default appointment status"
+                    )
+
                 self.appointment_status = status_obj
 
         super().save(*args, **kwargs)

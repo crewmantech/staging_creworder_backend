@@ -2,7 +2,7 @@ import re
 from django.db.models import Sum, F, FloatField
 from django.db.models.functions import Coalesce
 
-from orders.models import OrderDetail
+from orders.models import Customer_State, OrderDetail
 
 def get_order_amount_breakup(order_qs):
     """
@@ -39,7 +39,7 @@ def get_order_amount_breakup(order_qs):
     }
 
 
-from django.db.models import Sum, F, FloatField, ExpressionWrapper
+from django.db.models import Sum, F, FloatField, ExpressionWrapper,Q
 from django.db.models.functions import Coalesce
 
 
@@ -219,3 +219,11 @@ def normalize_phone(phone):
         core,
         f"+91{core}",
     ]
+
+
+def get_customer_state(state_name):
+    state_name = state_name.strip().lower()
+    return Customer_State.objects.filter(
+        Q(name__iexact=state_name) |
+        Q(keys__regex=rf'(^|,){state_name}(,|$)')
+    ).first()
