@@ -470,7 +470,8 @@ class OrderAPIView(APIView):
             data = request.data
             if 'customer_state_name' in data:
                 state_name = data['customer_state_name'].upper()
-                CustomerState = Customer_State.objects.filter(name=state_name).first()
+                CustomerState = get_customer_state(state_name)
+                # CustomerState = Customer_State.objects.filter(name=state_name).first()
                 data.pop('customer_state_name')
                 if CustomerState:
                     data['customer_state'] =  CustomerState.id

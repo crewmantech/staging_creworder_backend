@@ -538,7 +538,8 @@ class getUserListChatAdmin(APIView):
                 # groups__in=agent_groups,
                 profile__company=employee.company,
                 profile__department__id__in=allowed_departments,
-                profile__status=1
+                profile__status=1,
+                profile__login_allowed=True
             ).distinct()
 
             print(f"👥 Users in same group & allowed departments: {same_group_and_dept_users.count()}")

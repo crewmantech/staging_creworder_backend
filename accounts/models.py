@@ -1089,7 +1089,7 @@ class Others(models.Model):
             ('view_all_appointment_others', 'Can view all appointment others'),
             ('view_manager_appointment_others', 'Can view manager appointment others'),
             ('view_teamlead_appointment_others', 'Can view team lead appointment others'),
-            ('edit_appointment_others', 'Can edit appointment others'),
+            ('edit_appointment_status_others', 'Can edit appointment status others'),
 
             )
     def __str__(self):

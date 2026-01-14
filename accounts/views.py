@@ -1366,12 +1366,12 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                 company = getattr(user.profile.company, "id", None)
                 filters = Q(company=company)
                 user_id = self.request.query_params.get("user")
-                # branch_id = self.request.query_params.get("branch")
+                branch_id = self.request.query_params.get("branch")
                 # print(branch,"-------------1318")
-                # if branch_id:
-                #     filters &= Q(branch__id=branch_id)
-                # else:
-                #     filters &= Q(branch=branch)
+                if branch_id:
+                    filters &= Q(branch__id=branch_id)
+                else:
+                    filters &= Q(branch=branch)
                 if user_id:
                     filters &= Q(user__id=user_id)
                 if user.profile.user_type == 'admin':
@@ -1381,6 +1381,8 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                     
                 else:
                     filters &= Q(user=user)
+                filters &= Q(user__profile__login_allowed=True)
+                filters &= Q(user__profile__type='agent')
                 filters &= (Q(user__profile__status=1) | Q(user__profile__status=0))
 
         except Exception as e:
@@ -3520,7 +3522,7 @@ class GetPackagesModule(viewsets.ModelViewSet):
         my_set.add("/admin/manage/editassignrole")
         my_set.add('/admin/performance/agent-order')
         my_set.add('/admin/orders')
-        my_set.add('/admin/shipment/PrescreiptionPreviewPage')
+        my_set.add('/admin/shipment/PrescriptionPreviewPage')
        
         if self.request.user.profile.user_type == "admin" or  self.request.user.has_perm("accounts.chat_user_permission_others"):
             my_set.add("/chat")
@@ -3747,7 +3749,7 @@ class UserPermissionStatusView(APIView):
                 "force_appointment_others": user.has_perm(
                     'accounts.force_appointment_others'
                 ),
-                "edit_appointment_others":user.has_perm("accounts.edit_appointment_others"),
+                "edit_appointment_status_others":user.has_perm("accounts.edit_appointment_status_others"),
                 "edit_lead_button": user.has_perm(
                     "accounts.can_edit_lead_crud"
                 ),
