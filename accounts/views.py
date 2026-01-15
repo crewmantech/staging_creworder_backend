@@ -3706,7 +3706,7 @@ class UserPermissionStatusView(APIView):
                 "force_appointment_others": user.has_perm(
                     'accounts.force_appointment_others'
                 ),
-                "edit_appointment__others":True,
+                "edit_appointment_status_others":True,
                 "edit_lead_button": user.has_perm(
                     "accounts.can_edit_lead_crud"
                 ),
