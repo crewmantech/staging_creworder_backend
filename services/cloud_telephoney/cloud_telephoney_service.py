@@ -118,19 +118,70 @@ from cloud_telephony.models import CloudTelephonyChannelAssign
 class CloudConnectService:
     BASE_URL = "https://crm5.cloud-connect.in/CCC_api/v1.4"
 
-    def __init__(self, token, tenant_id):
+    def __init__(self, token: str, tenant_id: str):
         self.token = token
         self.tenant_id = tenant_id
 
-    def _post_request(self, endpoint, data):
+    # =========================
+    # INTERNAL REQUEST HANDLER
+    # =========================
+    def _post_request(self, endpoint: str, data: dict):
         url = f"{self.BASE_URL}/{endpoint}"
         headers = {"Content-Type": "application/json"}
-        response = requests.post(url, json=data, headers=headers)
-        return response.json()
 
-    # === Call Functions ===
+        response = requests.post(
+            url,
+            json=data,
+            headers=headers,
+            timeout=10
+        )
 
+        try:
+            result = response.json()
+        except Exception:
+            raise Exception("Invalid response from CloudConnect")
+
+        # CloudConnect returns code as int or string
+        if result.get("code") not in (200, "200"):
+            raise Exception(result.get("status_message", "CloudConnect API Error"))
+
+        return result
+
+    # =========================
+    # REAL-TIME SESSION (WEB)
+    # =========================
+    def create_session(self, agent_id: str):
+        """
+        REQUIRED for WebRTC / iFrame based real-time calling
+        """
+        data = {
+            "agent_id": str(agent_id),
+            "token": self.token,
+            "tenant_id": self.tenant_id
+        }
+        return self._post_request("createSession", data)
+
+    # (Optional / Legacy)
+    def get_session_id(self, agent_id: str):
+        """
+        Legacy API (keep only if already used)
+        """
+        data = {
+            "agent_id": str(agent_id),
+            "token": self.token,
+            "tenant_id": self.tenant_id
+        }
+        return self._post_request("getSessionId", data)
+
+    # =========================
+    # CALL ORIGINATION
+    # =========================
+
+    # ❌ Legacy (Not for WebRTC)
     def originate_call(self, agent_username, agent_password, customer_phone, campaign_name):
+        """
+        Legacy panel-based calling (NOT recommended for Next.js portal)
+        """
         data = {
             "action": "Call",
             "agent_username": agent_username,
@@ -142,18 +193,32 @@ class CloudConnectService:
         }
         return self._post_request("clickToCall", data)
 
-    def manual_call_originate(self, agent_id, agent_session_id, customer_phone, camp_id):
+    # ✅ MAIN REAL-TIME CALL METHOD
+    def manual_call_originate(
+        self,
+        agent_id: str,
+        agent_session_id: str,
+        customer_phone: str,
+        camp_id: str
+    ):
+        """
+        REAL-TIME CALL (Browser → Customer)
+        Requires active session + iframe
+        """
         data = {
             "action": "Call",
-            "agent_id": agent_id,
-            "agent_session_id": agent_session_id,
-            "customer_phone": customer_phone,
-            "camp_id": camp_id,
+            "agent_id": str(agent_id),
+            "agent_session_id": str(agent_session_id),
+            "customer_phone": str(customer_phone),
+            "camp_id": str(camp_id),
             "tenant_id": self.tenant_id
         }
         return self._post_request("clickToCallManual", data)
 
-    def hangup_call(self, ref_id):
+    # =========================
+    # CALL CONTROL
+    # =========================
+    def hangup_call(self, ref_id: str):
         data = {
             "action": "Hangup",
             "ref_id": ref_id,
@@ -162,38 +227,39 @@ class CloudConnectService:
         }
         return self._post_request("clickToCall", data)
 
-    def get_call_details(self, date, phone_number):
-        if phone_number:
-            data = {
-                "date": date,
-                "phone_number": phone_number,
-                # "agent_id": agent_id,
-                # "session_id": session_id,
-                "token": self.token,
-                "tenant_id": self.tenant_id
-            }
-        else:
-            data = {
-            "date": date,
-            # "agent_id": agent_id,
-            # "session_id": session_id,
+    # =========================
+    # CALL LOGS & DETAILS
+    # =========================
+    def get_call_details(self, call_id: str):
+        data = {
+            "call_id": call_id,
+            "allow_customer_info": True,
             "token": self.token,
             "tenant_id": self.tenant_id
         }
-        print(data,"-----------------178")
+        return self._post_request("getCallDetails", data)
+
+    def get_call_history(self, start_datetime, end_datetime):
+        data = {
+            "search_type": "DATETIME",
+            "start_datetime": start_datetime,
+            "end_datetime": end_datetime,
+            "token": self.token,
+            "tenant_id": self.tenant_id
+        }
         return self._post_request("getCallHistory", data)
 
-    def get_recording_details(self, call_id):
+    def get_recording_details(self, call_id: str):
         data = {
             "call_id": call_id,
             "token": self.token,
             "tenant_id": self.tenant_id
         }
-        print(data,"--------------------------cloudconect")
         return self._post_request("getRecording", data)
 
-    # === Job Number Management ===
-
+    # =========================
+    # AUTO DIALER (JOB APIs)
+    # =========================
     def insert_job_number(self, job_id, numbers, agent_id=None):
         data = {
             "job_id": job_id,
@@ -203,23 +269,22 @@ class CloudConnectService:
         }
         if agent_id:
             data["agent_id"] = agent_id
-        return self._post_request("insertJobNumber", data)
+        return self._post_request("addJobNumber", data)
 
-    def update_job_number(self, job_id, numbers, agent_id=None):
+    def update_job_number(self, job_id, numbers):
         data = {
             "job_id": job_id,
             "numbers": numbers,
             "token": self.token,
             "tenant_id": self.tenant_id
         }
-        if agent_id:
-            data["agent_id"] = agent_id
         return self._post_request("updateJobNumber", data)
 
     def delete_job_number(self, job_id, numbers):
         data = {
             "job_id": job_id,
             "numbers": numbers,
+            "delete_type": "DELETESPECIFIC",
             "token": self.token,
             "tenant_id": self.tenant_id
         }
@@ -227,13 +292,13 @@ class CloudConnectService:
 
     # === Session & Callback ===
 
-    def get_session_id(self, agent_id):
-        data = {
-            "agent_id": agent_id,
-            "token": self.token,
-            "tenant_id": self.tenant_id
-        }
-        return self._post_request("getSessionId", data)
+    # def get_session_id(self, agent_id):
+    #     data = {
+    #         "agent_id": agent_id,
+    #         "token": self.token,
+    #         "tenant_id": self.tenant_id
+    #     }
+    #     return self._post_request("getSessionId", data)
 
     def callback_subscribe(self, session_id):
         data = {
@@ -261,14 +326,46 @@ class CloudConnectService:
         return self._post_request("getCallDetails", data)
     
     def agent_current_status(self):
-        data={
+        data = {
             "token": self.token,
             "tenant_id": self.tenant_id
         }
         return self._post_request("getAgentCurrentStatus", data)
-    
-    
+    def create_caller_id_routing(self, customer_numbers, agent_id, did_id="ANY"):
+        """
+        Maps customer number(s) to a dedicated agent (Inbound routing)
+        """
+        if isinstance(customer_numbers, str):
+            customer_numbers = [customer_numbers]
 
+        data = {
+            "token": self.token,
+            "tenant_id": self.tenant_id,
+            "cr_number": customer_numbers,
+            "did_id": did_id,
+            "cr_action_type": "AGENT",
+            "cr_action_id": str(agent_id)
+        }
+
+        return self._post_request("createCallerIdRouting", data)
+    def update_caller_id_routing(
+    self,
+    cr_id,
+    customer_number,
+    agent_id,
+    did_id="ANY"
+):
+        data = {
+            "cr_id": str(cr_id),
+            "token": self.token,
+            "tenant_id": self.tenant_id,
+            "cr_number": customer_number,
+            "did_id": did_id,
+            "cr_action_type": "AGENT",
+            "cr_action_id": str(agent_id)
+        }
+
+        return self._post_request("updateCallerIdRouting", data)
 class TataSmartfloService:
     BASE_URL = "https://api-smartflo.tatateleservices.com/v1"
 

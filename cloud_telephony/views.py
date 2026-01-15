@@ -202,6 +202,7 @@ from orders.models import Order_Table
 from django.core.files.base import ContentFile
 from services.cloud_telephoney.cloud_telephoney_service import CloudConnectService, TataSmartfloService,SansSoftwareService
 from .models import (
+    CallLog,
     CallRecording,
     CloudTelephonyVendor, 
     CloudTelephonyChannel, 
@@ -678,7 +679,113 @@ class CallServiceViewSet(viewsets.ViewSet):
             {"error": f"{cloud_vendor} is not supported."},
             status=status.HTTP_400_BAD_REQUEST
         )
-    
+    @action(detail=False, methods=['post'], url_path='create-session')
+    def create_session(self, request):
+        """
+        Create CloudConnect WebRTC session for real-time calling
+        """
+        agent_id = request.data.get("agent_id")
+
+        user = request.user
+
+        try:
+            channel_assign = CloudTelephonyChannelAssign.objects.get(user_id=user.id)
+            channel = channel_assign.cloud_telephony_channel
+        except CloudTelephonyChannelAssign.DoesNotExist:
+            return Response(
+                {"error": "No channel assigned to this user."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        cloud_vendor = channel.cloudtelephony_vendor.name.lower()
+
+        # ============ CLOUD CONNECT ============
+        if cloud_vendor == 'cloud connect':
+            if not channel.token or not channel.tenent_id:
+                return Response(
+                    {"error": "token and tenant_id required for CloudConnect."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Prefer agent_id from assignment if not passed
+            agent_id = agent_id or channel_assign.agent_id
+
+            if not agent_id:
+                return Response(
+                    {"error": "agent_id is required."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            cloud_connect_service = CloudConnectService(
+                channel.token,
+                channel.tenent_id
+            )
+
+            try:
+                response_data = cloud_connect_service.create_session(agent_id)
+            except Exception as e:
+                return Response(
+                    {"error": str(e)},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            return Response(
+                {
+                    "success": True,
+                    "session_id": response_data.get("session_id"),
+                    "message": response_data.get("status_message"),
+                },
+                status=status.HTTP_200_OK
+            )
+    @action(detail=False, methods=['post'], url_path='get-session-id')
+    def get_session_id(self, request):
+        """
+        Legacy session API (optional)
+        """
+        agent_id = request.data.get("agent_id")
+        user = request.user
+
+        try:
+            channel_assign = CloudTelephonyChannelAssign.objects.get(user_id=user.id)
+            channel = channel_assign.cloud_telephony_channel
+        except CloudTelephonyChannelAssign.DoesNotExist:
+            return Response(
+                {"error": "No channel assigned to this user."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        cloud_vendor = channel.cloudtelephony_vendor.name.lower()
+
+        if cloud_vendor == 'cloud connect':
+            agent_id = agent_id or channel_assign.agent_id
+
+            if not agent_id:
+                return Response(
+                    {"error": "agent_id is required."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            cloud_connect_service = CloudConnectService(
+                channel.token,
+                channel.tenent_id
+            )
+
+            try:
+                response_data = cloud_connect_service.get_session_id(agent_id)
+            except Exception as e:
+                return Response(
+                    {"error": str(e)},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            return Response(
+                {
+                    "success": True,
+                    "session_id": response_data.get("session_id"),
+                    "message": response_data.get("status_message"),
+                },
+                status=status.HTTP_200_OK
+            )
 from rest_framework.views import APIView
 class GetNumberAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -965,6 +1072,59 @@ class CloudTelephonyChannelAssignCSVUploadAPIView(APIView):
                 },
                 "success_rows": success,
                 "failed_rows": failed
+            },
+            status=status.HTTP_200_OK
+        )
+
+
+from rest_framework import status as drf_status
+from django.utils.timezone import now
+class CloudConnectWebhookAPIView(APIView):
+    """
+    CloudConnect Webhook Receiver (DRF)
+    """
+
+    authentication_classes = []
+    permission_classes = []
+
+    def post(self, request, *args, **kwargs):
+        # CloudConnect sends form-encoded data
+        data = request.data
+
+        call_id = data.get("callid")
+        status_value = data.get("status")
+        phone = data.get("callernumber")
+
+        if not call_id or not status_value or not phone:
+            return Response(
+                {"error": "Missing required fields"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        call_log, created = CallLog.objects.update_or_create(
+            call_id=call_id,
+            defaults={
+                "call_uuid": data.get("call_uuid"),
+                "phone": phone,
+                "agent_id": data.get("agent_id"),
+                "status": status_value,
+                "direction": data.get("call_direction"),
+                "campaign_id": data.get("campaignId"),
+                "session_id": data.get("sessionId"),
+                "transfer_id": data.get("transfer_id"),
+                "job_id": data.get("job_id"),
+                "hangup_reason": data.get("reason"),
+                "raw_payload": data,
+                "updated_at": now(),
+            }
+        )
+
+        return Response(
+            {
+                "received": True,
+                "call_id": call_id,
+                "status": status_value,
+                "created": created
             },
             status=status.HTTP_200_OK
         )

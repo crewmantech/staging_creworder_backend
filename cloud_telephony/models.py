@@ -176,3 +176,28 @@ class SecretKey(models.Model):
     def __str__(self):
         status = "ACTIVE" if self.is_active else "INACTIVE"
         return f"{self.cloudtelephony_vendor.name} - {status}"
+    
+
+class CallLog(models.Model):
+    call_id = models.CharField(max_length=50, db_index=True)
+    call_uuid = models.CharField(max_length=100, blank=True, null=True)
+
+    phone = models.CharField(max_length=20)
+    agent_id = models.CharField(max_length=20, blank=True, null=True)
+
+    status = models.CharField(max_length=20)
+    direction = models.CharField(max_length=20, blank=True, null=True)
+
+    campaign_id = models.CharField(max_length=20, blank=True, null=True)
+    session_id = models.CharField(max_length=50, blank=True, null=True)
+    transfer_id = models.CharField(max_length=20, blank=True, null=True)
+    job_id = models.CharField(max_length=20, blank=True, null=True)
+    hangup_reason = models.CharField(max_length=100, blank=True, null=True)
+
+    raw_payload = models.JSONField(default=dict)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.call_id} - {self.status}"

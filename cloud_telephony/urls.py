@@ -12,6 +12,7 @@ from rest_framework.routers import DefaultRouter
 # )
 from .views import (
     CallServiceViewSet,
+    CloudConnectWebhookAPIView,
     CloudTelephonyChannelAssignCSVUploadAPIView,
     CloudTelephonyVendorViewSet, 
     CloudTelephonyChannelViewSet, 
@@ -36,7 +37,12 @@ urlpatterns = [
     path(
         "telephony-channel-assign/upload-csv/",
         CloudTelephonyChannelAssignCSVUploadAPIView.as_view()
-    )
+    ),
+    path(
+        "cloudconnect/webhook/",
+        CloudConnectWebhookAPIView.as_view(),
+        name="cloudconnect-webhook"
+    ),
     # path(
     #     "createCloudTelephoneyChannel/",
     #     CreateCloudTelephoneyChannel.as_view(),
