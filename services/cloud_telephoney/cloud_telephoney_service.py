@@ -160,6 +160,22 @@ class CloudConnectService:
             "tenant_id": self.tenant_id
         }
         return self._post_request("createSession", data)
+    
+    def create_session_new(self, username: str):
+        print("\n🔹 CLOUD CONNECT REQUEST DEBUG")
+        print(f"    ↳ username   = {username}")
+        print(f"    ↳ token      = {self.token}")
+        print(f"    ↳ tenant_id  = {self.tenant_id}")
+
+        data = {
+            "username": str(username),   # ✅ REQUIRED
+            "token": self.token,
+            "tenant_id": self.tenant_id
+        }
+
+        print("    ↳ FINAL PAYLOAD =", data)
+
+        return self._post_request("createSession", data)
 
     # (Optional / Legacy)
     def get_session_id(self, agent_id: str):

@@ -771,7 +771,7 @@ class CallServiceViewSet(viewsets.ViewSet):
                 print(f"    ↳ Payload being sent:")
                 print(f"        agent_id = {agent_id}")
 
-                response_data = cloud_connect_service.create_session(agent_id)
+                response_data = cloud_connect_service.create_session_new(agent_id)
 
                 print("\n✅ STEP 13: CloudConnect response received")
                 print("    ↳ response_data =", response_data)
