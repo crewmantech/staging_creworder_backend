@@ -159,24 +159,6 @@ class CloudConnectService:
             "token": self.token,
             "tenant_id": self.tenant_id
         }
-        return self._post_request("createSession", data)
-    
-    def create_session_new(self, username: str = None):
-        print("\n🔹 CLOUD CONNECT REQUEST DEBUG (HARDCODE TEST)")
-        
-        # ⚠️ TEMPORARY – FOR TESTING ONLY
-        username = "ag17"
-
-        print(f"    ↳ username   = {username}")
-        print(f"    ↳ token      = {self.token}")
-        print(f"    ↳ tenant_id  = {self.tenant_id}")
-
-        data = {
-            "username": username,   # 🔥 HARDCODED
-            "token": self.token,
-            "tenant_id": self.tenant_id
-        }
-
         print("    ↳ FINAL PAYLOAD =", data)
 
         return self._post_request("createSession", data)
