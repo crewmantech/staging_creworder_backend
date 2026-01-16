@@ -681,54 +681,73 @@ class CallServiceViewSet(viewsets.ViewSet):
         )
     @action(detail=False, methods=['post'], url_path='create-session')
     def create_session(self, request):
-        """
-        Create CloudConnect WebRTC session for real-time calling
-        """
+        print("🔹 STEP 1: create_session API called")
+
         agent_id = request.data.get("agent_id")
+        print(f"🔹 STEP 2: agent_id from request = {agent_id}")
 
         user = request.user
+        print(f"🔹 STEP 3: authenticated user = {user} | user_id = {getattr(user, 'id', None)}")
 
+        # ================== CHANNEL ASSIGNMENT ==================
         try:
+            print("🔹 STEP 4: Fetching CloudTelephonyChannelAssign")
             channel_assign = CloudTelephonyChannelAssign.objects.get(user_id=user.id)
             channel = channel_assign.cloud_telephony_channel
+            print(f"✅ STEP 5: Channel assigned | channel_id={channel.id}")
         except CloudTelephonyChannelAssign.DoesNotExist:
+            print("❌ STEP 5 FAILED: No channel assigned to user")
             return Response(
                 {"error": "No channel assigned to this user."},
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        cloud_vendor = channel.cloudtelephony_vendor.name.lower()
+        # ================== VENDOR ==================
+        cloud_vendor = channel.cloudtelephony_vendor.name.strip().lower()
+        print(f"🔹 STEP 6: Cloud vendor detected = '{cloud_vendor}'")
 
-        # ============ CLOUD CONNECT ============
+        # ================== CLOUD CONNECT ==================
         if cloud_vendor == 'cloud connect':
+            print("🔹 STEP 7: CloudConnect flow started")
+
+            print(f"🔹 STEP 8: Token = {bool(channel.token)}, Tenant ID = {bool(channel.tenent_id)}")
+
             if not channel.token or not channel.tenent_id:
+                print("❌ STEP 8 FAILED: Missing token or tenant_id")
                 return Response(
                     {"error": "token and tenant_id required for CloudConnect."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            # Prefer agent_id from assignment if not passed
+            # Prefer agent_id from assignment
             agent_id = agent_id or channel_assign.agent_id
+            print(f"🔹 STEP 9: Final agent_id = {agent_id}")
 
             if not agent_id:
+                print("❌ STEP 9 FAILED: agent_id missing")
                 return Response(
                     {"error": "agent_id is required."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
+            print("🔹 STEP 10: Initializing CloudConnectService")
             cloud_connect_service = CloudConnectService(
                 channel.token,
                 channel.tenent_id
             )
 
             try:
+                print("🔹 STEP 11: Calling CloudConnect create_session()")
                 response_data = cloud_connect_service.create_session(agent_id)
+                print(f"✅ STEP 12: CloudConnect response = {response_data}")
             except Exception as e:
+                print(f"❌ STEP 12 FAILED: CloudConnect exception → {str(e)}")
                 return Response(
                     {"error": str(e)},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
+            print("🔹 STEP 13: Returning success response")
             return Response(
                 {
                     "success": True,
@@ -737,6 +756,15 @@ class CallServiceViewSet(viewsets.ViewSet):
                 },
                 status=status.HTTP_200_OK
             )
+
+        # ================== UNSUPPORTED VENDOR ==================
+        print(f"❌ STEP 7 FAILED: Unsupported cloud vendor → {cloud_vendor}")
+        return Response(
+            {
+                "error": f"Cloud vendor '{cloud_vendor}' is not supported yet."
+            },
+            status=status.HTTP_400_BAD_REQUEST
+        )
     @action(detail=False, methods=['post'], url_path='get-session-id')
     def get_session_id(self, request):
         """
