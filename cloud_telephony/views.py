@@ -681,39 +681,61 @@ class CallServiceViewSet(viewsets.ViewSet):
         )
     @action(detail=False, methods=['post'], url_path='create-session')
     def create_session(self, request):
+        print("\n" + "=" * 80)
         print("🔹 STEP 1: create_session API called")
+        print("=" * 80)
+
+        print("🔹 STEP 2: Raw request.data =", request.data)
+        print("🔹 STEP 2.1: Raw request.headers =", dict(request.headers))
 
         agent_id = request.data.get("agent_id")
-        print(f"🔹 STEP 2: agent_id from request = {agent_id}")
+        print(f"🔹 STEP 3: agent_id from request = {agent_id}")
 
         user = request.user
-        print(f"🔹 STEP 3: authenticated user = {user} | user_id = {getattr(user, 'id', None)}")
+        print(
+            f"🔹 STEP 4: authenticated user = {user} | "
+            f"user_id = {getattr(user, 'id', None)} | "
+            f"is_authenticated = {user.is_authenticated}"
+        )
 
         # ================== CHANNEL ASSIGNMENT ==================
         try:
-            print("🔹 STEP 4: Fetching CloudTelephonyChannelAssign")
+            print("\n🔹 STEP 5: Fetching CloudTelephonyChannelAssign for user_id =", user.id)
             channel_assign = CloudTelephonyChannelAssign.objects.get(user_id=user.id)
             channel = channel_assign.cloud_telephony_channel
-            print(f"✅ STEP 5: Channel assigned | channel_id={channel.id}")
+
+            print("✅ STEP 6: Channel assignment found")
+            print(f"    ↳ channel_assign_id = {channel_assign.id}")
+            print(f"    ↳ assigned_agent_id = {channel_assign.agent_id}")
+            print(f"    ↳ channel_id = {channel.id}")
+
         except CloudTelephonyChannelAssign.DoesNotExist:
-            print("❌ STEP 5 FAILED: No channel assigned to user")
+            print("❌ STEP 6 FAILED: No channel assigned to user")
             return Response(
                 {"error": "No channel assigned to this user."},
                 status=status.HTTP_404_NOT_FOUND
             )
 
+        # ================== CHANNEL DETAILS ==================
+        print("\n🔹 STEP 7: Channel details")
+        print(f"    ↳ channel.name = {getattr(channel, 'name', None)}")
+        print(f"    ↳ channel.token = {channel.token}")
+        print(f"    ↳ channel.tenant_id = {channel.tenent_id}")
+
         # ================== VENDOR ==================
         cloud_vendor = channel.cloudtelephony_vendor.name.strip().lower()
-        print(f"🔹 STEP 6: Cloud vendor detected = '{cloud_vendor}'")
+        print("\n🔹 STEP 8: Cloud vendor detected")
+        print(f"    ↳ raw vendor name = {channel.cloudtelephony_vendor.name}")
+        print(f"    ↳ normalized vendor = {cloud_vendor}")
 
         # ================== CLOUD CONNECT ==================
         if cloud_vendor == 'cloud connect':
-            print("🔹 STEP 7: CloudConnect flow started")
-
-            print(f"🔹 STEP 8: Token = {bool(channel.token)}, Tenant ID = {bool(channel.tenent_id)}")
+            print("\n🔹 STEP 9: Entering CloudConnect flow")
 
             if not channel.token or not channel.tenent_id:
-                print("❌ STEP 8 FAILED: Missing token or tenant_id")
+                print("❌ STEP 9 FAILED: Missing token or tenant_id")
+                print(f"    ↳ token = {channel.token}")
+                print(f"    ↳ tenant_id = {channel.tenent_id}")
                 return Response(
                     {"error": "token and tenant_id required for CloudConnect."},
                     status=status.HTTP_400_BAD_REQUEST
@@ -721,33 +743,56 @@ class CallServiceViewSet(viewsets.ViewSet):
 
             # Prefer agent_id from assignment
             agent_id = agent_id or channel_assign.agent_id
-            print(f"🔹 STEP 9: Final agent_id = {agent_id}")
+            print("\n🔹 STEP 10: Agent resolution")
+            print(f"    ↳ request.agent_id = {request.data.get('agent_id')}")
+            print(f"    ↳ assigned.agent_id = {channel_assign.agent_id}")
+            print(f"    ↳ final.agent_id = {agent_id}")
 
             if not agent_id:
-                print("❌ STEP 9 FAILED: agent_id missing")
+                print("❌ STEP 10 FAILED: agent_id missing")
                 return Response(
                     {"error": "agent_id is required."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            print("🔹 STEP 10: Initializing CloudConnectService")
+            # ================== SERVICE INIT ==================
+            print("\n🔹 STEP 11: Initializing CloudConnectService")
+            print(f"    ↳ Using token     = {channel.token}")
+            print(f"    ↳ Using tenantId = {channel.tenent_id}")
+
             cloud_connect_service = CloudConnectService(
                 channel.token,
                 channel.tenent_id
             )
 
+            # ================== CLOUD API CALL ==================
             try:
-                print("🔹 STEP 11: Calling CloudConnect create_session()")
+                print("\n🔹 STEP 12: Calling CloudConnect.create_session()")
+                print(f"    ↳ Payload being sent:")
+                print(f"        agent_id = {agent_id}")
+
                 response_data = cloud_connect_service.create_session(agent_id)
-                print(f"✅ STEP 12: CloudConnect response = {response_data}")
+
+                print("\n✅ STEP 13: CloudConnect response received")
+                print("    ↳ response_data =", response_data)
+
             except Exception as e:
-                print(f"❌ STEP 12 FAILED: CloudConnect exception → {str(e)}")
+                print("\n❌ STEP 13 FAILED: CloudConnect exception")
+                print("    ↳ Exception type =", type(e))
+                print("    ↳ Exception msg  =", str(e))
                 return Response(
                     {"error": str(e)},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            print("🔹 STEP 13: Returning success response")
+            # ================== SUCCESS RESPONSE ==================
+            print("\n🔹 STEP 14: Preparing success response")
+            print(f"    ↳ session_id = {response_data.get('session_id')}")
+            print(f"    ↳ status_message = {response_data.get('status_message')}")
+
+            print("✅ STEP 15: Returning HTTP 200 response")
+            print("=" * 80 + "\n")
+
             return Response(
                 {
                     "success": True,
@@ -758,7 +803,10 @@ class CallServiceViewSet(viewsets.ViewSet):
             )
 
         # ================== UNSUPPORTED VENDOR ==================
-        print(f"❌ STEP 7 FAILED: Unsupported cloud vendor → {cloud_vendor}")
+        print("\n❌ STEP 9 FAILED: Unsupported cloud vendor")
+        print(f"    ↳ vendor = {cloud_vendor}")
+        print("=" * 80 + "\n")
+
         return Response(
             {
                 "error": f"Cloud vendor '{cloud_vendor}' is not supported yet."
