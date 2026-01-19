@@ -191,7 +191,7 @@
 #         serializer.is_valid(raise_exception=True)
 #         serializer.save()
 #         return Response(serializer.data)
-
+from django.db.models import Q,OuterRef,Subquery
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -311,7 +311,8 @@ class CallServiceViewSet(viewsets.ViewSet):
 
         if lead_id:
             try:
-                phone_number = Lead.objects.get(lead_id=lead_id).customer_phone
+                lead = (Lead.objects.filter(Q(lead_id=lead_id) | Q(id=lead_id)).only("customer_phone").first()) 
+                phone_number = lead.get('customer_phone')
             except Lead.DoesNotExist:
                 return Response({"error": "Lead not found."}, status=status.HTTP_404_NOT_FOUND)
         elif order_id:
