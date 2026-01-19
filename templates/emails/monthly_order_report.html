@@ -71,44 +71,63 @@
 
             <!-- USER-WISE BREAKDOWN -->
             <h3 style="color:#333;">
-                {% if role == "ADMIN" %}
-                    👥 Company User-wise Breakdown
-                {% else %}
-                    👥 Team User-wise Breakdown
-                {% endif %}
+            {% if role == "ADMIN" %}
+            👥 Company User-wise Status Matrix
+            {% else %}
+            👥 Team User-wise Status Matrix
+            {% endif %}
             </h3>
 
-            {% for u in user_wise %}
-            <div style="margin-bottom:25px;border:1px solid #e0e0e0;border-radius:6px;overflow:hidden;">
+            <table width="100%" cellpadding="10" cellspacing="0"
+                style="border-collapse:collapse;font-size:14px;margin-top:10px;">
 
-                <!-- USER HEADER -->
-                <div style="background:#f7f9fc;padding:12px 15px;">
-                    <b>{{ u.name }}</b>
-                    <span style="color:#777;font-size:13px;">({{ u.username }})</span>
-                </div>
+                <!-- HEADER -->
+                <tr style="background:#2f80ed;color:#ffffff;">
+                    <th align="left">Agent</th>
 
-                <!-- USER TABLE -->
-                <table width="100%" cellpadding="10" cellspacing="0" style="border-collapse:collapse;">
-                    <tr style="background:#eef4ff;">
-                        <th align="left">Status</th>
-                        <th align="right">Orders</th>
-                        <th align="right">Amount</th>
-                    </tr>
-
-                    {% for s in u.statuses %}
-                    <tr style="border-bottom:1px solid #eee;">
-                        <td>{{ s.status }}</td>
-                        <td align="right">{{ s.orders }}</td>
-                        <td align="right">₹ {{ s.amount }}</td>
-                    </tr>
+                    {% for s in status_summary %}
+                        <th align="center">{{ s.status }}</th>
                     {% endfor %}
 
-                    <tr style="background:#f2f2f2;font-weight:bold;">
-                        <td>Total</td>
-                        <td align="right">{{ u.total_orders }}</td>
-                        <td align="right">₹ {{ u.total_amount }}</td>
-                    </tr>
-                </table>
+                    <th align="center">Total</th>
+                </tr>
+
+                <!-- ROWS -->
+                {% for u in user_wise %}
+                <tr style="border-bottom:1px solid #eee;">
+                    <td>
+                        <b>{{ u.name }}</b><br>
+                        <small style="color:#777;">{{ u.username }}</small>
+                    </td>
+
+                    {% for st in status_summary %}
+                    <td align="center">
+                        {% with found=0 %}
+                            {% for us in u.statuses %}
+                                {% if us.status == st.status %}
+                                    {{ us.orders }}
+                                    {% with found=1 %}{% endwith %}
+                                {% endif %}
+                            {% endfor %}
+                            {% if found == 0 %}0{% endif %}
+                        {% endwith %}
+                    </td>
+                    {% endfor %}
+
+                    <td align="center" style="font-weight:bold;background:#f7f9fc;">
+                        {{ u.total_orders }}
+                    </td>
+                </tr>
+                {% endfor %}
+
+                {% if user_wise|length == 0 %}
+                <tr>
+                    <td colspan="{{ status_summary|length|add:2 }}" align="center">
+                        No data available
+                    </td>
+                </tr>
+                {% endif %}
+            </table>
 
             </div>
             {% endfor %}
