@@ -11,6 +11,7 @@
 <tr>
 <td align="center">
 
+<!-- MAIN CARD -->
 <table width="900" cellpadding="0" cellspacing="0"
        style="background:#ffffff;border-radius:8px;overflow:hidden;
               box-shadow:0 4px 12px rgba(0,0,0,0.08);">
@@ -64,11 +65,13 @@
                 </tr>
 
                 {% for s in status_summary %}
+                {% if s.status == "Pending" or s.status == "Accepted" or s.status == "OUT FOR DELIVERY" or s.status == "DELIVERED" or s.status == "RTO INITIATED" or s.status == "RTO DELIVERED" %}
                 <tr>
                     <td>{{ s.status }}</td>
                     <td align="right">{{ s.orders }}</td>
                     <td align="right">₹ {{ s.amount }}</td>
                 </tr>
+                {% endif %}
                 {% endfor %}
             </table>
 
@@ -84,16 +87,19 @@
             <table width="100%" cellpadding="10" cellspacing="0"
                    style="border-collapse:collapse;font-size:14px;margin-top:10px;">
 
-                <!-- HEADER -->
+                <!-- MATRIX HEADER -->
                 <tr style="background:#2f80ed;color:#ffffff;">
                     <th align="left">Agent</th>
-                    {% for s in status_summary %}
-                        <th align="center">{{ s.status }}</th>
-                    {% endfor %}
+                    <th align="center">Pending</th>
+                    <th align="center">Accepted</th>
+                    <th align="center">OUT FOR DELIVERY</th>
+                    <th align="center">DELIVERED</th>
+                    <th align="center">RTO INITIATED</th>
+                    <th align="center">RTO DELIVERED</th>
                     <th align="center">Total</th>
                 </tr>
 
-                <!-- ROWS -->
+                <!-- MATRIX ROWS -->
                 {% for u in user_wise %}
                 <tr style="border-bottom:1px solid #eee;">
                     <td>
@@ -101,24 +107,42 @@
                         <small style="color:#777;">{{ u.username }}</small>
                     </td>
 
-                    {% for st in status_summary %}
+                    <!-- Pending -->
                     <td align="center">
-                        {% for us in u.statuses %}
-                            {% if us.status == st.status %}
-                                {{ us.orders }}
-                            {% endif %}
-                        {% empty %}
-                            0
-                        {% endfor %}
+                        {% for us in u.statuses %}{% if us.status == "Pending" %}{{ us.orders }}{% endif %}{% empty %}0{% endfor %}
                     </td>
-                    {% endfor %}
 
+                    <!-- Accepted -->
+                    <td align="center">
+                        {% for us in u.statuses %}{% if us.status == "Accepted" %}{{ us.orders }}{% endif %}{% empty %}0{% endfor %}
+                    </td>
+
+                    <!-- OUT FOR DELIVERY -->
+                    <td align="center">
+                        {% for us in u.statuses %}{% if us.status == "OUT FOR DELIVERY" %}{{ us.orders }}{% endif %}{% empty %}0{% endfor %}
+                    </td>
+
+                    <!-- DELIVERED -->
+                    <td align="center">
+                        {% for us in u.statuses %}{% if us.status == "DELIVERED" %}{{ us.orders }}{% endif %}{% empty %}0{% endfor %}
+                    </td>
+
+                    <!-- RTO INITIATED -->
+                    <td align="center">
+                        {% for us in u.statuses %}{% if us.status == "RTO INITIATED" %}{{ us.orders }}{% endif %}{% empty %}0{% endfor %}
+                    </td>
+
+                    <!-- RTO DELIVERED -->
+                    <td align="center">
+                        {% for us in u.statuses %}{% if us.status == "RTO DELIVERED" %}{{ us.orders }}{% endif %}{% empty %}0{% endfor %}
+                    </td>
+
+                    <!-- TOTAL -->
                     <td align="center" style="font-weight:bold;background:#f7f9fc;">
                         {{ u.total_orders }}
                     </td>
                 </tr>
                 {% endfor %}
-
             </table>
 
         </td>
