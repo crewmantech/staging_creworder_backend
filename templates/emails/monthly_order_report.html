@@ -1,0 +1,27 @@
+<h2>📊 Monthly Order Report</h2>
+
+<p><b>Period:</b> {{ start_date }} to {{ end_date }}</p>
+
+<h3>Total Summary</h3>
+<ul>
+  <li>Total Orders: {{ total.total_order_count }}</li>
+  <li>Total Amount: ₹{{ total.total_order_price }}</li>
+  <li>Total Discount: ₹{{ total.total_order_discount }}</li>
+  <li>Gross Amount: ₹{{ total.total_order_gross_amount }}</li>
+</ul>
+
+<h3>Status-wise Summary</h3>
+<table border="1" cellpadding="8">
+<tr>
+  <th>Status</th>
+  <th>Orders</th>
+  <th>Amount</th>
+</tr>
+{% for s in status_data %}
+<tr>
+  <td>{{ s.status }}</td>
+  <td>{{ s.order_count }}</td>
+  <td>₹{{ s.total_price }}</td>
+</tr>
+{% endfor %}
+</table>

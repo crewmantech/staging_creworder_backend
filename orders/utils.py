@@ -3,6 +3,7 @@ from django.db.models import Sum, F, FloatField
 from django.db.models.functions import Coalesce
 
 from orders.models import Customer_State, OrderDetail
+from services.email.email_service import send_email
 
 def get_order_amount_breakup(order_qs):
     """
@@ -227,3 +228,36 @@ def get_customer_state(state_name):
         Q(name__iexact=state_name) |
         Q(keys__regex=rf'(^|,){state_name}(,|$)')
     ).first()
+
+
+from datetime import date, datetime, time
+import calendar
+
+def get_current_month_range():
+    today = date.today()
+
+    first_day = date(today.year, today.month, 1)
+    last_day = date(
+        today.year,
+        today.month,
+        calendar.monthrange(today.year, today.month)[1]
+    )
+
+    start_datetime = datetime.combine(first_day, time.min)
+    end_datetime = datetime.combine(last_day, time.max)
+
+    return start_datetime, end_datetime
+
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+from django.conf import settings
+
+def send_monthly_report_mail(subject, to_emails, context):
+    html_content = render_to_string(
+        "emails/monthly_order_report.html",
+        context
+    )
+    
+    email = send_email(subject, html_content, to_emails,"welcome")
+    # email.attach_alternative(html_content, "text/html")
+    # email.send()
