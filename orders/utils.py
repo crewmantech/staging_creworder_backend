@@ -254,7 +254,7 @@ from django.template.loader import render_to_string
 from django.conf import settings
 
 
-def send_monthly_report_mail(subject, recipients, context):
+def send_report_email(subject, recipients, context):
     html = render_to_string("emails/monthly_order_report.html", context)
 
     # email = EmailMultiAlternatives(
@@ -330,3 +330,92 @@ def get_order_summary(company_id, branch_id, start_dt, end_dt, user_ids=None):
         })
 
     return summary, user_wise_data
+
+
+def get_order_report(company_id, branch_id, start_dt, end_dt, user_ids=None):
+
+    orders = Order_Table.objects.filter(
+        company_id=company_id,
+        branch_id=branch_id,
+        is_deleted=False,
+        created_at__range=(start_dt, end_dt)
+    )
+
+    if user_ids:
+        orders = orders.filter(
+            Q(order_created_by_id__in=user_ids) |
+            Q(updated_by_id__in=user_ids)
+        )
+
+    # =============================
+    # OVERALL SUMMARY
+    # =============================
+    summary = orders.aggregate(
+        total_orders=Count("id"),
+        total_amount=Sum("total_amount"),
+        total_discount=Sum("discount"),
+        total_gross_amount=Sum("gross_amount"),
+    )
+
+    # =============================
+    # STATUS-WISE SUMMARY
+    # =============================
+    status_qs = orders.values(
+        "order_status__name"
+    ).annotate(
+        orders=Count("id"),
+        amount=Sum("total_amount")
+    )
+
+    status_summary = [
+        {
+            "status": s["order_status__name"],
+            "orders": s["orders"],
+            "amount": s["amount"] or 0
+        }
+        for s in status_qs
+    ]
+
+    # =============================
+    # USER + STATUS WISE
+    # =============================
+    user_status_qs = orders.values(
+        "order_created_by_id",
+        "order_created_by__username",
+        "order_created_by__first_name",
+        "order_created_by__last_name",
+        "order_status__name"
+    ).annotate(
+        orders=Count("id"),
+        amount=Sum("total_amount")
+    )
+
+    user_map = {}
+
+    for row in user_status_qs:
+        uid = row["order_created_by_id"]
+
+        if uid not in user_map:
+            user_map[uid] = {
+                "user_id": uid,
+                "username": row["order_created_by__username"],
+                "name": f'{row["order_created_by__first_name"]} {row["order_created_by__last_name"]}'.strip(),
+                "total_orders": 0,
+                "total_amount": 0,
+                "statuses": []
+            }
+
+        user_map[uid]["statuses"].append({
+            "status": row["order_status__name"],
+            "orders": row["orders"],
+            "amount": row["amount"] or 0
+        })
+
+        user_map[uid]["total_orders"] += row["orders"]
+        user_map[uid]["total_amount"] += row["amount"] or 0
+
+    return {
+        "summary": summary,
+        "status_summary": status_summary,
+        "user_wise": list(user_map.values())
+    }

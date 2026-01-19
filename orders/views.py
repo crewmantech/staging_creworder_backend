@@ -17,7 +17,7 @@ from follow_up.models import Follow_Up, Appointment
 from follow_up.utils import get_phone_by_reference_id, get_phone_from_call_or_appointment
 from lead_management.models import Lead
 from orders.perrmissions import CategoryPermissions, OrderPermissions
-from orders.utils import get_current_month_range, get_customer_state, get_manager_team_user_ids, get_order_summary, get_price_breakdown, normalize_phone, send_monthly_report_mail
+from orders.utils import get_current_month_range, get_customer_state, get_manager_team_user_ids, get_order_report, get_order_summary, get_price_breakdown, normalize_phone, send_report_email
 from services.cloud_telephoney.cloud_telephoney_service import CloudConnectService, get_phone_number_by_call_id
 from shipment.models import ShipmentVendor
 from .models import (
@@ -5072,10 +5072,11 @@ class SendMonthlyOrderReportAPIView(APIView):
         user = request.user
         company_id = user.profile.company_id
         branch_id = user.profile.branch_id
+        company_name = user.profile.company.name
 
-        # ============================
+        # ==========================
         # MONTH RANGE
-        # ============================
+        # ==========================
         today = date.today()
         start_dt = datetime.combine(date(today.year, today.month, 1), time.min)
         end_dt = datetime.combine(
@@ -5084,38 +5085,37 @@ class SendMonthlyOrderReportAPIView(APIView):
             time.max
         )
 
-        # ============================
-        # ADMIN MAIL (ALL DATA)
-        # ============================
+        # ==========================
+        # ADMIN REPORT (ALL DATA)
+        # ==========================
         admin_users = User.objects.filter(
             profile__company_id=company_id,
-            profile__user_type="ADMIN",
+            profile__role="ADMIN",
             is_active=True
         )
 
         admin_emails = admin_users.values_list("email", flat=True)
 
-        admin_summary, admin_user_wise = get_order_summary(
+        admin_data = get_order_report(
             company_id, branch_id, start_dt, end_dt
         )
 
         if admin_emails:
-            send_monthly_report_mail(
+            send_report_email(
                 subject="📊 Monthly Company Order Report",
                 recipients=list(admin_emails),
                 context={
                     "role": "ADMIN",
-                    "company_name": user.profile.company.name,
+                    "company_name": company_name,
                     "start_date": start_dt.date(),
                     "end_date": end_dt.date(),
-                    "summary": admin_summary,
-                    "user_wise": admin_user_wise,
+                    **admin_data
                 }
             )
 
-        # ============================
-        # MANAGER MAIL (TEAM DATA)
-        # ============================
+        # ==========================
+        # MANAGER REPORT (TEAM DATA)
+        # ==========================
         manager_ids = Employees.objects.filter(
             manager__isnull=False,
             company_id=company_id,
@@ -5131,7 +5131,7 @@ class SendMonthlyOrderReportAPIView(APIView):
             if not team_user_ids:
                 continue
 
-            mgr_summary, mgr_user_wise = get_order_summary(
+            manager_data = get_order_report(
                 company_id,
                 branch_id,
                 start_dt,
@@ -5140,16 +5140,15 @@ class SendMonthlyOrderReportAPIView(APIView):
             )
 
             if manager.email:
-                send_monthly_report_mail(
+                send_report_email(
                     subject="📊 Monthly Team Order Report",
                     recipients=[manager.email],
                     context={
                         "role": "MANAGER",
-                        "company_name": user.profile.company.name,
+                        "company_name": company_name,
                         "start_date": start_dt.date(),
                         "end_date": end_dt.date(),
-                        "summary": mgr_summary,
-                        "user_wise": mgr_user_wise,
+                        **manager_data
                     }
                 )
 
