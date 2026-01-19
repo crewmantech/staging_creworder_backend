@@ -11,8 +11,9 @@
 <tr>
 <td align="center">
 
-<!-- MAIN CONTAINER -->
-<table width="900" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.08);">
+<table width="900" cellpadding="0" cellspacing="0"
+       style="background:#ffffff;border-radius:8px;overflow:hidden;
+              box-shadow:0 4px 12px rgba(0,0,0,0.08);">
 
     <!-- HEADER -->
     <tr>
@@ -29,9 +30,10 @@
         <td style="padding:25px;">
 
             <!-- OVERALL SUMMARY -->
-            <h3 style="margin-top:0;color:#333;">📌 Overall Summary</h3>
+            <h3 style="color:#333;">📌 Overall Summary</h3>
 
-            <table width="100%" cellpadding="12" cellspacing="0" style="border-collapse:collapse;margin-bottom:25px;">
+            <table width="100%" cellpadding="12" cellspacing="0"
+                   style="border-collapse:collapse;margin-bottom:25px;">
                 <tr style="background:#f7f9fc;">
                     <td><b>Total Orders</b></td>
                     <td align="right">{{ summary.total_orders }}</td>
@@ -53,7 +55,8 @@
             <!-- STATUS SUMMARY -->
             <h3 style="color:#333;">📊 Status-wise Summary</h3>
 
-            <table width="100%" cellpadding="10" cellspacing="0" style="border-collapse:collapse;margin-bottom:30px;">
+            <table width="100%" cellpadding="10" cellspacing="0"
+                   style="border-collapse:collapse;margin-bottom:30px;">
                 <tr style="background:#e8f0fe;">
                     <th align="left">Status</th>
                     <th align="right">Orders</th>
@@ -61,7 +64,7 @@
                 </tr>
 
                 {% for s in status_summary %}
-                <tr style="border-bottom:1px solid #eee;">
+                <tr>
                     <td>{{ s.status }}</td>
                     <td align="right">{{ s.orders }}</td>
                     <td align="right">₹ {{ s.amount }}</td>
@@ -69,26 +72,24 @@
                 {% endfor %}
             </table>
 
-            <!-- USER-WISE BREAKDOWN -->
+            <!-- USER MATRIX -->
             <h3 style="color:#333;">
-            {% if role == "ADMIN" %}
-            👥 Company User-wise Status Matrix
-            {% else %}
-            👥 Team User-wise Status Matrix
-            {% endif %}
+                {% if role == "ADMIN" %}
+                    👥 Company User-wise Status Matrix
+                {% else %}
+                    👥 Team User-wise Status Matrix
+                {% endif %}
             </h3>
 
             <table width="100%" cellpadding="10" cellspacing="0"
-                style="border-collapse:collapse;font-size:14px;margin-top:10px;">
+                   style="border-collapse:collapse;font-size:14px;margin-top:10px;">
 
                 <!-- HEADER -->
                 <tr style="background:#2f80ed;color:#ffffff;">
                     <th align="left">Agent</th>
-
                     {% for s in status_summary %}
                         <th align="center">{{ s.status }}</th>
                     {% endfor %}
-
                     <th align="center">Total</th>
                 </tr>
 
@@ -102,15 +103,13 @@
 
                     {% for st in status_summary %}
                     <td align="center">
-                        {% with found=0 %}
-                            {% for us in u.statuses %}
-                                {% if us.status == st.status %}
-                                    {{ us.orders }}
-                                    {% with found=1 %}{% endwith %}
-                                {% endif %}
-                            {% endfor %}
-                            {% if found == 0 %}0{% endif %}
-                        {% endwith %}
+                        {% for us in u.statuses %}
+                            {% if us.status == st.status %}
+                                {{ us.orders }}
+                            {% endif %}
+                        {% empty %}
+                            0
+                        {% endfor %}
                     </td>
                     {% endfor %}
 
@@ -120,24 +119,15 @@
                 </tr>
                 {% endfor %}
 
-                {% if user_wise|length == 0 %}
-                <tr>
-                    <td colspan="{{ status_summary|length|add:2 }}" align="center">
-                        No data available
-                    </td>
-                </tr>
-                {% endif %}
             </table>
-
-            </div>
-            {% endfor %}
 
         </td>
     </tr>
 
     <!-- FOOTER -->
     <tr>
-        <td style="background:#fafafa;padding:15px;text-align:center;color:#888;font-size:12px;">
+        <td style="background:#fafafa;padding:15px;text-align:center;
+                   color:#888;font-size:12px;">
             This is an auto-generated report. Please do not reply.
         </td>
     </tr>
