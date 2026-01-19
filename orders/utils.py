@@ -2,6 +2,7 @@ import re
 from django.db.models import Sum, F, FloatField
 from django.db.models.functions import Coalesce
 from django.db.models import Sum, Count,Avg
+from accounts.models import Employees
 from orders.models import Customer_State, Order_Table, OrderDetail
 from services.email.email_service import send_email
 

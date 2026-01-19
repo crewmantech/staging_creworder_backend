@@ -5080,7 +5080,7 @@ class SendMonthlyOrderReportAPIView(APIView):
         # =======================
         admin_users = User.objects.filter(
             profile__company=company,
-            profile__role="ADMIN",
+            profile__user_type="ADMIN",
             is_active=True
         )
 
