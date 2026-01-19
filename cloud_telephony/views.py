@@ -311,8 +311,10 @@ class CallServiceViewSet(viewsets.ViewSet):
 
         if lead_id:
             try:
-                lead = (Lead.objects.filter(Q(lead_id=lead_id) | Q(id=lead_id)).only("customer_phone").first()) 
-                phone_number = lead.get('customer_phone')
+                lead = (Lead.objects.filter(Q(lead_id=lead_id) | Q(id=lead_id)).only("customer_phone").first())
+                if not lead:
+                    return Response({"error": "lead_id parameter is required"}, status=status.HTTP_400_BAD_REQUEST) 
+                phone_number = lead.customer_phone
             except Lead.DoesNotExist:
                 return Response({"error": "Lead not found."}, status=status.HTTP_404_NOT_FOUND)
         elif order_id:
