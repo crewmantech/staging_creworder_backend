@@ -1,8 +1,8 @@
 import re
 from django.db.models import Sum, F, FloatField
 from django.db.models.functions import Coalesce
-
-from orders.models import Customer_State, OrderDetail
+from django.db.models import Sum, Count,Avg
+from orders.models import Customer_State, Order_Table, OrderDetail
 from services.email.email_service import send_email
 
 def get_order_amount_breakup(order_qs):
@@ -261,3 +261,45 @@ def send_monthly_report_mail(subject, to_emails, context):
     email = send_email(subject, html_content, 'lakhansharma1june@gmail.com',"welcome")
     # email.attach_alternative(html_content, "text/html")
     # email.send()
+
+def get_manager_team_user_ids(manager_id):
+    return Employees.objects.filter(
+        manager_id=manager_id,
+        status=1
+    ).values_list("user_id", flat=True)
+
+def get_order_summary(company, branch, start_dt, end_dt, user_ids=None):
+    orders = Order_Table.objects.filter(
+        company=company,
+        branch=branch,
+        is_deleted=False,
+        created_at__range=(start_dt, end_dt)
+    )
+
+    if user_ids:
+        orders = orders.filter(
+            Q(order_created_by_id__in=user_ids) |
+            Q(updated_by_id__in=user_ids)
+        )
+
+    status_data = orders.values(
+        "order_status__name"
+    ).annotate(
+        order_count=Count("id"),
+        total_price=Sum("total_amount"),
+        total_discount=Sum("discount"),
+        gross_amount=Sum("gross_amount"),
+    )
+
+    total_summary = orders.aggregate(
+        total_order_count=Count("id"),
+        total_order_price=Sum("total_amount"),
+        total_order_discount=Sum("discount"),
+        total_order_gross_amount=Sum("gross_amount"),
+    )
+
+    return {
+        "orders": orders.count(),
+        "status_data": status_data,
+        "total_summary": total_summary,
+    }

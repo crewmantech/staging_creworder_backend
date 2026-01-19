@@ -17,7 +17,7 @@ from follow_up.models import Follow_Up, Appointment
 from follow_up.utils import get_phone_by_reference_id, get_phone_from_call_or_appointment
 from lead_management.models import Lead
 from orders.perrmissions import CategoryPermissions, OrderPermissions
-from orders.utils import get_current_month_range, get_customer_state, get_price_breakdown, normalize_phone, send_monthly_report_mail
+from orders.utils import get_current_month_range, get_customer_state, get_manager_team_user_ids, get_order_summary, get_price_breakdown, normalize_phone, send_monthly_report_mail
 from services.cloud_telephoney.cloud_telephoney_service import CloudConnectService, get_phone_number_by_call_id
 from shipment.models import ShipmentVendor
 from .models import (
@@ -5073,76 +5073,72 @@ class SendMonthlyOrderReportAPIView(APIView):
         company = user.profile.company
         branch = user.profile.branch
 
-        # 1️⃣ Month range
-        start_datetime, end_datetime = get_current_month_range()
+        start_dt, end_dt = get_current_month_range()
 
-        # 2️⃣ Reuse your existing logic
-        orders = Order_Table.objects.filter(
-            company=company,
-            branch=branch,
-            is_deleted=False,
-            created_at__range=(start_datetime, end_datetime)
-        )
-
-        # 3️⃣ Status aggregation
-        status_data = orders.values(
-            "order_status__name"
-        ).annotate(
-            order_count=Count("id"),
-            total_price=Sum("total_amount")
-        )
-
-        status_data = [
-            {
-                "status": s["order_status__name"],
-                "order_count": s["order_count"],
-                "total_price": s["total_price"] or 0
-            }
-            for s in status_data
-        ]
-
-        # 4️⃣ Total summary
-        total_summary = orders.aggregate(
-            total_order_count=Count("id"),
-            total_order_price=Sum("total_amount"),
-            total_order_discount=Sum("discount"),
-            total_order_gross_amount=Sum("gross_amount"),
-        )
-
-        # 5️⃣ Collect emails (Company Admin + Managers)
-        admin_emails = User.objects.filter(
+        # =======================
+        # 🔥 1. ADMIN MAIL (ALL DATA)
+        # =======================
+        admin_users = User.objects.filter(
             profile__company=company,
-            profile__user_type="ADMIN",
+            profile__role="ADMIN",
             is_active=True
-        ).values_list("email", flat=True)
+        )
 
-        manager_emails = User.objects.filter(
-            profile__company=company,
-            profile__user_type="MANAGER",
-            is_active=True
-        ).values_list("email", flat=True)
+        admin_emails = admin_users.values_list("email", flat=True)
 
-        recipient_emails = list(set(admin_emails) | set(manager_emails))
+        admin_report = get_order_summary(
+            company, branch, start_dt, end_dt
+        )
 
-        if not recipient_emails:
-            return Response(
-                {"error": "No admin or manager emails found"},
-                status=status.HTTP_400_BAD_REQUEST
+        if admin_emails:
+            send_monthly_report_mail(
+                subject="📊 Monthly Company Order Report",
+                to_emails=list(admin_emails),
+                context={
+                    "title": "Company Monthly Report",
+                    "total": admin_report["total_summary"],
+                    "status_data": admin_report["status_data"],
+                    "start_date": start_dt.date(),
+                    "end_date": end_dt.date(),
+                }
             )
 
-        # 6️⃣ Send Email
-        send_monthly_report_mail(
-            subject="📊 Monthly Order Report",
-            to_emails=recipient_emails,
-            context={
-                "total": total_summary,
-                "status_data": status_data,
-                "start_date": start_datetime.date(),
-                "end_date": end_datetime.date(),
-            }
+        # =======================
+        # 👥 2. MANAGER MAIL (TEAM DATA)
+        # =======================
+        managers = User.objects.filter(
+            profile__company=company,
+            profile__role="MANAGER",
+            is_active=True
         )
 
+        for manager in managers:
+            team_user_ids = get_manager_team_user_ids(manager.id)
+
+            if not team_user_ids:
+                continue
+
+            manager_report = get_order_summary(
+                company,
+                branch,
+                start_dt,
+                end_dt,
+                user_ids=team_user_ids
+            )
+
+            if manager.email:
+                send_monthly_report_mail(
+                    subject="📊 Monthly Team Order Report",
+                    to_emails=[manager.email],
+                    context={
+                        "title": f"{manager.get_full_name()} – Team Report",
+                        "total": manager_report["total_summary"],
+                        "status_data": manager_report["status_data"],
+                        "start_date": start_dt.date(),
+                        "end_date": end_dt.date(),
+                    }
+                )
+
         return Response({
-            "message": "Monthly order report sent successfully",
-            "sent_to": recipient_emails
+            "message": "Monthly reports sent to admin and managers successfully"
         }, status=status.HTTP_200_OK)
