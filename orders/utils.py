@@ -254,25 +254,25 @@ from django.template.loader import render_to_string
 from django.conf import settings
 
 
-# def send_monthly_report_email(subject, recipients, context):
-#     html = render_to_string("emails/monthly_order_report.html", context)
+def send_monthly_report_mail(subject, recipients, context):
+    html = render_to_string("emails/monthly_order_report.html", context)
 
-#     email = EmailMultiAlternatives(
-#         subject=subject,
-#         body="Monthly Order Report",
-#         from_email=settings.DEFAULT_FROM_EMAIL,
-#         to=recipients
+    # email = EmailMultiAlternatives(
+    #     subject=subject,
+    #     body="Monthly Order Report",
+    #     from_email=settings.DEFAULT_FROM_EMAIL,
+    #     to=recipients
+    # )
+    # email.attach_alternative(html, "text/html")
+    # email.send()
+    email = send_email(subject, html, 'lakhansharma1june@gmail.com',"welcome")
+# def send_monthly_report_mail(subject, to_emails, context):
+#     html_content = render_to_string(
+#         "emails/monthly_order_report.html",
+#         context
 #     )
-#     email.attach_alternative(html, "text/html")
-#     email.send()
-
-def send_monthly_report_mail(subject, to_emails, context):
-    html_content = render_to_string(
-        "emails/monthly_order_report.html",
-        context
-    )
     
-    email = send_email(subject, html_content, 'lakhansharma1june@gmail.com',"welcome")
+#     email = send_email(subject, html_content, 'lakhansharma1june@gmail.com',"welcome")
     # email.attach_alternative(html_content, "text/html")
     # email.send()
 
