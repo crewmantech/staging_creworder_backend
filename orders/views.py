@@ -5108,7 +5108,7 @@ class SendMonthlyOrderReportAPIView(APIView):
         # =======================
         managers = User.objects.filter(
             profile__company=company,
-            profile__role="MANAGER",
+            profile__user_type="agent",
             is_active=True
         )
 
