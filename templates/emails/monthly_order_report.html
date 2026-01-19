@@ -1,27 +1,100 @@
-<h2>📊 Monthly Order Report</h2>
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Monthly Order Report</title>
+</head>
+<body style="font-family: Arial, sans-serif; background:#f5f5f5; padding:20px;">
 
-<p><b>Period:</b> {{ start_date }} to {{ end_date }}</p>
+<div style="max-width:900px; margin:auto; background:#ffffff; padding:20px; border-radius:6px;">
 
-<h3>Total Summary</h3>
-<ul>
-  <li>Total Orders: {{ total.total_order_count }}</li>
-  <li>Total Amount: ₹{{ total.total_order_price }}</li>
-  <li>Total Discount: ₹{{ total.total_order_discount }}</li>
-  <li>Gross Amount: ₹{{ total.total_order_gross_amount }}</li>
-</ul>
+    <h2 style="margin-bottom:5px;">
+        📊 Monthly Order Report
+    </h2>
 
-<h3>Status-wise Summary</h3>
-<table border="1" cellpadding="8">
-<tr>
-  <th>Status</th>
-  <th>Orders</th>
-  <th>Amount</th>
-</tr>
-{% for s in status_data %}
-<tr>
-  <td>{{ s.status }}</td>
-  <td>{{ s.order_count }}</td>
-  <td>₹{{ s.total_price }}</td>
-</tr>
-{% endfor %}
-</table>
+    <p style="color:#666;">
+        <b>Company:</b> {{ company_name }} <br>
+        <b>Period:</b> {{ start_date }} to {{ end_date }}
+    </p>
+
+    <hr>
+
+    <!-- ===================== -->
+    <!-- OVERALL SUMMARY -->
+    <!-- ===================== -->
+    <h3>📌 Overall Summary</h3>
+
+    <table width="100%" cellpadding="8" cellspacing="0" border="1" style="border-collapse:collapse;">
+        <tr>
+            <th align="left">Total Orders</th>
+            <td>{{ summary.total_orders }}</td>
+        </tr>
+        <tr>
+            <th align="left">Total Amount</th>
+            <td>₹ {{ summary.total_amount }}</td>
+        </tr>
+        <tr>
+            <th align="left">Total Discount</th>
+            <td>₹ {{ summary.total_discount }}</td>
+        </tr>
+        <tr>
+            <th align="left">Gross Amount</th>
+            <td>₹ {{ summary.total_gross_amount }}</td>
+        </tr>
+    </table>
+
+    <br>
+
+    <!-- ===================== -->
+    <!-- USER WISE DETAILS -->
+    <!-- ===================== -->
+    <h3>
+        👥 {% if role == "ADMIN" %}
+            Company User-wise Performance
+        {% else %}
+            Team User-wise Performance
+        {% endif %}
+    </h3>
+
+    <table width="100%" cellpadding="8" cellspacing="0" border="1" style="border-collapse:collapse;">
+        <thead style="background:#efefef;">
+            <tr>
+                <th align="left">User</th>
+                <th align="right">Orders</th>
+                <th align="right">Amount</th>
+                <th align="right">Discount</th>
+                <th align="right">Gross</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in user_wise %}
+            <tr>
+                <td>
+                    <b>{{ u.name }}</b><br>
+                    <small style="color:#666;">{{ u.username }}</small>
+                </td>
+                <td align="right">{{ u.total_orders }}</td>
+                <td align="right">₹ {{ u.total_amount }}</td>
+                <td align="right">₹ {{ u.total_discount }}</td>
+                <td align="right">₹ {{ u.total_gross_amount }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" align="center">
+                    No data available
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <br>
+
+    <p style="font-size:12px; color:#999;">
+        This is an auto-generated report. Please do not reply.
+    </p>
+
+</div>
+
+</body>
+</html>

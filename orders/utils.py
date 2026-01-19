@@ -253,6 +253,19 @@ from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.conf import settings
 
+
+# def send_monthly_report_email(subject, recipients, context):
+#     html = render_to_string("emails/monthly_order_report.html", context)
+
+#     email = EmailMultiAlternatives(
+#         subject=subject,
+#         body="Monthly Order Report",
+#         from_email=settings.DEFAULT_FROM_EMAIL,
+#         to=recipients
+#     )
+#     email.attach_alternative(html, "text/html")
+#     email.send()
+
 def send_monthly_report_mail(subject, to_emails, context):
     html_content = render_to_string(
         "emails/monthly_order_report.html",
@@ -269,10 +282,12 @@ def get_manager_team_user_ids(manager_id):
         status=1
     ).values_list("user_id", flat=True)
 
-def get_order_summary(company, branch, start_dt, end_dt, user_ids=None):
+
+def get_order_summary(company_id, branch_id, start_dt, end_dt, user_ids=None):
+
     orders = Order_Table.objects.filter(
-        company=company,
-        branch=branch,
+        company_id=company_id,
+        branch_id=branch_id,
         is_deleted=False,
         created_at__range=(start_dt, end_dt)
     )
@@ -283,24 +298,35 @@ def get_order_summary(company, branch, start_dt, end_dt, user_ids=None):
             Q(updated_by_id__in=user_ids)
         )
 
-    status_data = orders.values(
-        "order_status__name"
-    ).annotate(
-        order_count=Count("id"),
-        total_price=Sum("total_amount"),
+    summary = orders.aggregate(
+        total_orders=Count("id"),
+        total_amount=Sum("total_amount"),
         total_discount=Sum("discount"),
-        gross_amount=Sum("gross_amount"),
+        total_gross_amount=Sum("gross_amount"),
     )
 
-    total_summary = orders.aggregate(
-        total_order_count=Count("id"),
-        total_order_price=Sum("total_amount"),
-        total_order_discount=Sum("discount"),
-        total_order_gross_amount=Sum("gross_amount"),
-    )
+    user_wise = orders.values(
+        "order_created_by_id",
+        "order_created_by__username",
+        "order_created_by__first_name",
+        "order_created_by__last_name"
+    ).annotate(
+        total_orders=Count("id"),
+        total_amount=Sum("total_amount"),
+        total_discount=Sum("discount"),
+        total_gross_amount=Sum("gross_amount"),
+    ).order_by("-total_orders")
 
-    return {
-        "orders": orders.count(),
-        "status_data": status_data,
-        "total_summary": total_summary,
-    }
+    user_wise_data = []
+    for u in user_wise:
+        user_wise_data.append({
+            "user_id": u["order_created_by_id"],
+            "username": u["order_created_by__username"],
+            "name": f'{u["order_created_by__first_name"]} {u["order_created_by__last_name"]}'.strip(),
+            "total_orders": u["total_orders"],
+            "total_amount": u["total_amount"] or 0,
+            "total_discount": u["total_discount"] or 0,
+            "total_gross_amount": u["total_gross_amount"] or 0,
+        })
+
+    return summary, user_wise_data

@@ -5070,47 +5070,60 @@ class SendMonthlyOrderReportAPIView(APIView):
 
     def post(self, request):
         user = request.user
-        company = user.profile.company
-        branch = user.profile.branch
+        company_id = user.profile.company_id
+        branch_id = user.profile.branch_id
 
-        start_dt, end_dt = get_current_month_range()
+        # ============================
+        # MONTH RANGE
+        # ============================
+        today = date.today()
+        start_dt = datetime.combine(date(today.year, today.month, 1), time.min)
+        end_dt = datetime.combine(
+            date(today.year, today.month,
+                 calendar.monthrange(today.year, today.month)[1]),
+            time.max
+        )
 
-        # =======================
-        # 🔥 1. ADMIN MAIL (ALL DATA)
-        # =======================
+        # ============================
+        # ADMIN MAIL (ALL DATA)
+        # ============================
         admin_users = User.objects.filter(
-            profile__company=company,
+            profile__company_id=company_id,
             profile__user_type="ADMIN",
             is_active=True
         )
 
         admin_emails = admin_users.values_list("email", flat=True)
 
-        admin_report = get_order_summary(
-            company, branch, start_dt, end_dt
+        admin_summary, admin_user_wise = get_order_summary(
+            company_id, branch_id, start_dt, end_dt
         )
 
         if admin_emails:
             send_monthly_report_mail(
                 subject="📊 Monthly Company Order Report",
-                to_emails=list(admin_emails),
+                recipients=list(admin_emails),
                 context={
-                    "title": "Company Monthly Report",
-                    "total": admin_report["total_summary"],
-                    "status_data": admin_report["status_data"],
+                    "role": "ADMIN",
+                    "company_name": user.profile.company.name,
                     "start_date": start_dt.date(),
                     "end_date": end_dt.date(),
+                    "summary": admin_summary,
+                    "user_wise": admin_user_wise,
                 }
             )
 
-        # =======================
-        # 👥 2. MANAGER MAIL (TEAM DATA)
-        # =======================
-        managers = User.objects.filter(
-            profile__company=company,
-            profile__user_type="agent",
-            is_active=True
-        )
+        # ============================
+        # MANAGER MAIL (TEAM DATA)
+        # ============================
+        manager_ids = Employees.objects.filter(
+            manager__isnull=False,
+            company_id=company_id,
+            branch_id=branch_id,
+            status=1
+        ).values_list("manager_id", flat=True).distinct()
+
+        managers = User.objects.filter(id__in=manager_ids, is_active=True)
 
         for manager in managers:
             team_user_ids = get_manager_team_user_ids(manager.id)
@@ -5118,9 +5131,9 @@ class SendMonthlyOrderReportAPIView(APIView):
             if not team_user_ids:
                 continue
 
-            manager_report = get_order_summary(
-                company,
-                branch,
+            mgr_summary, mgr_user_wise = get_order_summary(
+                company_id,
+                branch_id,
                 start_dt,
                 end_dt,
                 user_ids=team_user_ids
@@ -5129,16 +5142,18 @@ class SendMonthlyOrderReportAPIView(APIView):
             if manager.email:
                 send_monthly_report_mail(
                     subject="📊 Monthly Team Order Report",
-                    to_emails=[manager.email],
+                    recipients=[manager.email],
                     context={
-                        "title": f"{manager.get_full_name()} – Team Report",
-                        "total": manager_report["total_summary"],
-                        "status_data": manager_report["status_data"],
+                        "role": "MANAGER",
+                        "company_name": user.profile.company.name,
                         "start_date": start_dt.date(),
                         "end_date": end_dt.date(),
+                        "summary": mgr_summary,
+                        "user_wise": mgr_user_wise,
                     }
                 )
 
-        return Response({
-            "message": "Monthly reports sent to admin and managers successfully"
-        }, status=status.HTTP_200_OK)
+        return Response(
+            {"message": "Monthly reports sent successfully"},
+            status=status.HTTP_200_OK
+        )
