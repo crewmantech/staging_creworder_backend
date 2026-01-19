@@ -128,7 +128,9 @@ class CloudConnectService:
     def _post_request(self, endpoint: str, data: dict):
         url = f"{self.BASE_URL}/{endpoint}"
         headers = {"Content-Type": "application/json"}
-
+        print("    ↳ SENDING REQUEST TO =", url)
+        print("    ↳ PAYLOAD =", data)
+        print("    ↳ HEADERS =", headers)
         response = requests.post(
             url,
             json=data,
