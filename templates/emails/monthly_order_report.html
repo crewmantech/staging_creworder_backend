@@ -5,98 +5,109 @@
     <title>Monthly Order Report</title>
 </head>
 
-<body style="margin:0;padding:0;background:#eef1f5;font-family:Arial, Helvetica, sans-serif;">
+<body style="margin:0;padding:0;background:#eef2f7;font-family:Arial, Helvetica, sans-serif;">
 
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#eef1f5;padding:20px;">
+<table width="100%" cellpadding="0" cellspacing="0" style="padding:20px;background:#eef2f7;">
 <tr>
 <td align="center">
 
 <!-- MAIN CARD -->
 <table width="900" cellpadding="0" cellspacing="0"
-       style="background:#ffffff;border-radius:8px;overflow:hidden;
-              box-shadow:0 4px 12px rgba(0,0,0,0.08);">
+       style="background:#ffffff;border-radius:10px;overflow:hidden;
+              box-shadow:0 8px 20px rgba(0,0,0,0.08);">
 
     <!-- HEADER -->
     <tr>
-        <td style="background:#2f80ed;padding:20px;color:#ffffff;">
-            <h2 style="margin:0;">📊 Monthly Order Report</h2>
-            <p style="margin:5px 0 0;font-size:14px;">
-                {{ company_name }} | {{ start_date }} → {{ end_date }}
+        <td style="background:linear-gradient(135deg,#2f80ed,#1c5fd4);
+                   padding:25px;color:#ffffff;">
+            <h2 style="margin:0;font-size:22px;">📊 Monthly Order Report</h2>
+            <p style="margin:6px 0 0;font-size:14px;opacity:0.9;">
+                {{ company_name }} <br>
+                <span style="font-size:13px;">{{ start_date }} → {{ end_date }}</span>
             </p>
         </td>
     </tr>
 
     <!-- BODY -->
     <tr>
-        <td style="padding:25px;">
+        <td style="padding:30px;">
 
-            <!-- OVERALL SUMMARY -->
-            <h3 style="color:#333;">📌 Overall Summary</h3>
+            <!-- SUMMARY CARDS -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:30px;">
+                <tr>
+                    <td width="33%" style="padding:8px;">
+                        <table width="100%" style="background:#f7f9fc;border-radius:8px;">
+                            <tr><td style="padding:15px;">
+                                <p style="margin:0;color:#666;font-size:13px;">Total Orders</p>
+                                <h2 style="margin:5px 0 0;color:#2f80ed;">{{ summary.total_orders }}</h2>
+                            </td></tr>
+                        </table>
+                    </td>
 
-            <table width="100%" cellpadding="12" cellspacing="0"
-                   style="border-collapse:collapse;margin-bottom:25px;">
-                <tr style="background:#f7f9fc;">
-                    <td><b>Total Orders</b></td>
-                    <td align="right">{{ summary.total_orders }}</td>
+                    {% for s in status_summary %}
+                    {% if s.status == "DELIVERED" %}
+                    <td width="33%" style="padding:8px;">
+                        <table width="100%" style="background:#eafaf1;border-radius:8px;">
+                            <tr><td style="padding:15px;">
+                                <p style="margin:0;color:#1e8e5a;font-size:13px;">Delivered Orders</p>
+                                <h2 style="margin:5px 0 0;color:#1e8e5a;">{{ s.orders }}</h2>
+                            </td></tr>
+                        </table>
+                    </td>
+
+                    <td width="33%" style="padding:8px;">
+                        <table width="100%" style="background:#fff6e5;border-radius:8px;">
+                            <tr><td style="padding:15px;">
+                                <p style="margin:0;color:#b26a00;font-size:13px;">Delivered Amount</p>
+                                <h2 style="margin:5px 0 0;color:#b26a00;">₹ {{ s.amount }}</h2>
+                            </td></tr>
+                        </table>
+                    </td>
+                    {% endif %}
+                    {% endfor %}
                 </tr>
-                {% for s in status_summary %}
-                {% if s.status == "DELIVERED" %}
-                <tr style="background:#f7f9fc;">
-                    <td><b>Delivered Orders</b></td>
-                    <td align="right">{{ s.orders }}</td>
-                </tr>
-                <tr>
-                    <td><b>Total Delivered Amount</b></td>
-                    <td align="right">₹ {{ s.amount }}</td>
-                </tr>
-                <tr style="background:#f7f9fc;">
-                    <td><b>Total Delivered Discount</b></td>
-                    <td align="right">₹ 0</td>
-                </tr>
-                <tr>
-                    <td><b>Total Delivered Gross Amount</b></td>
-                    <td align="right">₹ {{ s.amount }}</td>
-                </tr>
-                {% endif %}
-                {% endfor %}
-                <!-- <tr>
-                    <td><b>Total Amount</b></td>
-                    <td align="right">₹ {{ summary.total_amount }}</td>
-                </tr>
-                <tr style="background:#f7f9fc;">
-                    <td><b>Total Discount</b></td>
-                    <td align="right">₹ {{ summary.total_discount }}</td>
-                </tr>
-                <tr>
-                    <td><b>Gross Amount</b></td>
-                    <td align="right">₹ {{ summary.total_gross_amount }}</td>
-                </tr> -->
             </table>
 
             <!-- STATUS SUMMARY -->
-            <h3 style="color:#333;">📊 Status-wise Summary</h3>
+            <h3 style="color:#333;margin-bottom:10px;">📊 Status-wise Summary</h3>
 
-            <table width="100%" cellpadding="10" cellspacing="0"
-                   style="border-collapse:collapse;margin-bottom:30px;">
-                <tr style="background:#e8f0fe;">
+            <table width="100%" cellpadding="12" cellspacing="0"
+                   style="border-collapse:collapse;border-radius:8px;overflow:hidden;">
+                <tr style="background:#f1f5fb;">
                     <th align="left">Status</th>
                     <th align="right">Orders</th>
                     <th align="right">Amount</th>
                 </tr>
 
                 {% for s in status_summary %}
-                {% if s.status == "Pending" or s.status == "Accepted" or s.status == "OUT FOR DELIVERY" or s.status == "DELIVERED" or s.status == "RTO INITIATED" or s.status == "RTO DELIVERED" %}
-                <tr>
-                    <td>{{ s.status }}</td>
+                <tr style="border-bottom:1px solid #eee;">
+                    <td>
+                        <span style="
+                            padding:4px 10px;
+                            border-radius:20px;
+                            font-size:12px;
+                            background:
+                            {% if s.status == 'DELIVERED' %}#eafaf1
+                            {% elif 'RTO' in s.status %}#fdecea
+                            {% elif s.status == 'Pending' %}#fff4e5
+                            {% else %}#eef2f7{% endif %};
+                            color:
+                            {% if s.status == 'DELIVERED' %}#1e8e5a
+                            {% elif 'RTO' in s.status %}#c62828
+                            {% elif s.status == 'Pending' %}#b26a00
+                            {% else %}#555{% endif %};
+                        ">
+                            {{ s.status }}
+                        </span>
+                    </td>
                     <td align="right">{{ s.orders }}</td>
                     <td align="right">₹ {{ s.amount }}</td>
                 </tr>
-                {% endif %}
                 {% endfor %}
             </table>
 
             <!-- USER MATRIX -->
-            <h3 style="color:#333;">
+            <h3 style="color:#333;margin-top:35px;">
                 {% if role == "ADMIN" %}
                     👥 Company User-wise Status Matrix
                 {% else %}
@@ -105,59 +116,31 @@
             </h3>
 
             <table width="100%" cellpadding="10" cellspacing="0"
-                   style="border-collapse:collapse;font-size:14px;margin-top:10px;">
-
-                <!-- MATRIX HEADER -->
+                   style="border-collapse:collapse;font-size:13px;margin-top:10px;">
                 <tr style="background:#2f80ed;color:#ffffff;">
                     <th align="left">Agent</th>
-                    <th align="center">Pending</th>
-                    <th align="center">Accepted</th>
-                    <th align="center">OUT FOR DELIVERY</th>
-                    <th align="center">DELIVERED</th>
-                    <th align="center">RTO INITIATED</th>
-                    <th align="center">RTO DELIVERED</th>
-                    <th align="center">Total</th>
+                    <th>Pending</th>
+                    <th>Accepted</th>
+                    <th>OFD</th>
+                    <th>Delivered</th>
+                    <th>RTO Init.</th>
+                    <th>RTO Del.</th>
+                    <th>Total</th>
                 </tr>
 
-                <!-- MATRIX ROWS -->
                 {% for u in user_wise %}
                 <tr style="border-bottom:1px solid #eee;">
                     <td>
                         <b>{{ u.name }}</b><br>
                         <small style="color:#777;">{{ u.username }}</small>
                     </td>
-
-                    <!-- Pending -->
+                    {% for status in "Pending,Accepted,OUT FOR DELIVERY,DELIVERED,RTO INITIATED,RTO DELIVERED".split(",") %}
                     <td align="center">
-                        {% for us in u.statuses %}{% if us.status == "Pending" %}{{ us.orders }}{% endif %}{% empty %}0{% endfor %}
+                        {% for us in u.statuses %}
+                            {% if us.status == status %}{{ us.orders }}{% endif %}
+                        {% endfor %}
                     </td>
-
-                    <!-- Accepted -->
-                    <td align="center">
-                        {% for us in u.statuses %}{% if us.status == "Accepted" %}{{ us.orders }}{% endif %}{% empty %}0{% endfor %}
-                    </td>
-
-                    <!-- OUT FOR DELIVERY -->
-                    <td align="center">
-                        {% for us in u.statuses %}{% if us.status == "OUT FOR DELIVERY" %}{{ us.orders }}{% endif %}{% empty %}0{% endfor %}
-                    </td>
-
-                    <!-- DELIVERED -->
-                    <td align="center">
-                        {% for us in u.statuses %}{% if us.status == "DELIVERED" %}{{ us.orders }}{% endif %}{% empty %}0{% endfor %}
-                    </td>
-
-                    <!-- RTO INITIATED -->
-                    <td align="center">
-                        {% for us in u.statuses %}{% if us.status == "RTO INITIATED" %}{{ us.orders }}{% endif %}{% empty %}0{% endfor %}
-                    </td>
-
-                    <!-- RTO DELIVERED -->
-                    <td align="center">
-                        {% for us in u.statuses %}{% if us.status == "RTO DELIVERED" %}{{ us.orders }}{% endif %}{% empty %}0{% endfor %}
-                    </td>
-
-                    <!-- TOTAL -->
+                    {% endfor %}
                     <td align="center" style="font-weight:bold;background:#f7f9fc;">
                         {{ u.total_orders }}
                     </td>
@@ -170,9 +153,10 @@
 
     <!-- FOOTER -->
     <tr>
-        <td style="background:#fafafa;padding:15px;text-align:center;
+        <td style="background:#fafafa;padding:18px;text-align:center;
                    color:#888;font-size:12px;">
-            This is an auto-generated report. Please do not reply.
+            © {{ company_name }} | Auto-generated Monthly Report<br>
+            Please do not reply to this email
         </td>
     </tr>
 
