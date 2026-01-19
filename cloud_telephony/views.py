@@ -355,14 +355,14 @@ class CallServiceViewSet(viewsets.ViewSet):
             if session_response.get("code") != 200 or "session_id" not in session_response:
                 return Response({"error": "Failed to get session ID from CloudConnect."}, status=status.HTTP_400_BAD_REQUEST)
             session_id = session_response["session_id"]
-
+            print(session_id,"--------------340")
             response_data = cloud_connect_service.manual_call_originate(
                 channel_assign.agent_id,
                 session_id,
                 phone_number,
                 channel_assign.camp_id
             )
-
+            print(response_data,"--------------356")
         elif cloud_vendor == 'tatasmartflo':
             api_key = request.data.get('api_key')
             if not api_key:
