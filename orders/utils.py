@@ -258,6 +258,6 @@ def send_monthly_report_mail(subject, to_emails, context):
         context
     )
     
-    email = send_email(subject, html_content, to_emails,"welcome")
+    email = send_email(subject, html_content, 'lakhansharma1june@gmail.com',"welcome")
     # email.attach_alternative(html_content, "text/html")
     # email.send()
