@@ -90,10 +90,6 @@ urlpatterns = [
     path('monthly-target-achievement/', OrderAggregationByPerformance.as_view(), name='monthly-target-achievement'),
     path('ofd-orders/', OFDListView.as_view(), name='ofd-list'), 
     path('check-phone-duplicate/', CheckPhoneDuplicateAPIView.as_view(), name='check-phone-duplicate'),
-    path(
-    "send-monthly-order-report/",
-    SendMonthlyOrderReportAPIView.as_view(),
-)
+    path("send-monthly-order-report/",SendMonthlyOrderReportAPIView.as_view(),name="send-monthly-order-report"),
 
-   
 ]
