@@ -5112,13 +5112,13 @@ class SendMonthlyOrderReportAPIView(APIView):
         # 5️⃣ Collect emails (Company Admin + Managers)
         admin_emails = User.objects.filter(
             profile__company=company,
-            profile__role="ADMIN",
+            profile__user_type="ADMIN",
             is_active=True
         ).values_list("email", flat=True)
 
         manager_emails = User.objects.filter(
             profile__company=company,
-            profile__role="MANAGER",
+            profile__user_type="MANAGER",
             is_active=True
         ).values_list("email", flat=True)
 
