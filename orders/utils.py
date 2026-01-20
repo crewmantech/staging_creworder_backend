@@ -5,7 +5,8 @@ from django.db.models import Sum, Count,Avg
 from accounts.models import Employees
 from orders.models import Customer_State, Order_Table, OrderDetail
 from services.email.email_service import send_email
-
+from django.contrib.auth.models import User
+from datetime import time,date, timedelta
 def get_order_amount_breakup(order_qs):
     """
     Returns:
@@ -419,3 +420,106 @@ def get_order_report(company_id, branch_id, start_dt, end_dt, user_ids=None):
         "status_summary": status_summary,
         "user_wise": list(user_map.values())
     }
+
+
+def send_order_report(company, branch, report_type):
+    today = date.today()
+
+    # ==========================
+    # DATE RANGE
+    # ==========================
+    if report_type == "daily":
+        start_dt = datetime.combine(today, time.min)
+        end_dt = datetime.combine(today, time.max)
+
+    elif report_type == "weekly":
+        start_dt = datetime.combine(today - timedelta(days=today.weekday()), time.min)
+        end_dt = datetime.combine(start_dt.date() + timedelta(days=6), time.max)
+
+    elif report_type == "monthly":
+        start_dt = datetime.combine(date(today.year, today.month, 1), time.min)
+        end_dt = datetime.combine(
+            date(
+                today.year,
+                today.month,
+                calendar.monthrange(today.year, today.month)[1],
+            ),
+            time.max,
+        )
+    else:
+        raise ValueError("Invalid report type")
+
+    # ==========================
+    # ADMIN REPORT
+    # ==========================
+    admin_users = User.objects.filter(
+        profile__company_id=company.id,
+        profile__user_type="admin",
+        is_active=True
+    )
+
+    admin_emails = admin_users.values_list("email", flat=True)
+
+    admin_data = get_order_report(
+        company_id=company.id,
+        branch_id=branch.id,
+        start_dt=start_dt,
+        end_dt=end_dt,
+    )
+
+    if admin_emails:
+        send_report_email(
+            subject=f"📊 {report_type.capitalize()} Order Report",
+            recipients=list(admin_emails),
+            context={
+                "role": "ADMIN",
+                "company_name": company.name,
+                "branch_name": branch.name,
+                "start_date": start_dt.date(),
+                "end_date": end_dt.date(),
+                **admin_data,
+            },
+        )
+
+    # ==========================
+    # MANAGER REPORT
+    # ==========================
+    manager_ids = Employees.objects.filter(
+        manager__isnull=False,
+        company_id=company.id,
+        branch_id=branch.id,
+        status=1,
+    ).values_list("manager_id", flat=True).distinct()
+
+    managers = User.objects.filter(id__in=manager_ids, is_active=True)
+
+    for manager in managers:
+        team_user_ids = Employees.objects.filter(
+            manager_id=manager.id,
+            branch_id=branch.id,
+        ).values_list("user_id", flat=True)
+
+        if not team_user_ids:
+            continue
+
+        manager_data = get_order_report(
+            company_id=company.id,
+            branch_id=branch.id,
+            start_dt=start_dt,
+            end_dt=end_dt,
+            user_ids=team_user_ids,
+        )
+
+        if manager.email:
+            send_report_email(
+                subject=f"📊 {report_type.capitalize()} Team Order Report",
+                recipients=[manager.email],
+                context={
+                    "role": "MANAGER",
+                    "company_name": company.name,
+                    "branch_name": branch.name,
+                    "start_date": start_dt.date(),
+                    "end_date": end_dt.date(),
+                    **manager_data,
+                },
+            )
