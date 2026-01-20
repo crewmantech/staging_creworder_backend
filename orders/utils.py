@@ -266,6 +266,7 @@ def send_report_email(subject, recipients, context):
     # )
     # email.attach_alternative(html, "text/html")
     # email.send()
+    print(recipients,"----------------------269")
     email = send_email(subject, html, ['lakhansharma1june@gmail.com'],"welcome")
 # def send_monthly_report_mail(subject, to_emails, context):
 #     html_content = render_to_string(
@@ -450,15 +451,35 @@ def send_order_report(company, branch, report_type):
         raise ValueError("Invalid report type")
 
     # ==========================
-    # ADMIN REPORT
+    # ORDER QUERYSET (IMPORTANT)
     # ==========================
-    admin_users = User.objects.filter(
-        profile__company_id=company.id,
-        profile__user_type="admin",
-        is_active=True
+    order_qs = Order.objects.filter(
+        company_id=company.id,
+        branch_id=branch.id,
+        created_at__range=(start_dt, end_dt),
+        status="DELIVERED"  # ✅ recommended (adjust if needed)
     )
 
-    admin_emails = admin_users.values_list("email", flat=True)
+    # ==========================
+    # PRICE BREAKDOWN
+    # ==========================
+    price_breakdown = get_price_breakdown(order_qs)
+    # {
+    #   base_amount,
+    #   gst_amount,
+    #   total_amount
+    # }
+
+    # ==========================
+    # ADMIN REPORT
+    # ==========================
+    admin_emails = list(
+        User.objects.filter(
+            profile__company_id=company.id,
+            profile__user_type="admin",
+            is_active=True
+        ).values_list("email", flat=True)
+    )
 
     admin_data = get_order_report(
         company_id=company.id,
@@ -470,13 +491,19 @@ def send_order_report(company, branch, report_type):
     if admin_emails:
         send_report_email(
             subject=f"📊 {report_type.capitalize()} Order Report",
-            recipients=list(admin_emails),
+            recipients=admin_emails,
             context={
                 "role": "ADMIN",
                 "company_name": company.name,
                 "branch_name": branch.name,
                 "start_date": start_dt.date(),
                 "end_date": end_dt.date(),
+                "report_type":report_type,
+                # ✅ ADD PRICE DATA TO EMAIL
+                "base_amount": price_breakdown["base_amount"],
+                "gst_amount": price_breakdown["gst_amount"],
+                "total_amount": price_breakdown["total_amount"],
+
                 **admin_data,
             },
         )
@@ -499,8 +526,11 @@ def send_order_report(company, branch, report_type):
             branch_id=branch.id,
         ).values_list("user_id", flat=True)
 
-        if not team_user_ids:
+        if not team_user_ids or not manager.email:
             continue
+
+        team_orders = order_qs.filter(user_id__in=team_user_ids)
+        team_price_breakdown = get_price_breakdown(team_orders)
 
         manager_data = get_order_report(
             company_id=company.id,
@@ -510,16 +540,21 @@ def send_order_report(company, branch, report_type):
             user_ids=team_user_ids,
         )
 
-        if manager.email:
-            send_report_email(
-                subject=f"📊 {report_type.capitalize()} Team Order Report",
-                recipients=[manager.email],
-                context={
-                    "role": "MANAGER",
-                    "company_name": company.name,
-                    "branch_name": branch.name,
-                    "start_date": start_dt.date(),
-                    "end_date": end_dt.date(),
-                    **manager_data,
-                },
-            )
+        send_report_email(
+            subject=f"📊 {report_type.capitalize()} Team Order Report",
+            recipients=[manager.email],
+            context={
+                "role": "MANAGER",
+                "company_name": company.name,
+                "branch_name": branch.name,
+                "start_date": start_dt.date(),
+                "end_date": end_dt.date(),
+                "report_type":report_type,
+                # ✅ TEAM PRICE BREAKDOWN
+                "base_amount": team_price_breakdown["base_amount"],
+                "gst_amount": team_price_breakdown["gst_amount"],
+                "total_amount": team_price_breakdown["total_amount"],
+
+                **manager_data,
+            },
+        )

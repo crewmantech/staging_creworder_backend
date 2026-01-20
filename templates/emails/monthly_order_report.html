@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Monthly Order Report</title>
+    <title>Order Report</title>
 </head>
 
 <body style="margin:0;padding:0;background:#e9edf3;font-family:'Segoe UI',Arial,sans-serif;">
@@ -20,9 +20,11 @@
     <tr>
         <td style="background:linear-gradient(90deg,#2f80ed,#1c5fd4);
                    padding:25px;color:#ffffff;">
-            <h2 style="margin:0;font-weight:600;">📊 Monthly Order Report</h2>
+            <h2 style="margin:0;font-weight:600;">
+                📊 {{ report_type|default:"Monthly" }} Order Report
+            </h2>
             <p style="margin:6px 0 0;font-size:14px;opacity:0.9;">
-                {#{{ company_name }}#} &nbsp;|&nbsp; {{ start_date }} → {{ end_date }}
+                {{ company_name }} | {{ start_date }} → {{ end_date }}
             </p>
         </td>
     </tr>
@@ -32,8 +34,7 @@
         <td style="padding:30px;">
 
             <!-- DELIVERED SUMMARY CARD -->
-            <table width="100%" cellpadding="0" cellspacing="0"
-                   style="margin-bottom:30px;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:30px;">
             <tr>
                 <td style="background:#f1f8ff;border-left:6px solid #2f80ed;
                            padding:20px;border-radius:6px;">
@@ -53,13 +54,39 @@
                             <td><b>Delivered Amount</b></td>
                             <td align="right">₹ {{ s.amount }}</td>
                         </tr>
-                        <tr>
-                            <td><b>Delivered Gross Amount</b></td>
-                            <td align="right">₹ {{ s.amount }}</td>
-                        </tr>
                     </table>
                     {% endif %}
                     {% endfor %}
+                </td>
+            </tr>
+            </table>
+
+            <!-- 💰 PRICE / GST BREAKDOWN -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:30px;">
+            <tr>
+                <td style="background:#ffffff;border:1px solid #e5e9f0;
+                           padding:20px;border-radius:6px;">
+                    <h3 style="margin:0 0 12px;color:#333;">
+                        💰 Amount Summary (GST Breakdown)
+                    </h3>
+
+                    <table width="100%" cellpadding="10" cellspacing="0"
+                           style="border-collapse:collapse;font-size:15px;">
+                        <tr style="border-bottom:1px solid #e5e9f0;">
+                            <td><b>Base Amount (Excl. GST)</b></td>
+                            <td align="right">₹ {{ base_amount }}</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #e5e9f0;">
+                            <td><b>GST Amount</b></td>
+                            <td align="right">₹ {{ gst_amount }}</td>
+                        </tr>
+                        <tr style="background:#f1f8ff;font-weight:bold;">
+                            <td>Total Payable Amount</td>
+                            <td align="right" style="color:#2f80ed;">
+                                ₹ {{ total_amount }}
+                            </td>
+                        </tr>
+                    </table>
                 </td>
             </tr>
             </table>
@@ -79,7 +106,8 @@
                 </tr>
 
                 {% for s in status_summary %}
-                {% if s.status == "Pending" or s.status == "Accepted" or s.status == "OUT FOR DELIVERY" or s.status == "DELIVERED" or s.status == "RTO INITIATED" or s.status == "RTO DELIVERED" %}
+                {% if s.status == "Pending" or s.status == "Accepted" or s.status == "OUT FOR DELIVERY"
+                      or s.status == "DELIVERED" or s.status == "RTO INITIATED" or s.status == "RTO DELIVERED" %}
                 <tr style="border-bottom:1px solid #e5e9f0;">
                     <td>
                         <span style="
@@ -87,9 +115,17 @@
                             border-radius:12px;
                             font-size:12px;
                             background:
-                                {% if s.status == 'DELIVERED' %}#e8f8f0{% elif s.status == 'Pending' %}#fff4e5{% elif s.status == 'OUT FOR DELIVERY' %}#e6f0ff{% elif 'RTO' in s.status %}#fdeaea{% else %}#f1f1f1{% endif %};
+                                {% if s.status == 'DELIVERED' %}#e8f8f0
+                                {% elif s.status == 'Pending' %}#fff4e5
+                                {% elif s.status == 'OUT FOR DELIVERY' %}#e6f0ff
+                                {% elif 'RTO' in s.status %}#fdeaea
+                                {% else %}#f1f1f1{% endif %};
                             color:
-                                {% if s.status == 'DELIVERED' %}#1b7f4b{% elif s.status == 'Pending' %}#b26a00{% elif s.status == 'OUT FOR DELIVERY' %}#1c5fd4{% elif 'RTO' in s.status %}#b42318{% else %}#333{% endif %};
+                                {% if s.status == 'DELIVERED' %}#1b7f4b
+                                {% elif s.status == 'Pending' %}#b26a00
+                                {% elif s.status == 'OUT FOR DELIVERY' %}#1c5fd4
+                                {% elif 'RTO' in s.status %}#b42318
+                                {% else %}#333{% endif %};
                         ">
                             {{ s.status }}
                         </span>
@@ -101,7 +137,7 @@
                 {% endfor %}
             </table>
 
-            <!-- USER STATUS MATRIX -->
+            <!-- USER PERFORMANCE -->
             <h3 style="margin-bottom:10px;color:#333;">
                 {% if role == "ADMIN" %}
                     👥 Company User Performance Matrix
@@ -142,7 +178,6 @@
                     </td>
                     <td align="center">{% for us in u.statuses %}{% if us.status == "RTO INITIATED" %}{{ us.orders }}{% endif %}{% empty %}0{% endfor %}</td>
                     <td align="center">{% for us in u.statuses %}{% if us.status == "RTO DELIVERED" %}{{ us.orders }}{% endif %}{% empty %}0{% endfor %}</td>
-
                     <td align="center" style="font-weight:bold;background:#f5f7fb;">
                         {{ u.total_orders }}
                     </td>
