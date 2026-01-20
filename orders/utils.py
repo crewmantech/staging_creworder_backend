@@ -458,7 +458,7 @@ def send_order_report(company, branch, report_type):
         company_id=company.id,
         branch_id=branch.id,
         created_at__range=(start_dt, end_dt),
-        status="DELIVERED"  # ✅ recommended (adjust if needed)
+        order_status__name="Delivered"  # ✅ recommended (adjust if needed)
     )
 
     # ==========================
