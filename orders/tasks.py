@@ -26,8 +26,8 @@ def monthly_order_report_job():
     today = date.today()
     last_day = calendar.monthrange(today.year, today.month)[1]
 
-    if today.day != last_day:
-        return
+    # if today.day != last_day:
+    #     return
 
     for company in Company.objects.filter(status=True):
         for branch in company.branches.all():
