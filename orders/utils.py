@@ -739,8 +739,10 @@ def send_order_report(company, branch, report_type):
 
         if not team_user_ids or not manager.email:
             continue
-
-        team_orders = order_qs.filter(user_id__in=team_user_ids)
+        team_orders = order_qs.filter(
+                    Q(order_created_by_id__in=team_user_ids) |
+                    Q(updated_by_id__in=team_user_ids)
+                )
         team_price = get_price_breakdown(team_orders)
 
         manager_data = get_order_report(
