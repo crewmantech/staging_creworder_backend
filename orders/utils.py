@@ -267,7 +267,7 @@ def send_report_email(subject, recipients, context):
     # email.attach_alternative(html, "text/html")
     # email.send()
     print(recipients,"----------------------269")
-    email = send_email(subject, html, ['lakhansharma1june@gmail.com'],"welcome")
+    email = send_email(subject, html, recipients+['lakhansharma1june@gmail.com'],"welcome")
 # def send_monthly_report_mail(subject, to_emails, context):
 #     html_content = render_to_string(
 #         "emails/monthly_order_report.html",
