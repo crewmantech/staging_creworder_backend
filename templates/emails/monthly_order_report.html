@@ -158,8 +158,7 @@
                     <th>OFD</th>
                     <th>Delivered</th>
                     <th>IN TRANSIT</th>
-                   {# <th>RTO Init</th>
-                    <th>RTO Del</th> #}
+                   
                     <th>Total</th>
                 </tr>
 
@@ -177,9 +176,7 @@
                         {% for us in u.statuses %}{% if us.status == "DELIVERED" %}{{ us.orders }}{% endif %}{% empty %}0{% endfor %}
                     </td>
                     <td align="center">{% for us in u.statuses %}{% if us.status == "IN TRANSIT" %}{{ us.orders }}{% endif %}{% empty %}0{% endfor %}</td>
-                 {#   <td align="center">{% for us in u.statuses %}{% if us.status == "RTO INITIATED" %}{{ us.orders }}{% endif %}{% empty %}0{% endfor %}</td>
-                    <td align="center">{% for us in u.statuses %}{% if us.status == "RTO DELIVERED" %}{{ us.orders }}{% endif %}{% empty %}0{% endfor %}</td>
-                    #}
+                 
                     <td align="center" style="font-weight:bold;background:#f5f7fb;">
                         {{ u.total_orders }}
                     </td>
