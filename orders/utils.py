@@ -423,53 +423,260 @@ def get_order_report(company_id, branch_id, start_dt, end_dt, user_ids=None):
     }
 
 
-def send_order_report(company, branch, report_type):
-    today = date.today()
+# def send_order_report(company, branch, report_type):
+#     today = date.today()
 
-    # ==========================
-    # DATE RANGE
-    # ==========================
+#     # ==========================
+#     # DATE RANGE
+#     # ==========================
+#     if report_type == "daily":
+#         start_dt = datetime.combine(today, time.min)
+#         end_dt = datetime.combine(today, time.max)
+
+#     elif report_type == "weekly":
+#         start_dt = datetime.combine(today - timedelta(days=today.weekday()), time.min)
+#         end_dt = datetime.combine(start_dt.date() + timedelta(days=6), time.max)
+
+#     elif report_type == "monthly":
+#         start_dt = datetime.combine(date(today.year, today.month, 1), time.min)
+#         end_dt = datetime.combine(
+#             date(
+#                 today.year,
+#                 today.month,
+#                 calendar.monthrange(today.year, today.month)[1],
+#             ),
+#             time.max,
+#         )
+#     else:
+#         raise ValueError("Invalid report type")
+
+#     # ==========================
+#     # ORDER QUERYSET (IMPORTANT)
+#     # ==========================
+#     print("Fetching orders for report:", company.name, branch.name, start_dt, end_dt)
+#     order_qs = Order_Table.objects.filter(
+#         company_id=company.id,
+#         branch_id=branch.id,
+#         created_at__range=(start_dt, end_dt),
+#         order_status__name="Delivered"  # ✅ recommended (adjust if needed)
+#     )
+
+#     # ==========================
+#     # PRICE BREAKDOWN
+#     # ==========================
+#     price_breakdown = get_price_breakdown(order_qs)
+#     # {
+#     #   base_amount,
+#     #   gst_amount,
+#     #   total_amount
+#     # }
+
+#     # ==========================
+#     # ADMIN REPORT
+#     # ==========================
+#     admin_emails = list(
+#         User.objects.filter(
+#             profile__company_id=company.id,
+#             profile__user_type="admin",
+#             is_active=True
+#         ).values_list("email", flat=True)
+#     )
+
+#     admin_data = get_order_report(
+#         company_id=company.id,
+#         branch_id=branch.id,
+#         start_dt=start_dt,
+#         end_dt=end_dt,
+#     )
+
+#     if admin_emails:
+#         send_report_email(
+#             subject=f"📊 {report_type.capitalize()} Order Report",
+#             recipients=admin_emails,
+#             context={
+#                 "role": "ADMIN",
+#                 "company_name": company.name,
+#                 "branch_name": branch.name,
+#                 "start_date": start_dt.date(),
+#                 "end_date": end_dt.date(),
+#                 "report_type":report_type,
+#                 # ✅ ADD PRICE DATA TO EMAIL
+#                 "base_amount": price_breakdown["base_amount"],
+#                 "gst_amount": price_breakdown["gst_amount"],
+#                 "total_amount": price_breakdown["total_amount"],
+
+#                 **admin_data,
+#             },
+#         )
+
+#     # ==========================
+#     # MANAGER REPORT
+#     # ==========================
+#     manager_ids = Employees.objects.filter(
+#         manager__isnull=False,
+#         company_id=company.id,
+#         branch_id=branch.id,
+#         status=1,
+#     ).values_list("manager_id", flat=True).distinct()
+
+#     managers = User.objects.filter(id__in=manager_ids, is_active=True)
+
+#     for manager in managers:
+#         team_user_ids = Employees.objects.filter(
+#             manager_id=manager.id,
+#             branch_id=branch.id,
+#         ).values_list("user_id", flat=True)
+
+#         if not team_user_ids or not manager.email:
+#             continue
+
+#         team_orders = order_qs.filter(user_id__in=team_user_ids)
+#         team_price_breakdown = get_price_breakdown(team_orders)
+
+#         manager_data = get_order_report(
+#             company_id=company.id,
+#             branch_id=branch.id,
+#             start_dt=start_dt,
+#             end_dt=end_dt,
+#             user_ids=team_user_ids,
+#         )
+
+#         send_report_email(
+#             subject=f"📊 {report_type.capitalize()} Team Order Report",
+#             recipients=[manager.email],
+#             context={
+#                 "role": "MANAGER",
+#                 "company_name": company.name,
+#                 "branch_name": branch.name,
+#                 "start_date": start_dt.date(),
+#                 "end_date": end_dt.date(),
+#                 "report_type":report_type,
+#                 # ✅ TEAM PRICE BREAKDOWN
+#                 "base_amount": team_price_breakdown["base_amount"],
+#                 "gst_amount": team_price_breakdown["gst_amount"],
+#                 "total_amount": team_price_breakdown["total_amount"],
+
+#                 **manager_data,
+#             },
+#         )
+from datetime import datetime, time, timedelta
+from django.utils import timezone
+def get_price_breakdown1(order_qs):
+    """
+    FINAL REQUIREMENT:
+    - total_amount (final payable)
+    - base_amount (GST excluded)
+    - gst_amount (tax only)
+    """
+
+    if not order_qs.exists():
+        return {
+            "base_amount": 0.0,
+            "gst_amount": 0.0,
+            "total_amount": 0.0,
+        }
+
+    total_amount = float(
+        order_qs.aggregate(
+            total=Coalesce(
+                Sum(ExpressionWrapper(F("total_amount"), output_field=FloatField())),
+                0.0
+            )
+        )["total"]
+    )
+
+    base_expr = ExpressionWrapper(
+        F("product_price") /
+        (1 + (F("product__product_gst_percent") / 100.0)),
+        output_field=FloatField()
+    )
+
+    gst_expr = ExpressionWrapper(
+        F("product_price") - base_expr,
+        output_field=FloatField()
+    )
+
+    product_tax_data = OrderDetail.objects.filter(
+        order__in=order_qs
+    ).aggregate(
+        base_sum=Coalesce(Sum(base_expr), 0.0),
+        gst_sum=Coalesce(Sum(gst_expr), 0.0),
+    )
+
+    base_sum = float(product_tax_data["base_sum"])
+    gst_sum = float(product_tax_data["gst_sum"])
+
+    if base_sum == 0:
+        return {
+            "base_amount": 0.0,
+            "gst_amount": 0.0,
+            "total_amount": round(total_amount, 2),
+        }
+
+    scale_factor = total_amount / (base_sum + gst_sum)
+
+    base_amount = base_sum * scale_factor
+    gst_amount = total_amount - base_amount
+
+    return {
+        "base_amount": round(base_amount, 2),
+        "gst_amount": round(gst_amount, 2),
+        "total_amount": round(total_amount, 2),
+    }
+def get_date_range(report_type):
+    today = timezone.localdate()
+    tz = timezone.get_current_timezone()
+
     if report_type == "daily":
-        start_dt = datetime.combine(today, time.min)
-        end_dt = datetime.combine(today, time.max)
+        start_dt = timezone.make_aware(datetime.combine(today, time.min), tz)
+        end_dt = timezone.make_aware(datetime.combine(today, time.max), tz)
 
     elif report_type == "weekly":
-        start_dt = datetime.combine(today - timedelta(days=today.weekday()), time.min)
-        end_dt = datetime.combine(start_dt.date() + timedelta(days=6), time.max)
+        monday = today - timedelta(days=today.weekday())
+        sunday = monday + timedelta(days=6)
+        start_dt = timezone.make_aware(datetime.combine(monday, time.min), tz)
+        end_dt = timezone.make_aware(datetime.combine(sunday, time.max), tz)
 
     elif report_type == "monthly":
-        start_dt = datetime.combine(date(today.year, today.month, 1), time.min)
-        end_dt = datetime.combine(
-            date(
-                today.year,
-                today.month,
-                calendar.monthrange(today.year, today.month)[1],
-            ),
-            time.max,
-        )
+        last_day = calendar.monthrange(today.year, today.month)[1]
+        start_dt = timezone.make_aware(datetime.combine(today.replace(day=1), time.min), tz)
+        end_dt = timezone.make_aware(datetime.combine(today.replace(day=last_day), time.max), tz)
+
     else:
         raise ValueError("Invalid report type")
 
+    return start_dt, end_dt
+
+
+def send_order_report(company, branch, report_type):
+    start_dt, end_dt = get_date_range(report_type)
+
+    print(
+        "Fetching orders for report:",
+        company.name, branch.name, start_dt, end_dt
+    )
+
     # ==========================
-    # ORDER QUERYSET (IMPORTANT)
+    # ORDERS (SOURCE OF TRUTH)
     # ==========================
-    print("Fetching orders for report:", company.name, branch.name, start_dt, end_dt)
     order_qs = Order_Table.objects.filter(
         company_id=company.id,
         branch_id=branch.id,
         created_at__range=(start_dt, end_dt),
-        order_status__name="Delivered"  # ✅ recommended (adjust if needed)
+        status="DELIVERED"
     )
 
-    # ==========================
-    # PRICE BREAKDOWN
-    # ==========================
-    price_breakdown = get_price_breakdown(order_qs)
-    # {
-    #   base_amount,
-    #   gst_amount,
-    #   total_amount
-    # }
+    price_breakdown = get_price_breakdown1(order_qs)
+
+    allowed_statuses = [
+        "Pending",
+        "Accepted",
+        "OUT FOR DELIVERY",
+        "DELIVERED",
+        "RTO INITIATED",
+        "RTO DELIVERED",
+        "IN TRANSIT"
+    ]
 
     # ==========================
     # ADMIN REPORT
@@ -499,12 +706,13 @@ def send_order_report(company, branch, report_type):
                 "branch_name": branch.name,
                 "start_date": start_dt.date(),
                 "end_date": end_dt.date(),
-                "report_type":report_type,
-                # ✅ ADD PRICE DATA TO EMAIL
+
+                # GST DATA
                 "base_amount": price_breakdown["base_amount"],
                 "gst_amount": price_breakdown["gst_amount"],
                 "total_amount": price_breakdown["total_amount"],
 
+                "allowed_statuses": allowed_statuses,
                 **admin_data,
             },
         )
@@ -512,26 +720,28 @@ def send_order_report(company, branch, report_type):
     # ==========================
     # MANAGER REPORT
     # ==========================
-    manager_ids = Employees.objects.filter(
-        manager__isnull=False,
+    employees_qs = Employees.objects.filter(
         company_id=company.id,
         branch_id=branch.id,
-        status=1,
+        status=1
+    )
+
+    manager_ids = employees_qs.filter(
+        manager__isnull=False,user__is_active=True
     ).values_list("manager_id", flat=True).distinct()
 
     managers = User.objects.filter(id__in=manager_ids, is_active=True)
 
     for manager in managers:
-        team_user_ids = Employees.objects.filter(
-            manager_id=manager.id,
-            branch_id=branch.id,
+        team_user_ids = employees_qs.filter(
+            manager_id=manager.id
         ).values_list("user_id", flat=True)
 
         if not team_user_ids or not manager.email:
             continue
 
         team_orders = order_qs.filter(user_id__in=team_user_ids)
-        team_price_breakdown = get_price_breakdown(team_orders)
+        team_price = get_price_breakdown(team_orders)
 
         manager_data = get_order_report(
             company_id=company.id,
@@ -550,12 +760,12 @@ def send_order_report(company, branch, report_type):
                 "branch_name": branch.name,
                 "start_date": start_dt.date(),
                 "end_date": end_dt.date(),
-                "report_type":report_type,
-                # ✅ TEAM PRICE BREAKDOWN
-                "base_amount": team_price_breakdown["base_amount"],
-                "gst_amount": team_price_breakdown["gst_amount"],
-                "total_amount": team_price_breakdown["total_amount"],
 
+                "base_amount": team_price["base_amount"],
+                "gst_amount": team_price["gst_amount"],
+                "total_amount": team_price["total_amount"],
+
+                "allowed_statuses": allowed_statuses,
                 **manager_data,
             },
         )
