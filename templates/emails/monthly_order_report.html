@@ -21,7 +21,7 @@
         <td style="background:linear-gradient(90deg,#2f80ed,#1c5fd4);
                    padding:25px;color:#ffffff;">
             <h2 style="margin:0;font-weight:600;">
-                📊 {{ report_type|default:"Monthly" }} Order Report
+                📊 Order Report
             </h2>
             <p style="margin:6px 0 0;font-size:14px;opacity:0.9;">
                 {{ company_name }} | {{ start_date }} → {{ end_date }}
@@ -33,7 +33,7 @@
     <tr>
         <td style="padding:30px;">
 
-            <!-- DELIVERED SUMMARY CARD -->
+            <!-- DELIVERED SUMMARY -->
             <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:30px;">
             <tr>
                 <td style="background:#f1f8ff;border-left:6px solid #2f80ed;
@@ -43,25 +43,25 @@
                     </h3>
 
                     {% for s in status_summary %}
-                    {% if s.status == "DELIVERED" %}
-                    <table width="100%" cellpadding="10" cellspacing="0"
-                           style="border-collapse:collapse;font-size:15px;">
-                        <tr>
-                            <td><b>Delivered Orders</b></td>
-                            <td align="right"><b>{{ s.orders }}</b></td>
-                        </tr>
-                        <tr>
-                            <td><b>Delivered Amount</b></td>
-                            <td align="right">₹ {{ s.amount }}</td>
-                        </tr>
-                    </table>
-                    {% endif %}
+                        {% if s.status == "DELIVERED" %}
+                        <table width="100%" cellpadding="10" cellspacing="0"
+                               style="border-collapse:collapse;font-size:15px;">
+                            <tr>
+                                <td><b>Delivered Orders</b></td>
+                                <td align="right"><b>{{ s.orders }}</b></td>
+                            </tr>
+                            <tr>
+                                <td><b>Delivered Amount</b></td>
+                                <td align="right">₹ {{ s.amount }}</td>
+                            </tr>
+                        </table>
+                        {% endif %}
                     {% endfor %}
                 </td>
             </tr>
             </table>
 
-            <!-- 💰 PRICE / GST BREAKDOWN -->
+            <!-- GST / PRICE BREAKDOWN -->
             <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:30px;">
             <tr>
                 <td style="background:#ffffff;border:1px solid #e5e9f0;
@@ -106,34 +106,33 @@
                 </tr>
 
                 {% for s in status_summary %}
-                {% if s.status == "Pending" or s.status == "Accepted" or s.status == "OUT FOR DELIVERY"
-                      or s.status == "DELIVERED" or s.status == "RTO INITIATED" or s.status == "RTO DELIVERED" %}
-                <tr style="border-bottom:1px solid #e5e9f0;">
-                    <td>
-                        <span style="
-                            padding:4px 10px;
-                            border-radius:12px;
-                            font-size:12px;
-                            background:
-                                {% if s.status == 'DELIVERED' %}#e8f8f0
-                                {% elif s.status == 'Pending' %}#fff4e5
-                                {% elif s.status == 'OUT FOR DELIVERY' %}#e6f0ff
-                                {% elif 'RTO' in s.status %}#fdeaea
-                                {% else %}#f1f1f1{% endif %};
-                            color:
-                                {% if s.status == 'DELIVERED' %}#1b7f4b
-                                {% elif s.status == 'Pending' %}#b26a00
-                                {% elif s.status == 'OUT FOR DELIVERY' %}#1c5fd4
-                                {% elif 'RTO' in s.status %}#b42318
-                                {% else %}#333{% endif %};
-                        ">
-                            {{ s.status }}
-                        </span>
-                    </td>
-                    <td align="right">{{ s.orders }}</td>
-                    <td align="right">₹ {{ s.amount }}</td>
-                </tr>
-                {% endif %}
+                    {% if s.status in allowed_statuses %}
+                    <tr style="border-bottom:1px solid #e5e9f0;">
+                        <td>
+                            <span style="
+                                padding:4px 10px;
+                                border-radius:12px;
+                                font-size:12px;
+                                background:
+                                    {% if s.status == 'DELIVERED' %}#e8f8f0
+                                    {% elif s.status == 'Pending' %}#fff4e5
+                                    {% elif s.status == 'OUT FOR DELIVERY' %}#e6f0ff
+                                    {% elif 'RTO' in s.status %}#fdeaea
+                                    {% else %}#f1f1f1{% endif %};
+                                color:
+                                    {% if s.status == 'DELIVERED' %}#1b7f4b
+                                    {% elif s.status == 'Pending' %}#b26a00
+                                    {% elif s.status == 'OUT FOR DELIVERY' %}#1c5fd4
+                                    {% elif 'RTO' in s.status %}#b42318
+                                    {% else %}#333{% endif %};
+                            ">
+                                {{ s.status }}
+                            </span>
+                        </td>
+                        <td align="right">{{ s.orders }}</td>
+                        <td align="right">₹ {{ s.amount }}</td>
+                    </tr>
+                    {% endif %}
                 {% endfor %}
             </table>
 
@@ -178,6 +177,7 @@
                     </td>
                     <td align="center">{% for us in u.statuses %}{% if us.status == "RTO INITIATED" %}{{ us.orders }}{% endif %}{% empty %}0{% endfor %}</td>
                     <td align="center">{% for us in u.statuses %}{% if us.status == "RTO DELIVERED" %}{{ us.orders }}{% endif %}{% empty %}0{% endfor %}</td>
+
                     <td align="center" style="font-weight:bold;background:#f5f7fb;">
                         {{ u.total_orders }}
                     </td>
