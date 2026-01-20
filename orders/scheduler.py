@@ -36,7 +36,7 @@ def start_scheduler():
     scheduler.add_job(
         monthly_order_report_job,
         # CronTrigger(hour=20, minute=30),
-        CronTrigger(hour=16, minute=49),
+        CronTrigger(hour=16, minute=51),
         id="monthly_order_report",
         replace_existing=True,
     )

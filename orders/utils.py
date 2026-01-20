@@ -663,7 +663,7 @@ def send_order_report(company, branch, report_type):
         company_id=company.id,
         branch_id=branch.id,
         created_at__range=(start_dt, end_dt),
-        status="DELIVERED"
+        order_status__name="DELIVERED"
     )
 
     price_breakdown = get_price_breakdown1(order_qs)
