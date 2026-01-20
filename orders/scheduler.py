@@ -18,7 +18,7 @@ def start_scheduler():
     # ✅ DAILY – 8:00 PM
     scheduler.add_job(
         daily_order_report_job,
-        CronTrigger(hour=14, minute=30),
+        CronTrigger(hour=14, minute=44),
         id="daily_order_report",
         replace_existing=True,
     )
@@ -27,7 +27,7 @@ def start_scheduler():
     scheduler.add_job(
         weekly_order_report_job,
         # CronTrigger(day_of_week="sun", hour=20, minute=30),
-        CronTrigger(hour=14, minute=30),
+        CronTrigger(hour=14, minute=44),
         id="weekly_order_report",
         replace_existing=True,
     )
@@ -36,7 +36,7 @@ def start_scheduler():
     scheduler.add_job(
         monthly_order_report_job,
         # CronTrigger(hour=20, minute=30),
-        CronTrigger(hour=14, minute=30),
+        CronTrigger(hour=14, minute=44),
         id="monthly_order_report",
         replace_existing=True,
     )
