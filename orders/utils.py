@@ -726,9 +726,20 @@ def send_order_report(company, branch, report_type):
         status=1
     )
 
-    manager_ids = employees_qs.filter(
-        manager__isnull=False,user__is_active=True
-    ).values_list("manager_id", flat=True).distinct()
+    # manager_ids = employees_qs.filter(
+    #     manager__isnull=False,user__is_active=True
+    # ).values_list("manager_id", flat=True).distinct()
+    manager_ids = (
+    User.objects
+    .filter(
+        agent_manager__isnull=False,
+        agent_manager__user__is_active=True,
+        is_active=True
+    )
+    .annotate(total_employees=Count('agent_manager'))
+    .filter(total_employees__gt=1)
+    .values_list('id', flat=True)
+)
 
     managers = User.objects.filter(id__in=manager_ids, is_active=True)
 
