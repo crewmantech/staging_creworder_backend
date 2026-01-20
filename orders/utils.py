@@ -696,7 +696,7 @@ def send_order_report(company, branch, report_type):
         end_dt=end_dt,
     )
 
-    if admin_emails:
+    if admin_data and admin_emails:
         send_report_email(
             subject=f"📊 {report_type.capitalize()} Order Report",
             recipients=admin_emails,
@@ -763,22 +763,22 @@ def send_order_report(company, branch, report_type):
             end_dt=end_dt,
             user_ids=team_user_ids,
         )
+        if manager_data and manager.email: 
+            send_report_email(
+                subject=f"📊 {report_type.capitalize()} Team Order Report",
+                recipients=[manager.email],
+                context={
+                    "role": "MANAGER",
+                    "company_name": company.name,
+                    "branch_name": branch.name,
+                    "start_date": start_dt.date(),
+                    "end_date": end_dt.date(),
 
-        send_report_email(
-            subject=f"📊 {report_type.capitalize()} Team Order Report",
-            recipients=[manager.email],
-            context={
-                "role": "MANAGER",
-                "company_name": company.name,
-                "branch_name": branch.name,
-                "start_date": start_dt.date(),
-                "end_date": end_dt.date(),
+                    "base_amount": team_price["base_amount"],
+                    "gst_amount": team_price["gst_amount"],
+                    "total_amount": team_price["total_amount"],
 
-                "base_amount": team_price["base_amount"],
-                "gst_amount": team_price["gst_amount"],
-                "total_amount": team_price["total_amount"],
-
-                "allowed_statuses": allowed_statuses,
-                **manager_data,
-            },
-        )
+                    "allowed_statuses": allowed_statuses,
+                    **manager_data,
+                },
+            )

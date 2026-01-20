@@ -601,14 +601,21 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         if search:
             pass
         elif user.has_perm("accounts.view_own_appointment_others"):
-            queryset = queryset.filter(created_by=user)
+            # queryset = queryset.filter(created_by=user)
+            queryset = queryset.filter(
+                    Q(created_by=user) |
+                    Q(doctor__user=user)
+                ).distinct()
 
         elif user.has_perm("accounts.view_teamlead_appointment_others"):
             team_users = Employees.objects.filter(
                 teamlead=user
             ).values_list("user", flat=True)
-            queryset = queryset.filter(created_by__in=team_users)
-
+            # queryset = queryset.filter(created_by__in=team_users)
+            queryset = queryset.filter(
+                Q(created_by__in=team_users) |
+                Q(doctor__user=user)
+            ).distinct()
         elif user.has_perm("accounts.view_manager_appointment_others"):
             team_leads = Employees.objects.filter(
                 manager=user
@@ -618,10 +625,13 @@ class AppointmentViewSet(viewsets.ModelViewSet):
                 teamlead__in=team_leads
             ).values_list("user", flat=True)
 
+            # queryset = queryset.filter(
+            #     created_by__in=list(team_leads) + list(team_users)
+            # )
             queryset = queryset.filter(
-                created_by__in=list(team_leads) + list(team_users)
-            )
-
+                Q(created_by__in=list(team_leads) + list(team_users)) |
+                Q(doctor__user=user)
+            ).distinct()
         elif  user.has_perm("accounts.view_all_appointment_others"):
             queryset = queryset.filter(company=user.profile.company)
 
@@ -701,7 +711,7 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         # --------------------
         # Permission check (optional but recommended)
         # --------------------
-        if not request.user.has_perm("accounts.edit_appointment_others") and request.user.profile.user_type == "agent":
+        if not request.user.has_perm("accounts.edit_appointment_status_others") and request.user.profile.user_type == "agent":
             return Response(
                 {"error": "You do not have permission to update to this status"},
                 status=status.HTTP_403_FORBIDDEN
