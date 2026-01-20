@@ -453,7 +453,7 @@ def send_order_report(company, branch, report_type):
     # ==========================
     # ORDER QUERYSET (IMPORTANT)
     # ==========================
-    order_qs = Order.objects.filter(
+    order_qs = Order_Table.objects.filter(
         company_id=company.id,
         branch_id=branch.id,
         created_at__range=(start_dt, end_dt),
