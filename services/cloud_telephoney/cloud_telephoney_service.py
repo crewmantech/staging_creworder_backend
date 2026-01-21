@@ -165,9 +165,9 @@ class CloudConnectService:
             "agent_username": agent_username,
             "agent_password": agent_password,
             "loginType": "AUTO",
-            "campaign_name": campangin_name,
+            "campaign_name": camp_id,
             "token": self.token,
-            "queue_id": camp_id,
+            # "queue_id": camp_id,
             "tenant_id": self.tenant_id
         }
         print("    ↳ FINAL PAYLOAD =", data)
