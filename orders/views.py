@@ -4140,6 +4140,60 @@ class CreateRepeatOrderAPIView(APIView):
         }, status=status.HTTP_201_CREATED)
 
 
+# class RecurringOrdersAPIView(generics.ListAPIView):
+#     serializer_class = OrderTableSerializer
+#     pagination_class = OrderPagination
+#     permission_classes = [IsAuthenticated]
+
+#     def get_queryset(self):
+#         today = date.today()
+#         branch = self.request.user.profile.branch
+#         company = self.request.user.profile.company
+
+#         # ✅ Only delivered orders are candidates for recurring
+#         orders = Order_Table.objects.filter(
+#             is_closed=False,
+#             is_deleted=False,
+#             order_status__name__iexact="DELIVERED",
+#             branch=branch,
+#             company=company
+#         )
+
+#         results = []
+
+#         # ✅ Current month start & end
+#         first_day = today.replace(day=1)
+#         last_day = today.replace(day=monthrange(today.year, today.month)[1])
+
+#         for order in orders:
+#             start_date = order.created_at.date()
+#             repeated = order.course_order or 0             # actual repeats done
+#             count = order.course_order_count or 1          # planned repeats
+
+#             # ✅ Skip if repeat already exists this month
+#             repeat_exists = Order_Table.objects.filter(
+#                 reference_order=order,
+#                 created_at__date__gte=first_day,
+#                 created_at__date__lte=last_day,
+#                 is_deleted=False
+#             ).exists()
+
+#             if repeat_exists:
+#                 continue  
+
+#             # ✅ Loop through all remaining repeats
+#             for i in range(repeated + 1, count + 1):
+#                 next_occurrence = start_date + timedelta(days=i * 30)
+#                 window_start = next_occurrence - timedelta(days=5)
+#                 window_end = next_occurrence
+
+#                 # ✅ If today is inside any valid repeat window
+#                 if window_start <= today <= window_end and (today - start_date).days <= 180:
+#                     results.append(order.id)
+#                     break  # no need to check further repeats for this order
+
+#         return Order_Table.objects.filter(id__in=results)
+
 class RecurringOrdersAPIView(generics.ListAPIView):
     serializer_class = OrderTableSerializer
     pagination_class = OrderPagination
@@ -4147,53 +4201,64 @@ class RecurringOrdersAPIView(generics.ListAPIView):
 
     def get_queryset(self):
         today = date.today()
-        branch = self.request.user.profile.branch
-        company = self.request.user.profile.company
+        profile = self.request.user.profile
 
-        # ✅ Only delivered orders are candidates for recurring
-        orders = Order_Table.objects.filter(
-            is_closed=False,
-            is_deleted=False,
-            order_status__name__iexact="DELIVERED",
-            branch=branch,
-            company=company
-        )
-
-        results = []
-
-        # ✅ Current month start & end
         first_day = today.replace(day=1)
         last_day = today.replace(day=monthrange(today.year, today.month)[1])
 
-        for order in orders:
-            start_date = order.created_at.date()
-            repeated = order.course_order or 0             # actual repeats done
-            count = order.course_order_count or 1          # planned repeats
+        # 1️⃣ Base queryset (lean query)
+        orders = (
+            Order_Table.objects
+            .filter(
+                is_closed=False,
+                is_deleted=False,
+                order_status__name__iexact="DELIVERED",
+                branch=profile.branch,
+                company=profile.company
+            )
+            .only(
+                "id",
+                "created_at",
+                "course_order",
+                "course_order_count"
+            )
+        )
 
-            # ✅ Skip if repeat already exists this month
-            repeat_exists = Order_Table.objects.filter(
-                reference_order=order,
-                created_at__date__gte=first_day,
-                created_at__date__lte=last_day,
+        # 2️⃣ Orders already repeated THIS MONTH (single query)
+        repeated_this_month = set(
+            Order_Table.objects.filter(
+                reference_order__in=orders,
+                created_at__date__range=(first_day, last_day),
                 is_deleted=False
-            ).exists()
+            ).values_list("reference_order_id", flat=True)
+        )
 
-            if repeat_exists:
-                continue  
+        valid_order_ids = set()
 
-            # ✅ Loop through all remaining repeats
-            for i in range(repeated + 1, count + 1):
-                next_occurrence = start_date + timedelta(days=i * 30)
-                window_start = next_occurrence - timedelta(days=5)
-                window_end = next_occurrence
+        for order in orders:
+            if order.id in repeated_this_month:
+                continue
 
-                # ✅ If today is inside any valid repeat window
-                if window_start <= today <= window_end and (today - start_date).days <= 180:
-                    results.append(order.id)
-                    break  # no need to check further repeats for this order
+            start_date = order.created_at.date()
+            repeated = order.course_order or 0
+            count = order.course_order_count or 1
 
-        return Order_Table.objects.filter(id__in=results)
+            # 🚀 Hard stop: outside 180 days
+            if (today - start_date).days > 180:
+                continue
 
+            # 3️⃣ Check only NEXT possible repeat (no loop)
+            next_repeat_index = repeated + 1
+            if next_repeat_index > count:
+                continue
+
+            next_occurrence = start_date + timedelta(days=next_repeat_index * 30)
+
+            if next_occurrence - timedelta(days=5) <= today <= next_occurrence:
+                valid_order_ids.add(order.id)
+
+        return Order_Table.objects.filter(id__in=valid_order_ids)
+    
 class AcceptedOrdersReportAPIView(APIView):
     permission_classes = [IsAuthenticated]
 

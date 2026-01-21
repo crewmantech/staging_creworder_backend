@@ -757,8 +757,12 @@ class CallServiceViewSet(viewsets.ViewSet):
                     {"error": "agent_id is required."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-
-            # ================== SERVICE INIT ==================
+            agent_username = channel_assign.agent_username
+            camp_id = channel_assign.camp_id
+            agent_password = channel_assign.agent_password
+            other = channel_assign.other
+            campangin_name = channel_assign.campangin_name
+            
             print("\n🔹 STEP 11: Initializing CloudConnectService")
             print(f"    ↳ Using token     = {channel.token}")
             print(f"    ↳ Using tenantId = {channel.tenent_id}")
@@ -774,7 +778,7 @@ class CallServiceViewSet(viewsets.ViewSet):
                 print(f"    ↳ Payload being sent:")
                 print(f"        agent_id = {agent_id}")
 
-                response_data = cloud_connect_service.create_session(agent_id)
+                response_data = cloud_connect_service.create_session(agent_id,agent_username,agent_password,camp_id,other,campangin_name)
 
                 print("\n✅ STEP 13: CloudConnect response received")
                 print("    ↳ response_data =", response_data)

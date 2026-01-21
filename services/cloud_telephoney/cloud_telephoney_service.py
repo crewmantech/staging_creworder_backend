@@ -152,13 +152,22 @@ class CloudConnectService:
     # =========================
     # REAL-TIME SESSION (WEB)
     # =========================
-    def create_session(self, agent_id: str):
+    def create_session(self, agent_id: str,agent_username:str,agent_password:str,camp_id:str,other:str,campangin_name:str):
         """
         REQUIRED for WebRTC / iFrame based real-time calling
         """
+        # data = {
+        #     "agent_id": str(agent_id),
+        #     "token": self.token,
+        #     "tenant_id": self.tenant_id
+        # } 
         data = {
-            "agent_id": str(agent_id),
+            "agent_username": agent_username,
+            "agent_password": agent_password,
+            "loginType": "AUTO",
+            "campaign_name": campangin_name,
             "token": self.token,
+            "queue_id": camp_id,
             "tenant_id": self.tenant_id
         }
         print("    ↳ FINAL PAYLOAD =", data)
