@@ -5167,11 +5167,11 @@ class SendMonthlyOrderReportAPIView(APIView):
         admin_data = get_order_report(
             company_id, branch_id, start_dt, end_dt
         )
-
+        
         if admin_emails:
             send_report_email(
                 subject="📊 Monthly Company Order Report",
-                recipients=list("lakhansharma1june@gmail.com"),
+                recipients=list(["lakhansharma1june@gmail.com"]),
                 context={
                     "role": "ADMIN",
                     "company_name": company_name,
