@@ -5142,14 +5142,17 @@ class SendMonthlyOrderReportAPIView(APIView):
         # ==========================
         # MONTH RANGE
         # ==========================
-        today = date.today()
-        start_dt = datetime.combine(date(today.year, today.month, 1), time.min)
-        end_dt = datetime.combine(
-            date(today.year, today.month,
-                 calendar.monthrange(today.year, today.month)[1]),
-            time.max
-        )
+        # today = date.today()
+        # start_dt = datetime.combine(date(today.year, today.month, 1), time.min)
+        # end_dt = datetime.combine(
+        #     date(today.year, today.month,
+        #          calendar.monthrange(today.year, today.month)[1]),
+        #     time.max
+        # )
+        year = 2025  # change year if needed
 
+        start_dt = datetime.combine(date(year, 12, 1), time.min)
+        end_dt = datetime.combine(date(year, 12, 31), time.max)
         # ==========================
         # ADMIN REPORT (ALL DATA)
         # ==========================
@@ -5168,7 +5171,7 @@ class SendMonthlyOrderReportAPIView(APIView):
         if admin_emails:
             send_report_email(
                 subject="📊 Monthly Company Order Report",
-                recipients=list(admin_emails),
+                recipients=list("lakhansharma1june@gmail.com"),
                 context={
                     "role": "ADMIN",
                     "company_name": company_name,
@@ -5181,41 +5184,41 @@ class SendMonthlyOrderReportAPIView(APIView):
         # ==========================
         # MANAGER REPORT (TEAM DATA)
         # ==========================
-        manager_ids = Employees.objects.filter(
-            manager__isnull=False,
-            company_id=company_id,
-            branch_id=branch_id,
-            status=1
-        ).values_list("manager_id", flat=True).distinct()
+        # manager_ids = Employees.objects.filter(
+        #     manager__isnull=False,
+        #     company_id=company_id,
+        #     branch_id=branch_id,
+        #     status=1
+        # ).values_list("manager_id", flat=True).distinct()
 
-        managers = User.objects.filter(id__in=manager_ids, is_active=True)
+        # managers = User.objects.filter(id__in=manager_ids, is_active=True)
 
-        for manager in managers:
-            team_user_ids = get_manager_team_user_ids(manager.id)
+        # for manager in managers:
+        #     team_user_ids = get_manager_team_user_ids(manager.id)
 
-            if not team_user_ids:
-                continue
+        #     if not team_user_ids:
+        #         continue
 
-            manager_data = get_order_report(
-                company_id,
-                branch_id,
-                start_dt,
-                end_dt,
-                user_ids=team_user_ids
-            )
+        #     manager_data = get_order_report(
+        #         company_id,
+        #         branch_id,
+        #         start_dt,
+        #         end_dt,
+        #         user_ids=team_user_ids
+        #     )
 
-            if manager.email:
-                send_report_email(
-                    subject="📊 Monthly Team Order Report",
-                    recipients=[manager.email],
-                    context={
-                        "role": "MANAGER",
-                        "company_name": company_name,
-                        "start_date": start_dt.date(),
-                        "end_date": end_dt.date(),
-                        **manager_data
-                    }
-                )
+        #     if manager.email:
+        #         send_report_email(
+        #             subject="📊 Monthly Team Order Report",
+        #             recipients=[manager.email],
+        #             context={
+        #                 "role": "MANAGER",
+        #                 "company_name": company_name,
+        #                 "start_date": start_dt.date(),
+        #                 "end_date": end_dt.date(),
+        #                 **manager_data
+        #             }
+        #         )
 
         return Response(
             {"message": "Monthly reports sent successfully"},
