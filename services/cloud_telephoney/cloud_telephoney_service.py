@@ -234,14 +234,26 @@ class CloudConnectService:
     # =========================
     # CALL LOGS & DETAILS
     # =========================
-    def get_call_details(self, call_id: str):
-        data = {
-            "call_id": call_id,
-            "allow_customer_info": True,
+    def get_call_details(self, date, phone_number):
+        if phone_number:
+            data = {
+                "date": date,
+                "phone_number": phone_number,
+                # "agent_id": agent_id,
+                # "session_id": session_id,
+                "token": self.token,
+                "tenant_id": self.tenant_id
+            }
+        else:
+            data = {
+            "date": date,
+            # "agent_id": agent_id,
+            # "session_id": session_id,
             "token": self.token,
             "tenant_id": self.tenant_id
         }
-        return self._post_request("getCallDetails", data)
+        print(data,"-----------------178")
+        return self._post_request("getCallHistory", data)
 
     def get_call_history(self, start_datetime, end_datetime):
         data = {
@@ -275,13 +287,15 @@ class CloudConnectService:
             data["agent_id"] = agent_id
         return self._post_request("addJobNumber", data)
 
-    def update_job_number(self, job_id, numbers):
+    def update_job_number(self, job_id, numbers, agent_id=None):
         data = {
             "job_id": job_id,
             "numbers": numbers,
             "token": self.token,
             "tenant_id": self.tenant_id
         }
+        if agent_id:
+            data["agent_id"] = agent_id
         return self._post_request("updateJobNumber", data)
 
     def delete_job_number(self, job_id, numbers):
