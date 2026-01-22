@@ -1338,3 +1338,33 @@ class Crud(models.Model):
             )
     def __str__(self):
         return self.name
+
+
+class CallQcTable(BaseModel):
+    question = models.TextField(null=False)
+    # branch = models.ForeignKey('Branch', related_name="qc_branch", on_delete=models.CASCADE)
+    # company = models.ForeignKey('Company', blank=False, default=1, null=False, on_delete=models.CASCADE, related_name="qc_company")
+    created_at = models.DateTimeField(default=now)
+    updated_at = models.DateTimeField(auto_now=True)
+    class Meta:
+        db_table='call_qc_table'
+    def __str__(self):
+        return self.question
+    
+
+class CallQcScore(BaseModel):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='call_qc_scores')
+    question = models.ForeignKey('CallQcTable', on_delete=models.CASCADE, related_name='call_question_scores')
+    score = models.FloatField()  # store AVERAGE score
+    feedback = models.TextField(null=True, blank=True)
+    rating_count = models.PositiveIntegerField(default=0)
+    scored_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'call_qc_score'
+        # unique_together = ('user', 'question')  # Prevent duplicate scoring
+
+    def __str__(self):
+        return f"{self.user.username} - Q{self.question.id} Score: {self.score}"

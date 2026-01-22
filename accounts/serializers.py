@@ -12,7 +12,7 @@ from staging_creworder_backend import settings
 from lead_management.models import Lead, LeadSourceModel
 from orders.models import  Products
 from services.email.email_service import send_email
-from .models import  Agreement, AttendanceSession, CompanyInquiry, CompanySalary, CompanyUserAPIKey, Doctor, Enquiry, InterviewApplication, QcScore, ReminderNotes, StickyNote, User, Company, Package,Employees, Notice1, Branch, FormEnquiry, SupportTicket, Module, \
+from .models import  Agreement, AttendanceSession, CallQcScore, CallQcTable, CompanyInquiry, CompanySalary, CompanyUserAPIKey, Doctor, Enquiry, InterviewApplication, QcScore, ReminderNotes, StickyNote, User, Company, Package,Employees, Notice1, Branch, FormEnquiry, SupportTicket, Module, \
     Department, Designation, Leaves, Holiday, Award, Appreciation, ShiftTiming, Attendance,Shift_Roster,PackageDetailsModel,CustomAuthGroup,\
     PickUpPoint,UserTargetsDelails,AdminBankDetails,AllowedIP,QcTable
 import string
@@ -961,3 +961,24 @@ class DoctorSerializer(serializers.ModelSerializer):
         return data
 
 
+
+class CallQcScoreSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CallQcScore
+        fields = [
+            'id',
+            'user',
+            'question',
+            'score',
+            'rating_count',
+            'feedback',
+            'scored_at',
+            'created_at',
+            'updated_at'
+        ]
+
+
+class CallQcSerialiazer(serializers.ModelSerializer):
+    class Meta:
+        model =CallQcTable
+        fields='__all__'

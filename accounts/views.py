@@ -29,10 +29,10 @@ from services.email.email_service import send_email
 from services.shipment.schedule_orders import ShiprocketScheduleOrder,TekipostService
 from shipment.models import ShipmentModel, ShipmentVendor
 from shipment.serializers import ShipmentSerializer
-from .models import  Agreement, AttendanceSession, CompanyInquiry, CompanySalary, CompanyUserAPIKey, Doctor, Enquiry, InterviewApplication, QcScore, ReminderNotes, StickyNote, User, Company, Package, Employees, Notice1, Branch, FormEnquiry, SupportTicket, Module, \
+from .models import  Agreement, AttendanceSession, CallQcScore, CallQcTable, CompanyInquiry, CompanySalary, CompanyUserAPIKey, Doctor, Enquiry, InterviewApplication, QcScore, ReminderNotes, StickyNote, User, Company, Package, Employees, Notice1, Branch, FormEnquiry, SupportTicket, Module, \
     Department, Designation, Leaves, Holiday, Award, Appreciation, ShiftTiming, Attendance, AllowedIP,Shift_Roster,CustomAuthGroup,PickUpPoint, UserStatus,\
     UserTargetsDelails,AdminBankDetails,QcTable,OTPAttempt,LoginAttempt
-from .serializers import  AgreementSerializer, CompanyInquirySerializer, CompanySalarySerializer, CompanyUserAPIKeySerializer, CustomPasswordResetSerializer, DoctorSerializer, EnquirySerializer, InterviewApplicationSerializer, NewPasswordSerializer,  QcScoreSerializer, ReminderNotesSerializer, StickyNoteSerializer, UpdateTeamLeadManagerSerializer, UserSerializer, CompanySerializer, PackageSerializer, \
+from .serializers import  AgreementSerializer, CallQcScoreSerializer, CallQcSerialiazer, CompanyInquirySerializer, CompanySalarySerializer, CompanyUserAPIKeySerializer, CustomPasswordResetSerializer, DoctorSerializer, EnquirySerializer, InterviewApplicationSerializer, NewPasswordSerializer,  QcScoreSerializer, ReminderNotesSerializer, StickyNoteSerializer, UpdateTeamLeadManagerSerializer, UserSerializer, CompanySerializer, PackageSerializer, \
     UserProfileSerializer, NoticeSerializer, BranchSerializer, UserSignupSerializer, FormEnquirySerializer, \
     SupportTicketSerializer, ModuleSerializer, DepartmentSerializer, DesignationSerializer, LeaveSerializer, \
     HolidaySerializer, AwardSerializer, AppreciationSerializer, ShiftSerializer, AttendanceSerializer,ShiftRosterSerializer, \
@@ -5189,3 +5189,147 @@ class CSVEmployeeUpdateView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class CallQcViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    queryset =CallQcTable.objects.all()
+    serializer_class= CallQcSerialiazer
+
+    @transaction.atomic
+    def create(self, request, *args, **kwargs):
+        user = request.user
+        return super().create(request, *args, **kwargs)
+    
+    @transaction.atomic
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(serializer.data)
+
+
+
+class CallQcScoreViewSet(viewsets.ModelViewSet):
+    queryset = CallQcScore.objects.all()
+    serializer_class = CallQcScoreSerializer
+    permission_classes = [IsAuthenticated]
+
+    def list(self, request, *args, **kwargs):
+        start_date = request.query_params.get("start_date")
+        end_date = request.query_params.get("end_date")
+        user_id = request.query_params.get("user_id")
+
+        today = now().date()
+        if not start_date or not end_date:
+            start_date = today.replace(day=1)
+            end_date = today
+        else:
+            start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
+            end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+
+        queryset = []
+
+        try:
+            if user_id:
+                user = get_object_or_404(User, id=user_id)
+                queryset = [user]  # Use list to keep consistent with loop
+            else:
+                user = self.request.user
+                if user.profile.user_type == "superadmin":
+                    company_id = self.request.query_params.get("company_id")
+                    if company_id:
+                        queryset = User.objects.filter(profile__company_id=company_id)
+                    else:
+                        queryset = User.objects.filter(profile__company=None)
+
+                elif user.profile.user_type == "admin":
+                    company = user.profile.company
+                    queryset = User.objects.filter(profile__company=company)
+
+                elif user.profile.user_type == "agent":
+                    branch = user.profile.branch
+                    queryset = User.objects.filter(profile__branch=branch)
+
+        except Exception as e:
+            print(f"Error in get_queryset: {e}")
+
+        response_data = []
+
+        for emp in queryset:
+            scores = QcScore.objects.filter(user=emp)
+
+            # Apply date filter ONLY if dates are provided
+            if start_date and end_date:
+                scores = scores.filter(
+                    created_at__date__range=(start_date, end_date)
+                )
+
+            avg_scores = scores.values(
+                'question__id',
+                'question__question'
+            ).annotate(
+                avg_rating=Avg('score')
+            )
+
+            questions_rating = [
+                {
+                    "question_id": item['question__id'],
+                    "question": item['question__question'],
+                    "question_rating": round(item['avg_rating'], 2)
+                }
+                for item in avg_scores
+            ]
+
+            response_data.append({
+                "employee_name": emp.get_full_name() or emp.username,
+                "employee_id": emp.id,
+                "questions_rating": questions_rating
+            })
+        return Response(response_data)
+
+    def create(self, request, *args, **kwargs):
+        user_id = request.data.get('user')
+        ratings = request.data.get('rating', [])
+
+        if not user_id or not ratings:
+            return Response(
+                {'error': 'User and rating are required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        user = get_object_or_404(User, id=user_id)
+        created_scores = []
+
+        with transaction.atomic():
+            for entry in ratings:
+                question_id = entry.get('id')
+                score = entry.get('rating')
+
+                if not question_id or score is None:
+                    continue
+
+                question = get_object_or_404(QcTable, id=question_id)
+
+                qc_score = QcScore.objects.create(
+                    user=user,
+                    question=question,
+                    score=score,
+                    rating_count=1,   # keep column, value not used in avg
+                    scored_at=now()
+                )
+
+                created_scores.append({
+                    'user': user.id,
+                    'question_id': question.id,
+                    'score': qc_score.score,
+                    'created': True
+                })
+
+        return Response(
+            {'created_scores': created_scores},
+            status=status.HTTP_201_CREATED
+        )
+

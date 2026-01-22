@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
 
-from .views import AgentAttendanceUserWiseAPIView, AgreementViewSet, AssignRole,AgentListByManagerAPIView, AgentListByTeamleadAPIView, BranchWiseAttendanceAPIView, BulkAttendanceMarkAPIView, CSVEmployeeUpdateView, CSVUserUploadView, CompanyInquiryViewSet, CompanyMonthlySalaryPreviewAPIView, CompanyMonthlySummaryView, CompanySalaryViewSet, CompanyUserAPIKeyViewSet, CompanyUserViewSet, CustomPasswordResetView, DeleteUserListView, DoctorViewSet, EnquiryViewSet, ForceLogoutView, InterviewApplicationViewSet, ManagerTeamLeadAgentAPIView, ManagerViewSet, MonthlyCompanyStatsView, QcScoreViewSet, ReminderNotesViewSet, ResetPasswordAPIView, StickyNoteViewSet, TeamleadViewSet, UpdateTeamLeadManagerAPIView, UserExportView, UserPermissionStatusView, UserViewSet, CompanyViewSet, PackageViewSet, UserPermissionsView, \
+from .views import AgentAttendanceUserWiseAPIView, AgreementViewSet, AssignRole,AgentListByManagerAPIView, AgentListByTeamleadAPIView, BranchWiseAttendanceAPIView, BulkAttendanceMarkAPIView, CSVEmployeeUpdateView, CSVUserUploadView, CallQcScoreViewSet, CallQcViewSet, CompanyInquiryViewSet, CompanyMonthlySalaryPreviewAPIView, CompanyMonthlySummaryView, CompanySalaryViewSet, CompanyUserAPIKeyViewSet, CompanyUserViewSet, CustomPasswordResetView, DeleteUserListView, DoctorViewSet, EnquiryViewSet, ForceLogoutView, InterviewApplicationViewSet, ManagerTeamLeadAgentAPIView, ManagerViewSet, MonthlyCompanyStatsView, QcScoreViewSet, ReminderNotesViewSet, ResetPasswordAPIView, StickyNoteViewSet, TeamleadViewSet, UpdateTeamLeadManagerAPIView, UserExportView, UserPermissionStatusView, UserViewSet, CompanyViewSet, PackageViewSet, UserPermissionsView, \
     UserProfileViewSet, \
     NoticeViewSet, BranchViewSet, AdminSelfSignUp, FormEnquiryViewSet, SupportTicketViewSet, ModuleViewSet, \
     GetSpecificUsers, \
@@ -42,12 +42,14 @@ router.register(r'user-target', TargetView, basename='user-target')
 router.register(r'bank-details', AdminBankDetailsViewSet, basename='admin-bank-details')
 router.register(r'add-ip-forlogin', AddAllowIpViewSet, basename='add-ip-forlogin')
 router.register(r'qc',QcViewSet,basename='qc')
+router.register(r'call-qc', CallQcViewSet,basename='call-qc')
 router.register(r'notes', StickyNoteViewSet, basename='stickynote')
 router.register(r'inquiries', CompanyInquiryViewSet)
 router.register(r'enquiries', EnquiryViewSet, basename='enquiry')
 router.register(r'company-users', CompanyUserViewSet, basename='company-user')
 router.register(r'agreements', AgreementViewSet, basename='agreement')
 router.register(r'qcscore', QcScoreViewSet, basename='qcscore')
+router.register(r'call-qcscore', CallQcScoreViewSet, basename='call-qcscore')
 router.register(r'assign-company-user', CompanyUserAPIKeyViewSet, basename='assign-company-user')
 router.register(r'reminder-notes', ReminderNotesViewSet, basename='remindernotes')
 router.register(r"interviews", InterviewApplicationViewSet, basename="interview")
