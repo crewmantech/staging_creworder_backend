@@ -684,75 +684,44 @@ class CallServiceViewSet(viewsets.ViewSet):
         )
     @action(detail=False, methods=['post'], url_path='create-session')
     def create_session(self, request):
-        print("\n" + "=" * 80)
-        print("🔹 STEP 1: create_session API called")
-        print("=" * 80)
-
-        print("🔹 STEP 2: Raw request.data =", request.data)
-        print("🔹 STEP 2.1: Raw request.headers =", dict(request.headers))
+        
 
         agent_id = request.data.get("agent_id")
-        print(f"🔹 STEP 3: agent_id from request = {agent_id}")
+      
 
         user = request.user
-        print(
-            f"🔹 STEP 4: authenticated user = {user} | "
-            f"user_id = {getattr(user, 'id', None)} | "
-            f"is_authenticated = {user.is_authenticated}"
-        )
+        
 
         # ================== CHANNEL ASSIGNMENT ==================
         try:
-            print("\n🔹 STEP 5: Fetching CloudTelephonyChannelAssign for user_id =", user.id)
+           
             channel_assign = CloudTelephonyChannelAssign.objects.get(user_id=user.id)
             channel = channel_assign.cloud_telephony_channel
 
-            print("✅ STEP 6: Channel assignment found")
-            print(f"    ↳ channel_assign_id = {channel_assign.id}")
-            print(f"    ↳ assigned_agent_id = {channel_assign.agent_id}")
-            print(f"    ↳ channel_id = {channel.id}")
+            
 
         except CloudTelephonyChannelAssign.DoesNotExist:
-            print("❌ STEP 6 FAILED: No channel assigned to user")
+          
             return Response(
                 {"error": "No channel assigned to this user."},
                 status=status.HTTP_404_NOT_FOUND
             )
 
         # ================== CHANNEL DETAILS ==================
-        print("\n🔹 STEP 7: Channel details")
-        print(f"    ↳ channel.name = {getattr(channel, 'name', None)}")
-        print(f"    ↳ channel.token = {channel.token}")
-        print(f"    ↳ channel.tenant_id = {channel.tenent_id}")
-
+       
         # ================== VENDOR ==================
         cloud_vendor = channel.cloudtelephony_vendor.name.strip().lower()
-        print("\n🔹 STEP 8: Cloud vendor detected")
-        print(f"    ↳ raw vendor name = {channel.cloudtelephony_vendor.name}")
-        print(f"    ↳ normalized vendor = {cloud_vendor}")
-
+       
         # ================== CLOUD CONNECT ==================
         if cloud_vendor == 'cloud connect':
-            print("\n🔹 STEP 9: Entering CloudConnect flow")
-
-            if not channel.token or not channel.tenent_id:
-                print("❌ STEP 9 FAILED: Missing token or tenant_id")
-                print(f"    ↳ token = {channel.token}")
-                print(f"    ↳ tenant_id = {channel.tenent_id}")
+            if not channel.token or not channel.tenent_id:  
                 return Response(
                     {"error": "token and tenant_id required for CloudConnect."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-
             # Prefer agent_id from assignment
             agent_id = agent_id or channel_assign.agent_id
-            print("\n🔹 STEP 10: Agent resolution")
-            print(f"    ↳ request.agent_id = {request.data.get('agent_id')}")
-            print(f"    ↳ assigned.agent_id = {channel_assign.agent_id}")
-            print(f"    ↳ final.agent_id = {agent_id}")
-
             if not agent_id:
-                print("❌ STEP 10 FAILED: agent_id missing")
                 return Response(
                     {"error": "agent_id is required."},
                     status=status.HTTP_400_BAD_REQUEST
@@ -763,9 +732,6 @@ class CallServiceViewSet(viewsets.ViewSet):
             other = channel_assign.other
             campangin_name = channel_assign.campangin_name
             
-            print("\n🔹 STEP 11: Initializing CloudConnectService")
-            print(f"    ↳ Using token     = {channel.token}")
-            print(f"    ↳ Using tenantId = {channel.tenent_id}")
 
             cloud_connect_service = CloudConnectService(
                 channel.token,
@@ -774,32 +740,20 @@ class CallServiceViewSet(viewsets.ViewSet):
 
             # ================== CLOUD API CALL ==================
             try:
-                print("\n🔹 STEP 12: Calling CloudConnect.create_session()")
-                print(f"    ↳ Payload being sent:")
-                print(f"        agent_id = {agent_id}")
+                
 
                 response_data = cloud_connect_service.create_session(agent_id,agent_username,agent_password,camp_id,other,campangin_name)
 
-                print("\n✅ STEP 13: CloudConnect response received")
-                print("    ↳ response_data =", response_data)
-
+                
             except Exception as e:
-                print("\n❌ STEP 13 FAILED: CloudConnect exception")
-                print("    ↳ Exception type =", type(e))
-                print("    ↳ Exception msg  =", str(e))
+                
                 return Response(
                     {"error": str(e)},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
             # ================== SUCCESS RESPONSE ==================
-            print("\n🔹 STEP 14: Preparing success response")
-            print(f"    ↳ session_id = {response_data.get('session_id')}")
-            print(f"    ↳ status_message = {response_data.get('status_message')}")
-
-            print("✅ STEP 15: Returning HTTP 200 response")
-            print("=" * 80 + "\n")
-
+           
             return Response(
                 {
                     "success": True,
@@ -810,16 +764,15 @@ class CallServiceViewSet(viewsets.ViewSet):
             )
 
         # ================== UNSUPPORTED VENDOR ==================
-        print("\n❌ STEP 9 FAILED: Unsupported cloud vendor")
-        print(f"    ↳ vendor = {cloud_vendor}")
-        print("=" * 80 + "\n")
-
+        
         return Response(
             {
                 "error": f"Cloud vendor '{cloud_vendor}' is not supported yet."
             },
             status=status.HTTP_400_BAD_REQUEST
         )
+    
+
     @action(detail=False, methods=['post'], url_path='get-session-id')
     def get_session_id(self, request):
         """
@@ -893,6 +846,142 @@ class CallServiceViewSet(viewsets.ViewSet):
 
         # ================== UNSUPPORTED VENDOR ==================
         print(f"❌ STEP 7 FAILED: Unsupported cloud vendor → {cloud_vendor}")
+        return Response(
+            {
+                "error": f"Cloud vendor '{cloud_vendor}' is not supported yet."
+            },
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    @action(detail=False, methods=['get'], url_path='agent-current-status')
+    def agent_current_status(self, request):
+
+        # ================== QUERY PARAMS ==================
+        agent_id = request.query_params.get("agent_id")
+        agent_uname = request.query_params.get("agent_uname")
+        queue_id = request.query_params.get("queue_id")
+        status_param = request.query_params.get("status")
+
+        user = request.user
+
+        # ================== CHANNEL ASSIGNMENT ==================
+        try:
+            channel_assign = CloudTelephonyChannelAssign.objects.get(user_id=user.id)
+            channel = channel_assign.cloud_telephony_channel
+        except CloudTelephonyChannelAssign.DoesNotExist:
+            return Response(
+                {"error": "No channel assigned to this user."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # ================== VENDOR ==================
+        cloud_vendor = channel.cloudtelephony_vendor.name.strip().lower()
+
+        # ================== CLOUD CONNECT ==================
+        if cloud_vendor == 'cloud connect':
+
+            if not channel.token or not channel.tenent_id:
+                return Response(
+                    {"error": "token and tenant_id required for CloudConnect."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Prefer assignment values if not provided in query
+            agent_id = agent_id 
+            agent_uname = agent_uname 
+            queue_id = queue_id 
+            if not agent_id:
+                return Response(
+                    {"error": "agent_id is required."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            cloud_connect_service = CloudConnectService(
+                channel.token,
+                channel.tenent_id
+            )
+
+            # ================== CLOUD API CALL ==================
+            try:
+                response_data = cloud_connect_service.agent_current_status(
+                    agent_id=agent_id,
+                    agent_uname=agent_uname,
+                    queue_id=queue_id,
+                    status=status_param
+                )
+            except Exception as e:
+                return Response(
+                    {"error": str(e)},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # ================== SUCCESS RESPONSE ==================
+            return Response(
+                {
+                    "success": True,
+                    "data": response_data
+                },
+                status=status.HTTP_200_OK
+            )
+
+        # ================== UNSUPPORTED VENDOR ==================
+        return Response(
+            {
+                "error": f"Cloud vendor '{cloud_vendor}' is not supported yet."
+            },
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    @action(detail=False, methods=['get'], url_path='active-call')
+    def active_call(self, request):
+
+        user = request.user
+
+        # ================== CHANNEL ASSIGNMENT ==================
+        try:
+            channel_assign = CloudTelephonyChannelAssign.objects.get(user_id=user.id)
+            channel = channel_assign.cloud_telephony_channel
+        except CloudTelephonyChannelAssign.DoesNotExist:
+            return Response(
+                {"error": "No channel assigned to this user."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # ================== VENDOR ==================
+        cloud_vendor = channel.cloudtelephony_vendor.name.strip().lower()
+
+        # ================== CLOUD CONNECT ==================
+        if cloud_vendor == 'cloud connect':
+
+            if not channel.token or not channel.tenent_id:
+                return Response(
+                    {"error": "token and tenant_id required for CloudConnect."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            cloud_connect_service = CloudConnectService(
+                channel.token,
+                channel.tenent_id
+            )
+
+            # ================== CLOUD API CALL ==================
+            try:
+                response_data = cloud_connect_service.get_active_Call()
+            except Exception as e:
+                return Response(
+                    {"error": str(e)},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # ================== SUCCESS RESPONSE ==================
+            return Response(
+                {
+                    "success": True,
+                    "data": response_data
+                },
+                status=status.HTTP_200_OK
+            )
+
+        # ================== UNSUPPORTED VENDOR ==================
         return Response(
             {
                 "error": f"Cloud vendor '{cloud_vendor}' is not supported yet."

@@ -352,12 +352,24 @@ class CloudConnectService:
         }
         return self._post_request("getCallDetails", data)
     
-    def agent_current_status(self):
+    def agent_current_status(self, agent_id=None, agent_uname=None, queue_id=None, status=None):
         data = {
             "token": self.token,
             "tenant_id": self.tenant_id
+            
         }
+        if agent_id:
+            data["agent_id"] = str(agent_id)
+        if agent_uname:
+            data["agent_uname"] = agent_uname
+        if queue_id:
+            data["queue_id"] = queue_id
+        if status:
+            data["status"] = status
+
         return self._post_request("getAgentCurrentStatus", data)
+
+    
     def create_caller_id_routing(self, customer_numbers, agent_id, did_id="ANY"):
         """
         Maps customer number(s) to a dedicated agent (Inbound routing)
@@ -393,6 +405,24 @@ class CloudConnectService:
         }
 
         return self._post_request("updateCallerIdRouting", data)
+    def get_active_Call(self):
+        
+        data = {
+           
+                "token": self.token,
+                "tenant_id": self.tenant_id
+            }
+        
+        return self._post_request("getActiveCall", data)
+    
+
+    # def getAgentCurrentStatus(self,agent_id):
+    #     data = {
+    #         "agent_id": str(agent_id),
+    #         "token": self.token,
+    #         "tenant_id": self.tenant_id
+    #     }
+    #     return self._post_request("getAgentCurrentStatus", data)
 class TataSmartfloService:
     BASE_URL = "https://api-smartflo.tatateleservices.com/v1"
 
