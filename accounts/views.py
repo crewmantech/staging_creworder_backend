@@ -5341,18 +5341,20 @@ class BulkEmailScheduleAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        serializer = BulkEmailScheduleSerializer(data=request.data)
+        serializer = BulkEmailScheduleSerializer(
+            data=request.data,
+            context={"request": request}  # ✅ REQUIRED
+        )
         serializer.is_valid(raise_exception=True)
 
-        user = request.user
-        company = getattr(user.profile, "company", None)
+        company = request.user.profile.company
 
         emails = serializer.validated_data["emails"]
         branches = serializer.validated_data["branches"]
         time_intervals = serializer.validated_data["time_intervals"]
         template_types = serializer.validated_data["template_types"]
 
-        created_records = []
+        created_objects = []
 
         with transaction.atomic():
             for email in emails:
@@ -5360,20 +5362,19 @@ class BulkEmailScheduleAPIView(APIView):
                     for interval in time_intervals:
                         for template in template_types:
                             obj, created = EmailSchedule.objects.get_or_create(
-                                company=company,  # ✅ AUTO FROM USER PROFILE
-                                email=email,
+                                company=company,
                                 branch=branch,
+                                email=email,
                                 time_interval=interval,
                                 template_type=template
                             )
                             if created:
-                                created_records.append(obj)
+                                created_objects.append(obj)
 
         return Response(
             {
                 "message": "Email schedules created successfully",
-                "company": company.name if company else None,
-                "created_count": len(created_records)
+                "created_count": len(created_objects)
             },
             status=status.HTTP_201_CREATED
         )

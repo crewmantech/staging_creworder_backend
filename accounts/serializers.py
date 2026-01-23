@@ -1013,8 +1013,13 @@ class BulkEmailScheduleSerializer(serializers.Serializer):
 
     # 🔐 SECURITY: branch must belong to user's company
     def validate_branches(self, branches):
-        request = self.context["request"]
-        company = request.user.profile.company
+        request = self.context.get("request")
+        if not request:
+            return branches  # prevents KeyError
+
+        company = getattr(request.user.profile, "company", None)
+        if not company:
+            return branches
 
         invalid = [b.id for b in branches if b.company_id != company.id]
         if invalid:
@@ -1022,6 +1027,7 @@ class BulkEmailScheduleSerializer(serializers.Serializer):
                 "One or more branches do not belong to your company."
             )
         return branches
+
 
 
 class EmailScheduleListSerializer(serializers.ModelSerializer):
