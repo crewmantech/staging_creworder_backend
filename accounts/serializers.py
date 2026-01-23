@@ -985,7 +985,6 @@ class CallQcSerialiazer(serializers.ModelSerializer):
         fields='__all__'
 
 class BulkEmailScheduleSerializer(serializers.Serializer):
-
     emails = serializers.ListField(
         child=serializers.EmailField(),
         min_length=1
@@ -993,7 +992,7 @@ class BulkEmailScheduleSerializer(serializers.Serializer):
 
     branches = serializers.ListField(
         child=serializers.PrimaryKeyRelatedField(
-            queryset=Branch.objects.filter(is_active=True)
+            queryset=Branch.objects.all()
         ),
         min_length=1
     )
@@ -1012,13 +1011,17 @@ class BulkEmailScheduleSerializer(serializers.Serializer):
         min_length=1
     )
 
+    # 🔐 SECURITY: branch must belong to user's company
+    def validate_branches(self, branches):
+        request = self.context["request"]
+        company = request.user.profile.company
 
-class EmailScheduleResponseSerializer(serializers.ModelSerializer):
-    branch_name = serializers.CharField(source="branch.name", read_only=True)
-
-    class Meta:
-        model = EmailSchedule
-        fields = "__all__"
+        invalid = [b.id for b in branches if b.company_id != company.id]
+        if invalid:
+            raise serializers.ValidationError(
+                "One or more branches do not belong to your company."
+            )
+        return branches
 
 
 class EmailScheduleListSerializer(serializers.ModelSerializer):
@@ -1027,17 +1030,6 @@ class EmailScheduleListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = EmailSchedule
-        fields = [
-            "id",
-            "email",
-            "company",
-            "company_name",
-            "branch",
-            "branch_name",
-            "time_interval",
-            "template_type",
-            "is_active",
-            "last_sent_at",
-            "next_run_at",
-            "created_at",
-        ]
+        fields = "__all__"
+
+

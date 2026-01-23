@@ -5379,12 +5379,11 @@ class BulkEmailScheduleAPIView(APIView):
         )
     
     def get(self, request):
-        user = request.user
-        company = getattr(user.profile, "company", None)
+        company = request.user.profile.company
 
         queryset = EmailSchedule.objects.filter(company=company)
 
-        # 🔹 Optional Filters
+        # Optional filters
         branch = request.query_params.get("branch")
         time_interval = request.query_params.get("time_interval")
         template_type = request.query_params.get("template_type")
@@ -5392,13 +5391,10 @@ class BulkEmailScheduleAPIView(APIView):
 
         if branch:
             queryset = queryset.filter(branch_id=branch)
-
         if time_interval:
             queryset = queryset.filter(time_interval=time_interval)
-
         if template_type:
             queryset = queryset.filter(template_type=template_type)
-
         if is_active is not None:
             queryset = queryset.filter(is_active=is_active.lower() == "true")
 
@@ -5406,7 +5402,7 @@ class BulkEmailScheduleAPIView(APIView):
 
         return Response(
             {
-                "company": company.name if company else None,
+                "company": company.name,
                 "total": queryset.count(),
                 "data": serializer.data
             }
