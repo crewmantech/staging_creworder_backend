@@ -29,10 +29,10 @@ from services.email.email_service import send_email
 from services.shipment.schedule_orders import ShiprocketScheduleOrder,TekipostService
 from shipment.models import ShipmentModel, ShipmentVendor
 from shipment.serializers import ShipmentSerializer
-from .models import  Agreement, AttendanceSession, CallQcScore, CallQcTable, CompanyInquiry, CompanySalary, CompanyUserAPIKey, Doctor, Enquiry, InterviewApplication, QcScore, ReminderNotes, StickyNote, User, Company, Package, Employees, Notice1, Branch, FormEnquiry, SupportTicket, Module, \
+from .models import  Agreement, AttendanceSession, CallQcScore, CallQcTable, CompanyInquiry, CompanySalary, CompanyUserAPIKey, Doctor, EmailSchedule, Enquiry, InterviewApplication, QcScore, ReminderNotes, StickyNote, User, Company, Package, Employees, Notice1, Branch, FormEnquiry, SupportTicket, Module, \
     Department, Designation, Leaves, Holiday, Award, Appreciation, ShiftTiming, Attendance, AllowedIP,Shift_Roster,CustomAuthGroup,PickUpPoint, UserStatus,\
     UserTargetsDelails,AdminBankDetails,QcTable,OTPAttempt,LoginAttempt
-from .serializers import  AgreementSerializer, CallQcScoreSerializer, CallQcSerialiazer, CompanyInquirySerializer, CompanySalarySerializer, CompanyUserAPIKeySerializer, CustomPasswordResetSerializer, DoctorSerializer, EnquirySerializer, InterviewApplicationSerializer, NewPasswordSerializer,  QcScoreSerializer, ReminderNotesSerializer, StickyNoteSerializer, UpdateTeamLeadManagerSerializer, UserSerializer, CompanySerializer, PackageSerializer, \
+from .serializers import  AgreementSerializer, BulkEmailScheduleSerializer, CallQcScoreSerializer, CallQcSerialiazer, CompanyInquirySerializer, CompanySalarySerializer, CompanyUserAPIKeySerializer, CustomPasswordResetSerializer, DoctorSerializer, EmailScheduleListSerializer, EnquirySerializer, InterviewApplicationSerializer, NewPasswordSerializer,  QcScoreSerializer, ReminderNotesSerializer, StickyNoteSerializer, UpdateTeamLeadManagerSerializer, UserSerializer, CompanySerializer, PackageSerializer, \
     UserProfileSerializer, NoticeSerializer, BranchSerializer, UserSignupSerializer, FormEnquirySerializer, \
     SupportTicketSerializer, ModuleSerializer, DepartmentSerializer, DesignationSerializer, LeaveSerializer, \
     HolidaySerializer, AwardSerializer, AppreciationSerializer, ShiftSerializer, AttendanceSerializer,ShiftRosterSerializer, \
@@ -5333,3 +5333,81 @@ class CallQcScoreViewSet(viewsets.ModelViewSet):
             status=status.HTTP_201_CREATED
         )
 
+
+
+
+
+class BulkEmailScheduleAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = BulkEmailScheduleSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user = request.user
+        company = getattr(user.profile, "company", None)
+
+        emails = serializer.validated_data["emails"]
+        branches = serializer.validated_data["branches"]
+        time_intervals = serializer.validated_data["time_intervals"]
+        template_types = serializer.validated_data["template_types"]
+
+        created_records = []
+
+        with transaction.atomic():
+            for email in emails:
+                for branch in branches:
+                    for interval in time_intervals:
+                        for template in template_types:
+                            obj, created = EmailSchedule.objects.get_or_create(
+                                company=company,  # ✅ AUTO FROM USER PROFILE
+                                email=email,
+                                branch=branch,
+                                time_interval=interval,
+                                template_type=template
+                            )
+                            if created:
+                                created_records.append(obj)
+
+        return Response(
+            {
+                "message": "Email schedules created successfully",
+                "company": company.name if company else None,
+                "created_count": len(created_records)
+            },
+            status=status.HTTP_201_CREATED
+        )
+    
+    def get(self, request):
+        user = request.user
+        company = getattr(user.profile, "company", None)
+
+        queryset = EmailSchedule.objects.filter(company=company)
+
+        # 🔹 Optional Filters
+        branch = request.query_params.get("branch")
+        time_interval = request.query_params.get("time_interval")
+        template_type = request.query_params.get("template_type")
+        is_active = request.query_params.get("is_active")
+
+        if branch:
+            queryset = queryset.filter(branch_id=branch)
+
+        if time_interval:
+            queryset = queryset.filter(time_interval=time_interval)
+
+        if template_type:
+            queryset = queryset.filter(template_type=template_type)
+
+        if is_active is not None:
+            queryset = queryset.filter(is_active=is_active.lower() == "true")
+
+        serializer = EmailScheduleListSerializer(queryset, many=True)
+
+        return Response(
+            {
+                "company": company.name if company else None,
+                "total": queryset.count(),
+                "data": serializer.data
+            }
+        )

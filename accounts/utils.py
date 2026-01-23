@@ -123,3 +123,17 @@ def reassign_user_assets_on_suspension(user_obj):
         "pipeline_count": pipeline_count,
         "assigned_to": new_user.username
     }
+
+
+TIME_INTERVAL_CHOICES = (
+    ("DAILY", "Daily"),
+    ("WEEKLY", "Weekly"),
+    ("MONTHLY", "Monthly"),
+)
+
+TEMPLATE_TYPE_CHOICES = (
+    ("PERFORMANCE", "Performance Email"),
+    ("CALLQC", "Callqc Email"),
+    ("ORDERQC", "Orderqc Email"),
+)
+

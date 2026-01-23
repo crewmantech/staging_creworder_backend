@@ -19,7 +19,7 @@ from django.core.exceptions import ValidationError
 from django.utils.timezone import now
 
 from rest_framework import serializers
-from accounts.utils import generate_unique_id
+from accounts.utils import TEMPLATE_TYPE_CHOICES, TIME_INTERVAL_CHOICES, generate_unique_id
 from middleware.request_middleware import get_request
 from shipment.models import ShipmentModel
 
@@ -1368,3 +1368,47 @@ class CallQcScore(BaseModel):
 
     def __str__(self):
         return f"{self.user.username} - Q{self.question.id} Score: {self.score}"
+
+
+class EmailSchedule(BaseModel):
+    company = models.ForeignKey(
+        Company,
+        on_delete=models.CASCADE,
+        related_name="email_schedules",
+        null=True,
+        blank=True
+    )
+    email = models.EmailField()
+    branch = models.ForeignKey(
+        Branch,
+        on_delete=models.CASCADE,
+        related_name="email_schedules"
+    )
+    time_interval = models.CharField(
+        max_length=10,
+        choices=TIME_INTERVAL_CHOICES
+    )
+    template_type = models.CharField(
+        max_length=20,
+        choices=TEMPLATE_TYPE_CHOICES
+    )
+
+    is_active = models.BooleanField(default=True)
+    last_sent_at = models.DateTimeField(null=True, blank=True)
+    next_run_at = models.DateTimeField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "email_schedules"
+        ordering = ["-created_at"]
+        # unique_together = (
+        #     "email",
+        #     "branch",
+        #     "time_interval",
+        #     "template_type"
+        # )
+
+    def __str__(self):
+        return f"{self.email} | {self.branch.name} | {self.time_interval} | {self.template_type}"
