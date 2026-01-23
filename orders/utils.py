@@ -2,7 +2,7 @@ import re
 from django.db.models import Sum, F, FloatField
 from django.db.models.functions import Coalesce
 from django.db.models import Sum, Count,Avg
-from accounts.models import Employees
+from accounts.models import EmailSchedule, Employees
 from orders.models import Customer_State, Order_Table, OrderDetail
 from services.email.email_service import send_email
 from django.contrib.auth.models import User
@@ -627,17 +627,17 @@ def get_date_range(report_type):
     today = timezone.localdate()
     tz = timezone.get_current_timezone()
 
-    if report_type == "daily":
+    if report_type == "DAILY":
         start_dt = timezone.make_aware(datetime.combine(today, time.min), tz)
         end_dt = timezone.make_aware(datetime.combine(today, time.max), tz)
 
-    elif report_type == "weekly":
+    elif report_type == "WEEKLY":
         monday = today - timedelta(days=today.weekday())
         sunday = monday + timedelta(days=6)
         start_dt = timezone.make_aware(datetime.combine(monday, time.min), tz)
         end_dt = timezone.make_aware(datetime.combine(sunday, time.max), tz)
 
-    elif report_type == "monthly":
+    elif report_type == "MONTHLY":
         last_day = calendar.monthrange(today.year, today.month)[1]
         start_dt = timezone.make_aware(datetime.combine(today.replace(day=1), time.min), tz)
         end_dt = timezone.make_aware(datetime.combine(today.replace(day=last_day), time.max), tz)
@@ -659,6 +659,27 @@ def send_order_report(company, branch, report_type):
     # ==========================
     # ORDERS (SOURCE OF TRUTH)
     # ==========================
+   
+
+   
+
+    # ==========================
+    # GET EMAILS FROM EmailSchedule
+    # ==========================
+    recipient_emails = list(
+        EmailSchedule.objects.filter(
+            company=company,
+            branch=branch,
+            template_type=report_type,
+            is_active=True
+        ).values_list("email", flat=True)
+    )
+
+    if not recipient_emails:
+        print(
+            f"No email schedule found for {company.name} - {branch.name}"
+        )
+        return
     order_qs = Order_Table.objects.filter(
         company_id=company.id,
         branch_id=branch.id,
@@ -720,65 +741,65 @@ def send_order_report(company, branch, report_type):
     # ==========================
     # MANAGER REPORT
     # ==========================
-    employees_qs = Employees.objects.filter(
-        company_id=company.id,
-        branch_id=branch.id,
-        status=1
-    )
+    # employees_qs = Employees.objects.filter(
+    #     company_id=company.id,
+    #     branch_id=branch.id,
+    #     status=1
+    # )
 
-    # manager_ids = employees_qs.filter(
-    #     manager__isnull=False,user__is_active=True
-    # ).values_list("manager_id", flat=True).distinct()
-    manager_ids = (
-    User.objects
-    .filter(
-        agent_manager__isnull=False,
-        agent_manager__user__is_active=True,
-        is_active=True
-    )
-    .annotate(total_employees=Count('agent_manager'))
-    .filter(total_employees__gt=1)
-    .values_list('id', flat=True)
-)
+    # # manager_ids = employees_qs.filter(
+    # #     manager__isnull=False,user__is_active=True
+    # # ).values_list("manager_id", flat=True).distinct()
+    # manager_ids = (
+    # User.objects
+    # .filter(
+    #     agent_manager__isnull=False,
+    #     agent_manager__user__is_active=True,
+    #     is_active=True
+    # )
+    # .annotate(total_employees=Count('agent_manager'))
+    # .filter(total_employees__gt=1)
+    # .values_list('id', flat=True)
+# )
 
-    managers = User.objects.filter(id__in=manager_ids, is_active=True)
+    # managers = User.objects.filter(id__in=manager_ids, is_active=True)
 
-    for manager in managers:
-        team_user_ids = employees_qs.filter(
-            manager_id=manager.id
-        ).values_list("user_id", flat=True)
+    # for manager in managers:
+    #     team_user_ids = employees_qs.filter(
+    #         manager_id=manager.id
+    #     ).values_list("user_id", flat=True)
 
-        if not team_user_ids or not manager.email:
-            continue
-        team_orders = order_qs.filter(
-                    Q(order_created_by_id__in=team_user_ids) |
-                    Q(updated_by_id__in=team_user_ids)
-                )
-        team_price = get_price_breakdown(team_orders)
+    #     if not team_user_ids or not manager.email:
+    #         continue
+    #     team_orders = order_qs.filter(
+    #                 Q(order_created_by_id__in=team_user_ids) |
+    #                 Q(updated_by_id__in=team_user_ids)
+    #             )
+    #     team_price = get_price_breakdown(team_orders)
 
-        manager_data = get_order_report(
-            company_id=company.id,
-            branch_id=branch.id,
-            start_dt=start_dt,
-            end_dt=end_dt,
-            user_ids=team_user_ids,
-        )
-        if manager_data and manager.email: 
-            send_report_email(
-                subject=f"📊 {report_type.capitalize()} Team Order Report",
-                recipients=[manager.email],
-                context={
-                    "role": "MANAGER",
-                    "company_name": company.name,
-                    "branch_name": branch.name,
-                    "start_date": start_dt.date(),
-                    "end_date": end_dt.date(),
+    #     manager_data = get_order_report(
+    #         company_id=company.id,
+    #         branch_id=branch.id,
+    #         start_dt=start_dt,
+    #         end_dt=end_dt,
+    #         user_ids=team_user_ids,
+    #     )
+    #     if manager_data and manager.email: 
+    #         send_report_email(
+    #             subject=f"📊 {report_type.capitalize()} Team Order Report",
+    #             recipients=[manager.email],
+    #             context={
+    #                 "role": "MANAGER",
+    #                 "company_name": company.name,
+    #                 "branch_name": branch.name,
+    #                 "start_date": start_dt.date(),
+    #                 "end_date": end_dt.date(),
 
-                    "base_amount": team_price["base_amount"],
-                    "gst_amount": team_price["gst_amount"],
-                    "total_amount": team_price["total_amount"],
+    #                 "base_amount": team_price["base_amount"],
+    #                 "gst_amount": team_price["gst_amount"],
+    #                 "total_amount": team_price["total_amount"],
 
-                    "allowed_statuses": allowed_statuses,
-                    **manager_data,
-                },
-            )
+    #                 "allowed_statuses": allowed_statuses,
+    #                 **manager_data,
+    #             },
+    #         )

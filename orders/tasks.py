@@ -11,14 +11,14 @@ def daily_order_report_job():
     print("daily_order_report_job Order Report Job Started")
     for company in Company.objects.filter(status=True):
         for branch in company.branches.all():
-            send_order_report(company, branch, "daily")
+            send_order_report(company, branch, "DAILY")
 
 
 def weekly_order_report_job():
     print("weekly_order_report_job Order Report Job Started")
     for company in Company.objects.filter(status=True):
         for branch in company.branches.all():
-            send_order_report(company, branch, "weekly")
+            send_order_report(company, branch, "WEEKLY")
 
 
 def monthly_order_report_job():
@@ -31,4 +31,4 @@ def monthly_order_report_job():
 
     for company in Company.objects.filter(status=True):
         for branch in company.branches.all():
-            send_order_report(company, branch, "monthly")
+            send_order_report(company, branch, "MONTHLY")
