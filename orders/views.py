@@ -1077,6 +1077,7 @@ class FilterOrdersView(viewsets.ViewSet):
         # 🔍 GLOBAL SEARCH FILTER
         # ----------------------------------
         search = filters.get("search")
+        print(search,"-----------------search---1080")
         search_by_number = filters.get('search_by_number')
         if search_by_number:
             ref = get_phone_by_reference_id1(
