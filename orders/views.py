@@ -1085,15 +1085,15 @@ class FilterOrdersView(viewsets.ViewSet):
                 )
             if ref and ref.get("phone_number"):
                     search = normalize_phone(ref["phone_number"])
-
+        print(search,"-----------------search")
         if search:
             search = str(search).strip()
 
             search_q = (
                 Q(id=search) |
                 Q(order_id=search) |
-                Q(customer_phone=search) |
-                Q(customer_alter_phone=search) |
+                Q(customer_phone__endswith=search)[-10:] |
+                Q(customer_alter_phone__endswith=search)[-10:] |
                 Q(call_id=search) |
                 Q(lead_id=search) |
                 Q(appointment__id=search)
