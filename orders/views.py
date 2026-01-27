@@ -993,7 +993,11 @@ class FilterOrdersView(viewsets.ViewSet):
         return start_datetime, end_datetime
     def create(self, request):
         filters = request.data or {}
-
+        user = request.user
+        company = user.profile.company
+        queryset = Order_Table.objects.filter(
+            company=company,is_deleted=False
+        )
         queryset = Order_Table.objects.all()
         filter_conditions = Q()
 
@@ -1073,6 +1077,14 @@ class FilterOrdersView(viewsets.ViewSet):
         # 🔍 GLOBAL SEARCH FILTER
         # ----------------------------------
         search = filters.get("search")
+        search_by_number = filters.get('search_by_number')
+        if search_by_number:
+            ref = get_phone_by_reference_id(
+                    user=user,
+                    reference_id=search
+                )
+            if ref and ref.get("phone_number"):
+                    search = normalize_phone(ref["phone_number"])
 
         if search:
             search = str(search).strip()
