@@ -17,6 +17,7 @@ from .views import (
     CloudTelephonyVendorViewSet, 
     CloudTelephonyChannelViewSet, 
     CloudTelephonyChannelAssignViewSet,
+    CustomerDataByMobileAPI,
     GetNumberAPIView,
     SaveCallRecordingAPIView,
     SecretKeyViewSet, 
@@ -43,6 +44,7 @@ urlpatterns = [
         CloudConnectWebhookAPIView.as_view(),
         name="cloudconnect-webhook"
     ),
+    path("customer-data/", CustomerDataByMobileAPI.as_view(), name="customer-data-by-mobile"),
     # path(
     #     "createCloudTelephoneyChannel/",
     #     CreateCloudTelephoneyChannel.as_view(),

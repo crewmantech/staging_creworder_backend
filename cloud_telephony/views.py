@@ -196,10 +196,12 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from follow_up.models import Follow_Up
+from follow_up.models import Appointment, Follow_Up
+from follow_up.serializers import AppointmentSerializer, FollowUpSerializer
 from lead_management.models import Lead
 from orders.models import Order_Table
 from django.core.files.base import ContentFile
+from orders.serializers import OrderTableSerializer
 from services.cloud_telephoney.cloud_telephoney_service import CloudConnectService, TataSmartfloService,SansSoftwareService
 from .models import (
     CallLog,
@@ -211,6 +213,7 @@ from .models import (
     UserMailSetup
 )
 from .serializers import (
+    CallLogSerializer,
     CallRecordingInputSerializer,
     CallRecordingModelSerializer,
     CloudTelephonyChannelAssignCSVSerializer,
@@ -778,22 +781,16 @@ class CallServiceViewSet(viewsets.ViewSet):
         """
         Legacy session API (optional)
         """
-        print("🔹 STEP 1: get_session_id API called")
 
         agent_id = request.data.get("agent_id")
-        print(f"🔹 STEP 2: agent_id from request = {agent_id}")
 
         user = request.user
-        print(f"🔹 STEP 3: authenticated user = {user} | user_id = {getattr(user, 'id', None)}")
 
         # ================== CHANNEL ASSIGNMENT ==================
         try:
-            print("🔹 STEP 4: Fetching CloudTelephonyChannelAssign")
             channel_assign = CloudTelephonyChannelAssign.objects.get(user_id=user.id)
             channel = channel_assign.cloud_telephony_channel
-            print(f"✅ STEP 5: Channel assigned | channel_id={channel.id}")
         except CloudTelephonyChannelAssign.DoesNotExist:
-            print("❌ STEP 5 FAILED: No channel assigned to user")
             return Response(
                 {"error": "No channel assigned to this user."},
                 status=status.HTTP_404_NOT_FOUND
@@ -801,40 +798,31 @@ class CallServiceViewSet(viewsets.ViewSet):
 
         # ================== VENDOR ==================
         cloud_vendor = channel.cloudtelephony_vendor.name.strip().lower()
-        print(f"🔹 STEP 6: Cloud vendor detected = '{cloud_vendor}'")
 
         # ================== CLOUD CONNECT ==================
         if cloud_vendor == 'cloud connect':
-            print("🔹 STEP 7: CloudConnect flow started")
 
             agent_id = agent_id or channel_assign.agent_id
-            print(f"🔹 STEP 8: Final agent_id = {agent_id}")
 
             if not agent_id:
-                print("❌ STEP 8 FAILED: agent_id missing")
                 return Response(
                     {"error": "agent_id is required."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            print("🔹 STEP 9: Initializing CloudConnectService")
             cloud_connect_service = CloudConnectService(
                 channel.token,
                 channel.tenent_id
             )
 
             try:
-                print("🔹 STEP 10: Calling CloudConnect get_session_id()")
                 response_data = cloud_connect_service.get_session_id(agent_id)
-                print(f"✅ STEP 11: CloudConnect response = {response_data}")
             except Exception as e:
-                print(f"❌ STEP 11 FAILED: CloudConnect exception → {str(e)}")
                 return Response(
                     {"error": str(e)},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            print("🔹 STEP 12: Returning success response")
             return Response(
                 {
                     "success": True,
@@ -845,7 +833,6 @@ class CallServiceViewSet(viewsets.ViewSet):
             )
 
         # ================== UNSUPPORTED VENDOR ==================
-        print(f"❌ STEP 7 FAILED: Unsupported cloud vendor → {cloud_vendor}")
         return Response(
             {
                 "error": f"Cloud vendor '{cloud_vendor}' is not supported yet."
@@ -1285,6 +1272,7 @@ class CloudConnectWebhookAPIView(APIView):
     """
     CloudConnect Webhook Receiver (DRF)
     """
+    
 
     authentication_classes = []
     permission_classes = []
@@ -1330,3 +1318,52 @@ class CloudConnectWebhookAPIView(APIView):
             },
             status=status.HTTP_200_OK
         )
+
+
+class CustomerDataByMobileAPI(APIView):
+    """
+    Get all related data by mobile number
+    """ 
+    permission_classes = [IsAuthenticated]
+    def get(self, request):
+        user = request.user
+        company = user.profile.company
+        mobile = request.query_params.get("mobile")
+
+        if not mobile:
+            return Response(
+                {"error": "mobile number is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Orders
+        orders = Order_Table.objects.filter(
+            customer_phone__endswith=mobile[-10:],
+            company=company,
+            is_deleted=False
+        )
+
+        # Call Logs
+        calls = CallLog.objects.filter(phone=mobile)
+
+        # Appointments
+        appointments = Appointment.objects.filter(
+            company=company,
+            patient_phone__endswith=mobile[-10:]
+        )
+
+        # Follow Ups
+        followups = Follow_Up.objects.filter(
+            company=company,
+            customer_phone__endswith=mobile[-10:]
+        )
+
+        response_data = {
+            "mobile": mobile,
+            "orders": OrderTableSerializer(orders, many=True).data,
+            "calls": CallLogSerializer(calls, many=True).data,
+            "appointments": AppointmentSerializer(appointments, many=True).data,
+            "followups": FollowUpSerializer(followups, many=True).data,
+        }
+
+        return Response(response_data, status=status.HTTP_200_OK)
