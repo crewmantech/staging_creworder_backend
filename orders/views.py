@@ -1084,7 +1084,7 @@ class FilterOrdersView(viewsets.ViewSet):
                     reference_id=search
                 )
             if ref and ref.get("phone_number"):
-                    search = normalize_phone(ref["phone_number"])
+                    search =ref["phone_number"]
         print(search,"-----------------search")
         if search:
             search = str(search).strip()
