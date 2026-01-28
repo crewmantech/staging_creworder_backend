@@ -5424,3 +5424,67 @@ class BulkEmailScheduleAPIView(APIView):
                 "data": serializer.data
             }
         )
+        
+    def patch(self, request):
+        company = request.user.profile.company
+
+        filters = {
+            "company": company
+        }
+
+        branch = request.data.get("branch")
+        time_interval = request.data.get("time_interval")
+        template_type = request.data.get("template_type")
+        is_active = request.data.get("is_active")
+
+        if branch:
+            filters["branch_id"] = branch
+        if time_interval:
+            filters["time_interval"] = time_interval
+        if template_type:
+            filters["template_type"] = template_type
+
+        if is_active is None:
+            return Response(
+                {"error": "is_active field is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        updated_count = EmailSchedule.objects.filter(**filters).update(
+            is_active=is_active
+        )
+
+        return Response(
+            {
+                "message": "Email schedules updated successfully",
+                "updated_count": updated_count
+            }
+        )
+        
+    def delete(self, request):
+        company = request.user.profile.company
+
+        filters = {
+            "company": company
+        }
+
+        branch = request.data.get("branch")
+        time_interval = request.data.get("time_interval")
+        template_type = request.data.get("template_type")
+
+        if branch:
+            filters["branch_id"] = branch
+        if time_interval:
+            filters["time_interval"] = time_interval
+        if template_type:
+            filters["template_type"] = template_type
+
+        deleted_count, _ = EmailSchedule.objects.filter(**filters).delete()
+
+        return Response(
+            {
+                "message": "Email schedules deleted successfully",
+                "deleted_count": deleted_count
+            },
+            status=status.HTTP_200_OK
+        )
