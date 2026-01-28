@@ -3688,7 +3688,8 @@ class UserPermissionStatusView(APIView):
         
         # ✅ Virtual permission (NO DB permission needed)
         has_cloud_dialer = CloudTelephonyChannelAssign.objects.filter(
-            user=user
+            user=user,
+            cloud_telephony_channel__cloudtelephony_vendor__name__iexact="cloud connect"
         ).exists()
 
         # If user is of type 'admin', grant all permissions
