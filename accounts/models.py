@@ -1090,6 +1090,8 @@ class Others(models.Model):
             ('view_manager_appointment_others', 'Can view manager appointment others'),
             ('view_teamlead_appointment_others', 'Can view team lead appointment others'),
             ('edit_appointment_status_others', 'Can edit appointment status others'),
+             # ✅ NEW PERMISSION
+            ('view_whatsapp_button_others', 'Can view WhatsApp button others'),
 
             )
     def __str__(self):

@@ -3685,6 +3685,11 @@ class UserPermissionStatusView(APIView):
 
     def get(self, request, format=None):
         user = request.user
+        
+        # ✅ Virtual permission (NO DB permission needed)
+        has_cloud_dialer = CloudTelephonyChannelAssign.objects.filter(
+            user=user
+        ).exists()
 
         # If user is of type 'admin', grant all permissions
         if user.profile.user_type == 'admin':
@@ -3727,6 +3732,11 @@ class UserPermissionStatusView(APIView):
                 "delete_appointment_button": user.has_perm(
                     "accounts.can_delete_appointment_crud"
                 ),
+                "whatsapp_button": user.has_perm(
+                    'accounts.view_whatsapp_button_others'
+                ),
+                # ✅ NEW VIRTUAL PERMISSION
+                "view_cloud_dialer": has_cloud_dialer,
                 
             }
         else:
@@ -3769,6 +3779,11 @@ class UserPermissionStatusView(APIView):
                 "delete_appointment_button": user.has_perm(
                     "accounts.can_delete_appointment_crud"
                 ),
+                "whatsapp_button": user.has_perm(
+                    'accounts.view_whatsapp_button_others'
+                ),
+                # ✅ NEW VIRTUAL PERMISSION
+                "view_cloud_dialer": has_cloud_dialer,
             }   
 
         return Response(response_data)
