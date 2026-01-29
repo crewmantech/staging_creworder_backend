@@ -88,8 +88,8 @@ class CloudTelephonyChannelAssign(BaseModel):
     cloud_telephony_channel = models.ForeignKey(
         'CloudTelephonyChannel', on_delete=models.CASCADE
     )
-    branch = models.ForeignKey('Branch', on_delete=models.CASCADE)
-    company = models.ForeignKey('Company', on_delete=models.CASCADE)
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE)
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
 
     type = models.IntegerField(choices=TYPE_CHOICES)
     is_active = models.BooleanField(default=True)
