@@ -2,7 +2,6 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from django.apps import AppConfig
 
-from services.shipment.schedule_orders import EshopboxAPI
 
 
 
@@ -18,7 +17,7 @@ class ShipmentsConfig(AppConfig):
         # Lazy import to prevent early model import errors
         from shipment.models import ShipmentModel
         from orders.models import Order_Table, OrderStatus, AllowStatus, OrderStatusWorkflow
-        from services.shipment.schedule_orders import ShiprocketScheduleOrder, TekipostService, NimbuspostAPI,ZoopshipService
+        from services.shipment.schedule_orders import ShiprocketScheduleOrder, TekipostService, NimbuspostAPI,ZoopshipService,EshopboxAPI
         from shipment.serializers import ShipmentSerializer
         from django.db.models import Q
         from services.orders.order_service import trigger_order_status_notifications
