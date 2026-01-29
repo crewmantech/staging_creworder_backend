@@ -2,6 +2,8 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from django.apps import AppConfig
 
+from services.shipment.schedule_orders import EshopboxAPI
+
 
 
 class ShipmentsConfig(AppConfig):
@@ -166,6 +168,47 @@ class ShipmentsConfig(AppConfig):
                                                 pass 
                             except Exception as e:
                                 logger.error(f"[Nimbuspost] Error updating order {order.id}: {e}")
+                    
+                    elif vendor_name == 'eshopbox' and shipmentData['credential_username']:
+                        nimbuspost_service = EshopboxAPI(
+                            shipmentData['credential_username'],shipmentData['credential_password'],serialized_data['credential_token']
+                        )
+                        excluded_statuses = [
+                            'ACCEPTED', 'No Response', 'Future Order', 'Non Serviceable',
+                            'DELIVERED', 'RTO DELIVERED', 'EXCEPTION',"PENDING"
+                        ]
+                        orders = Order_Table.objects.filter(
+                            order_wayBill__isnull=False,
+                            company=company
+                        ).exclude(order_wayBill='').exclude(order_status__name__in=excluded_statuses)
+
+                        for order in orders:
+                            try:
+                                
+                                awb_number = order.order_wayBill
+                                
+                                response = nimbuspost_service.track_shipment(awb_number)
+                                if not response.get("status"):
+                                    continue
+
+                                shipment_status = response.get("data", {}).get("status")
+                            
+                                if shipment_status:
+                                    mapped_status = get_main_order_status_for_vendor_status(vendor_id, shipment_status)
+                                    if mapped_status:
+                                        order_status, _ = OrderStatus.objects.get_or_create(name=mapped_status.name)
+                                        if order.order_status_id != order_status.id:
+                                            order.order_status = order_status
+                                            order.save()
+                                            logger.info(f"[Nimbuspost] Updated order {order.id} to status {shipment_status}")
+                                            try:
+                                                trigger_order_status_notifications(company, order_status.id, order.id)
+                                            except Exception as e:
+                                                print(f"Error triggering order status notification: {e}")
+                                                pass 
+                            except Exception as e:
+                                logger.error(f"[Nimbuspost] Error updating order {order.id}: {e}")
+
                     elif vendor_name == 'zoopship' and shipmentData['credential_username']:
                         zoopship_service = ZoopshipService(
                             shipmentData['credential_username'],

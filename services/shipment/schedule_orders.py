@@ -1669,3 +1669,177 @@ class ZoopshipService:
                 print(f"An error occurred for order {order['id']} (Zoopship):", e)
 
         return _ResponsesDict
+
+
+
+class EshopboxAPI:
+    AUTH_URL = "https://auth.myeshopbox.com/api/v1/generateToken"
+    ORDER_URL = "https://wms.eshopbox.com/api/order"
+    SHIPMENT_URL = "https://wms.eshopbox.com/api/v1/shipping/order"
+    RATE_URL = "https://{domain}/shipping/api/v1/calculate/rate"
+
+    def __init__(self, client_id, client_secret, refresh_token):
+        self.client_id = client_id
+        self.client_secret = client_secret
+        self.refresh_token = refresh_token
+        self.token = self._get_token()
+
+        if not self.token:
+            raise Exception("Eshopbox Authentication Failed")
+
+        self.headers = {
+            "Authorization": f"Bearer {self.token}",
+            "Content-Type": "application/json"
+        }
+
+    # ---------------- AUTH ---------------- #
+
+    def _get_token(self):
+        payload = {
+            "grant_type": "refresh_token",
+            "client_id": self.client_id,
+            "client_secret": self.client_secret,
+            "refresh_token": self.refresh_token
+        }
+        try:
+            res = requests.post(self.AUTH_URL, json=payload, timeout=20)
+            data = res.json()
+            return data.get("access_token")
+        except Exception as e:
+            logger.error(f"Eshopbox token error: {e}")
+            return None
+
+    # ---------------- MAPPER ---------------- #
+
+    @staticmethod
+    def makeJsonForApi(order_data, pickup):
+        items = []
+
+        for item in order_data["order_details"]:
+            items.append({
+                "itemID": item["product_sku"],     # SKU is key
+                "productTitle": item["product_name"],
+                "quantity": item["product_qty"],
+                "itemTotal": item["product_price"],
+                "hsn": item.get("product_hsn", ""),
+                "mrp": item.get("product_mrp", 0),
+                "discount": item.get("product_discount", 0),
+                "taxPercentage": item.get("product_tax", 0),
+                "itemLength": item.get("length", 10),
+                "itemBreadth": item.get("width", 10),
+                "itemHeight": item.get("height", 10),
+                "itemWeight": item.get("weight", 100)
+            })
+
+        payload = {
+            "channelId": "CREWORDER",
+            "customerOrderId": order_data["order_id"],
+            "shipmentId": f"SHP-{order_data['id']}",
+            "orderDate": order_data["created_at"],
+            "isCOD": True if order_data["payment_type_name"] != "Prepaid Payment" else False,
+            "invoiceTotal": order_data["total_amount"],
+            "shippingMode": "Eshopbox Standard",
+            "balanceDue": order_data["cod_amount"],
+            "shippingAddress": {
+                "customerName": order_data["customer_name"],
+                "addressLine1": order_data["customer_address"],
+                "city": order_data["customer_city"],
+                "state": order_data["customer_state_name"],
+                "pincode": order_data["customer_postal"],
+                "country": "India",
+                "contactPhone": order_data["customer_phone"],
+                "email": order_data["customer_email"]
+            },
+            "billingIsShipping": True,
+            "items": items,
+            "pickupLocation": {
+                "locationCode": pickup["id"],
+                "locationName": pickup["pickup_location_name"],
+                "companyName": pickup["company_name"],
+                "contactPerson": pickup["contact_person_name"],
+                "contactNumber": pickup["contact_number"],
+                "addressLine1": pickup["complete_address"],
+                "city": pickup["city"],
+                "state": pickup["state"],
+                "country": "India",
+                "pincode": pickup["pincode"]
+            }
+        }
+
+        return payload
+
+    # ---------------- CREATE ORDER ---------------- #
+
+    def schedule_order(self, order_list, company_id, user_id, pickup_id, shipment_vendor):
+
+        OrdersData = Order_Table.objects.filter(company=company_id, id__in=order_list)
+        OrdersDataSerializer = OrderTableSerializer(OrdersData, many=True)
+
+        responses = []
+
+        pickup = PickUpPoint.objects.get(id=pickup_id)
+        pickup_data = PickUpPointSerializer(pickup).data
+
+        for order in OrdersDataSerializer.data:
+            try:
+                payload = self.makeJsonForApi(order, pickup_data)
+                res = requests.post(self.SHIPMENT_URL, json=payload, headers=self.headers)
+                data = res.json()
+
+                if res.status_code == 200:
+                    order_status, _ = OrderStatus.objects.get_or_create(name="PICKUP PENDING")
+
+                    Order_Table.objects.filter(id=order["id"]).update(
+                        order_wayBill=data.get("trackingID"),
+                        courier_name=data.get("courierName"),
+                        awb_response=data,
+                        shipment_id=data.get("id"),
+                        vendor_order_id=data.get("shipmentId"),
+                        is_booked=1,
+                        order_status=order_status.id,
+                        shipment_vendor=shipment_vendor
+                    )
+
+                    orderLogInsert({
+                        "order": order["id"],
+                        "order_status": order_status.id,
+                        "action_by": user_id,
+                        "action": "Order sent to Eshopbox",
+                        "remark": "Shipment created successfully"
+                    })
+
+                    responses.append({"order": order["id"], "message": "Success"})
+
+                else:
+                    responses.append({"order": order["id"], "message": data})
+
+            except Exception as e:
+                responses.append({"order": order["id"], "message": str(e)})
+
+        return responses
+
+    # ---------------- TRACK ---------------- #
+
+    def track_shipment(self, tracking_id):
+        url = f"https://wms.eshopbox.com/api/shipment/{tracking_id}"
+        res = requests.get(url, headers=self.headers)
+        return res.json()
+
+    # ---------------- RATE CALCULATOR ---------------- #
+
+    def calculate_rate(self, domain, pickup_pin, drop_pin, weight, length, width, height, payment_method, cod_amount):
+        url = self.RATE_URL.format(domain=domain)
+        payload = {
+            "journeyType": "forward",
+            "pickupPincode": pickup_pin,
+            "dropPincode": drop_pin,
+            "orderWeight": weight,
+            "length": length,
+            "width": width,
+            "height": height,
+            "paymentMethod": payment_method,
+            "codAmountToBeCollected": cod_amount,
+            "doorstepQc": False
+        }
+        res = requests.post(url, json=payload, headers=self.headers)
+        return res.json()

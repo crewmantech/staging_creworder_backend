@@ -10,7 +10,7 @@ from rest_framework import viewsets, status
 from rest_framework import status
 from rest_framework.response import Response
 from services.shipment.shipment_service import *
-from services.shipment.schedule_orders import NimbuspostAPI, ShiprocketScheduleOrder,TekipostService, ZoopshipService
+from services.shipment.schedule_orders import EshopboxAPI, NimbuspostAPI, ShiprocketScheduleOrder,TekipostService, ZoopshipService
 from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
 from rest_framework.decorators import action
@@ -204,6 +204,12 @@ class ScheduleOrders(viewsets.ModelViewSet):
                         serialized_data['credential_username'], serialized_data['credential_password']
                     )
                     _response=nimbuspost_service.schedule_order_zoopshipservice(order_ids, request.user.profile.branch.id, request.user.profile.company.id,channel_id,request.user.id,pickup_id,shipment_vendor)
+        elif serialized_data['shipment_vendor']['name'].lower()=='eshopbox':
+            if serialized_data['credential_username']!='' or serialized_data['credential_username']!=None:
+                shiprocket_service = EshopboxAPI(serialized_data['credential_username'],serialized_data['credential_password'],serialized_data['credential_token'])
+                # _response=shiprocket_service.schedule_order(order_ids, request.user.profile.branch.id, request.user.profile.company.id,serialized_data['shipment_channel_id'],request.user.id)
+                shipment_vendor = serialized_data['shipment_vendor'].get('id')
+                _response=shiprocket_service.schedule_order(order_ids, request.user.profile.branch.id, request.user.profile.company.id,channel_id,request.user.id,pickup_id,shipment_vendor)
         if _response:
             return Response(
                 {
