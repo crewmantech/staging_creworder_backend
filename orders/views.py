@@ -1896,7 +1896,7 @@ class OrderAggregationByStatusAPIView(APIView):
                     if response.get("code") == 200:
                         cloudconnect_response = response.get("result", {})
                         try:
-                            channel_assign = CloudTelephonyChannelAssign.objects.get(user=user)
+                            channel_assign = CloudTelephonyChannelAssign.objects.get(user=user,is_active=True)
                             agent_id = channel_assign.agent_id
                             cloudconnect_status = next(
                                 (a["status"] for a in cloudconnect_response if a["agent_id"] == agent_id),
@@ -2314,7 +2314,7 @@ class OrderAggregationByStatusAPIViewPerformance(APIView):
                     if response.get("code") == 200:
                         cloudconnect_response = response.get("result", {})
                         try:
-                            channel_assign = CloudTelephonyChannelAssign.objects.get(user=user)
+                            channel_assign = CloudTelephonyChannelAssign.objects.get(user=user,is_active=True)
                             agent_id = channel_assign.agent_id
                             cloudconnect_status = next(
                                 (a["status"] for a in cloudconnect_response if a["agent_id"] == agent_id),

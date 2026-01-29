@@ -85,7 +85,7 @@ class FollowUpView(viewsets.ModelViewSet):
 
         # ✅ 3. Cloud telephony lookup
         try:
-            channel_assign = CloudTelephonyChannelAssign.objects.get(user_id=user.id)
+            channel_assign = CloudTelephonyChannelAssign.objects.get(user_id=user.id,is_active=True)
             channel = channel_assign.cloud_telephony_channel
         except CloudTelephonyChannelAssign.DoesNotExist:
             return None

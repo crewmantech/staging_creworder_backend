@@ -74,30 +74,85 @@ class CloudTelephonyChannel(BaseModel):
         super().save(*args, **kwargs)
     def __str__(self):
         return f"{self.cloudtelephony_vendor}"
-
+    
+from django.core.exceptions import ValidationError
 
 class CloudTelephonyChannelAssign(BaseModel):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, default=1)
-    cloud_telephony_channel = models.ForeignKey(
-        CloudTelephonyChannel, on_delete=models.CASCADE, default=1
+
+    TYPE_CHOICES = (
+        (1, "Call Agent"),
+        (2, "Monitoring"),
     )
-    branch = models.ForeignKey(Branch, on_delete=models.CASCADE)
-    company = models.ForeignKey(Company, on_delete=models.CASCADE)
-    # cloud_telephony_provider_name = models.CharField(max_length=255, null=True, blank=True)
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    cloud_telephony_channel = models.ForeignKey(
+        'CloudTelephonyChannel', on_delete=models.CASCADE
+    )
+    branch = models.ForeignKey('Branch', on_delete=models.CASCADE)
+    company = models.ForeignKey('Company', on_delete=models.CASCADE)
+
+    type = models.IntegerField(choices=TYPE_CHOICES)
+    is_active = models.BooleanField(default=True)
     priority = models.IntegerField(default=1)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
     campangin_name = models.CharField(max_length=255, null=True, blank=True)
     agent_username = models.CharField(max_length=255, null=True)
     agent_password = models.CharField(max_length=255, null=True)
     agent_id = models.CharField(max_length=255, null=True)
     camp_id = models.CharField(max_length=255, null=True)
-    other = models.CharField(max_length=500,null=True)
+    other = models.CharField(max_length=500, null=True)
+
     class Meta:
         db_table = "telephony_channels_assign_table"
-        unique_together = ('user', 'company')
+        unique_together = ('user', 'company', 'cloud_telephony_channel')
+
+    def clean(self):
+        """
+        Django admin + serializer validation
+        """
+
+        # RULE 1: Only one Call Agent total
+        if self.type == 1:
+            exists = CloudTelephonyChannelAssign.objects.filter(
+                user=self.user,
+                company=self.company,
+                type=1
+            ).exclude(id=self.id).exists()
+
+            if exists:
+                raise ValidationError("Only one Call Agent channel allowed per user")
+
+        # RULE 2: Only one Monitoring active
+        if self.type == 2 and self.is_active:
+            exists = CloudTelephonyChannelAssign.objects.filter(
+                user=self.user,
+                company=self.company,
+                type=2,
+                is_active=True
+            ).exclude(id=self.id).exists()
+
+            if exists:
+                raise ValidationError("Only one Monitoring channel can be active")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()   # triggers clean()
+
+        # Auto switch for monitoring
+        if self.type == 2 and self.is_active:
+            CloudTelephonyChannelAssign.objects.filter(
+                user=self.user,
+                company=self.company,
+                type=2,
+                is_active=True
+            ).exclude(id=self.id).update(is_active=False)
+
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return f"{self.cloud_telephony_channel} (agent_username {self.agent_username})"
+        return f"{self.user} - {self.cloud_telephony_channel} ({self.get_type_display()})"
 
 
 class UserMailSetup(BaseModel):

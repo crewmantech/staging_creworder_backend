@@ -631,7 +631,7 @@ def get_phone_number_by_call_id(user, call_id):
         raise ValidationError("call_id is required.")
 
     try:
-        channel_assign = CloudTelephonyChannelAssign.objects.get(user_id=user.id)
+        channel_assign = CloudTelephonyChannelAssign.objects.get(user_id=user.id,is_active=True)
         channel = channel_assign.cloud_telephony_channel
     except CloudTelephonyChannelAssign.DoesNotExist:
         raise ValidationError("No channel assigned to this user.")

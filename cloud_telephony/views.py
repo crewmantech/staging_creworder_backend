@@ -253,25 +253,62 @@ class CloudTelephonyChannelAssignViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        return CloudTelephonyChannelAssign.objects.filter(company=user.profile.company)
+        company = user.profile.company
+
+        self_assign = self.request.query_params.get("self_assign")
+
+        qs = CloudTelephonyChannelAssign.objects.filter(company=company)
+
+        # If ?self_assign=true → only my channels
+        if self_assign and self_assign.lower() == "true":
+            qs = qs.filter(user=user)
+
+        return qs
 
     def perform_create(self, serializer):
-        user = self.request.user
-        company = user.profile.company
-        target_user = serializer.validated_data.get('user')
-        channel = serializer.validated_data.get('cloud_telephony_channel')
+        company = self.request.user.profile.company
+        serializer.save(company=company)
 
-        # Check if a record exists for this user
+    # ✅ CUSTOM URL: /activate_monitoring/<id>/
+    @action(detail=False, methods=["post"], url_path="activate_monitoring/(?P<id>[^/.]+)")
+    def activate_monitoring(self, request, id=None):
+
         try:
-            existing_assignment = CloudTelephonyChannelAssign.objects.get(
-                user=target_user, company=company
-            )
-            # Update existing record
-            serializer.instance = existing_assignment
-            serializer.save()
+            instance = CloudTelephonyChannelAssign.objects.get(id=id)
         except CloudTelephonyChannelAssign.DoesNotExist:
-            # Create new assignment
-            serializer.save(company=company)
+            return Response(
+                {"error": "Invalid telephony id"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        if instance.type != 2:
+            return Response(
+                {"error": "Only monitoring channels can be activated"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # security: same company only
+        if instance.company != request.user.profile.company:
+            return Response(
+                {"error": "Not allowed"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # deactivate others
+        CloudTelephonyChannelAssign.objects.filter(
+            user=instance.user,
+            company=instance.company,
+            type=2
+        ).update(is_active=False)
+
+        # activate this
+        instance.is_active = True
+        instance.save()
+
+        return Response({
+            "message": "Monitoring channel activated successfully",
+            "active_id": instance.id
+        })
 
 
 class UserMailSetupViewSet(viewsets.ModelViewSet):
@@ -291,7 +328,7 @@ class CallServiceViewSet(viewsets.ViewSet):
 
         user = self.request.user  # Proper user instance
         try:
-            channel_assign = CloudTelephonyChannelAssign.objects.get(user_id=user.id)
+            channel_assign = CloudTelephonyChannelAssign.objects.get(user_id=user.id,is_active=True)
         except CloudTelephonyChannelAssign.DoesNotExist:
             return Response({"error": "No channel assigned to user for this telephony channel."}, status=status.HTTP_404_NOT_FOUND)
 
@@ -305,7 +342,7 @@ class CallServiceViewSet(viewsets.ViewSet):
         # Get assigned channel config for user
       
         try:
-            channel_assign = CloudTelephonyChannelAssign.objects.get(user_id=user.id, cloud_telephony_channel_id=cloud_channel_id)
+            channel_assign = CloudTelephonyChannelAssign.objects.get(user_id=user.id, cloud_telephony_channel_id=cloud_channel_id,is_active=True)
         except CloudTelephonyChannelAssign.DoesNotExist:
             return Response({"error": "No channel assigned to user for this telephony channel."}, status=status.HTTP_404_NOT_FOUND)
   
@@ -458,7 +495,7 @@ class CallServiceViewSet(viewsets.ViewSet):
 
         user = request.user
         try:
-            channel_assign = CloudTelephonyChannelAssign.objects.get(user_id=user.id)
+            channel_assign = CloudTelephonyChannelAssign.objects.get(user_id=user.id,is_active=True)
             channel = channel_assign.cloud_telephony_channel
         except CloudTelephonyChannelAssign.DoesNotExist:
             return Response({"error": "No channel assigned to this user."}, status=status.HTTP_404_NOT_FOUND)
@@ -600,7 +637,7 @@ class CallServiceViewSet(viewsets.ViewSet):
 
         user = request.user
         try:
-            channel_assign = CloudTelephonyChannelAssign.objects.get(user_id=user.id)
+            channel_assign = CloudTelephonyChannelAssign.objects.get(user_id=user.id,is_active=True)
             channel = channel_assign.cloud_telephony_channel
         except CloudTelephonyChannelAssign.DoesNotExist:
             return Response(
@@ -698,7 +735,7 @@ class CallServiceViewSet(viewsets.ViewSet):
         # ================== CHANNEL ASSIGNMENT ==================
         try:
            
-            channel_assign = CloudTelephonyChannelAssign.objects.get(user_id=user.id)
+            channel_assign = CloudTelephonyChannelAssign.objects.get(user_id=user.id,is_active=True)
             channel = channel_assign.cloud_telephony_channel
 
             
@@ -788,7 +825,7 @@ class CallServiceViewSet(viewsets.ViewSet):
 
         # ================== CHANNEL ASSIGNMENT ==================
         try:
-            channel_assign = CloudTelephonyChannelAssign.objects.get(user_id=user.id)
+            channel_assign = CloudTelephonyChannelAssign.objects.get(user_id=user.id,is_active=True)
             channel = channel_assign.cloud_telephony_channel
         except CloudTelephonyChannelAssign.DoesNotExist:
             return Response(
@@ -852,7 +889,7 @@ class CallServiceViewSet(viewsets.ViewSet):
 
         # ================== CHANNEL ASSIGNMENT ==================
         try:
-            channel_assign = CloudTelephonyChannelAssign.objects.get(user_id=user.id)
+            channel_assign = CloudTelephonyChannelAssign.objects.get(user_id=user.id,is_active=True)
             channel = channel_assign.cloud_telephony_channel
         except CloudTelephonyChannelAssign.DoesNotExist:
             return Response(
@@ -925,7 +962,7 @@ class CallServiceViewSet(viewsets.ViewSet):
 
         # ================== CHANNEL ASSIGNMENT ==================
         try:
-            channel_assign = CloudTelephonyChannelAssign.objects.get(user_id=user.id)
+            channel_assign = CloudTelephonyChannelAssign.objects.get(user_id=user.id,is_active=True)
             channel = channel_assign.cloud_telephony_channel
         except CloudTelephonyChannelAssign.DoesNotExist:
             return Response(
@@ -986,7 +1023,7 @@ class GetNumberAPIView(APIView):
 
         user = request.user
         try:
-            channel_assign = CloudTelephonyChannelAssign.objects.get(user_id=user.id)
+            channel_assign = CloudTelephonyChannelAssign.objects.get(user_id=user.id,is_active=True)
             channel = channel_assign.cloud_telephony_channel
         except CloudTelephonyChannelAssign.DoesNotExist:
             return Response({"error": "No channel assigned to this user."}, status=status.HTTP_404_NOT_FOUND)
@@ -1268,14 +1305,14 @@ class CloudTelephonyChannelAssignCSVUploadAPIView(APIView):
 
 from rest_framework import status as drf_status
 from django.utils.timezone import now
+from rest_framework.permissions import AllowAny
 class CloudConnectWebhookAPIView(APIView):
     """
     CloudConnect Webhook Receiver (DRF)
     """
     
 
-    authentication_classes = []
-    permission_classes = []
+    permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
         # CloudConnect sends form-encoded data

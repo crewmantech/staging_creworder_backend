@@ -33,7 +33,48 @@ class CloudTelephonyChannelAssignSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CloudTelephonyChannelAssign
-        fields = '__all__' 
+        fields = "__all__"
+
+    def validate(self, data):
+        instance = self.instance
+
+        user = data.get("user")
+        company = data.get("company")
+        type_ = data.get("type")
+        is_active = data.get("is_active")
+
+        # Call Agent rule
+        if type_ == 1:
+            qs = CloudTelephonyChannelAssign.objects.filter(
+                user=user,
+                company=company,
+                type=1
+            )
+            if instance:
+                qs = qs.exclude(id=instance.id)
+
+            if qs.exists():
+                raise serializers.ValidationError(
+                    "Only one Call Agent channel allowed per user"
+                )
+
+        # Monitoring active rule
+        if type_ == 2 and is_active:
+            qs = CloudTelephonyChannelAssign.objects.filter(
+                user=user,
+                company=company,
+                type=2,
+                is_active=True
+            )
+            if instance:
+                qs = qs.exclude(id=instance.id)
+
+            if qs.exists():
+                raise serializers.ValidationError(
+                    "Only one Monitoring channel can be active"
+                )
+
+        return data
 
 class UserMailSetupSerializer(serializers.ModelSerializer):
     branch_name = serializers.CharField(source='branch.name', read_only=True)
