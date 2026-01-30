@@ -184,19 +184,24 @@ class ThemeSettingModel(BaseModel):
 
 
 class SandboxCredentials(models.Model):
+    name = models.CharField(
+        max_length=100,
+        unique=True,
+        help_text="Unique vendor name (e.g. Razorpay, Cashfree, Stripe)"
+    )
     api_key = models.CharField(max_length=255)
     api_secret = models.CharField(max_length=255)
     api_host = models.URLField()
     is_active = models.BooleanField(default=False)  # Only one can be active
 
     def __str__(self):
-        return f"Sanbox Credentials for {self.api_host} (Active: {self.is_active})"
+        return f"{self.name} Sandbox (Active: {self.is_active})"
 
     def save(self, *args, **kwargs):
         if self.is_active:
-            # Deactivate all other SandboxCredentials before saving this one as active
-            SandboxCredentials.objects.update(is_active=False)
-        super(SandboxCredentials, self).save(*args, **kwargs)
+            # Deactivate all other credentials except this one
+            SandboxCredentials.objects.exclude(pk=self.pk).update(is_active=False)
+        super().save(*args, **kwargs)
 
 
 class SMSCredentials(models.Model):
