@@ -54,7 +54,7 @@ class CloudTelephonyChannelAssignSerializer(serializers.ModelSerializer):
 
             if qs.exists():
                 raise serializers.ValidationError(
-                    "Only one Call Agent channel allowed per user"
+                    {"error": "Only one Call Agent channel allowed per user"}
                 )
 
         # Monitoring active rule
@@ -70,7 +70,7 @@ class CloudTelephonyChannelAssignSerializer(serializers.ModelSerializer):
 
             if qs.exists():
                 raise serializers.ValidationError(
-                    "Only one Monitoring channel can be active"
+                    {"error": "Only one Monitoring channel can be active"}
                 )
 
         return data

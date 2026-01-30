@@ -273,15 +273,36 @@ class CloudTelephonyChannelAssignViewSet(viewsets.ModelViewSet):
         try:
             serializer.save(company=company)
         except DjangoValidationError as e:
-            # Convert Django ValidationError to DRF ValidationError
-            raise serializers.ValidationError(e.message_dict if hasattr(e, 'message_dict') else str(e))
+            # Extract and format error messages
+            error_message = self._format_validation_error(e)
+            raise serializers.ValidationError({"error": error_message})
 
     def perform_update(self, serializer):
         try:
             serializer.save()
         except DjangoValidationError as e:
-            # Convert Django ValidationError to DRF ValidationError
-            raise serializers.ValidationError(e.message_dict if hasattr(e, 'message_dict') else str(e))
+            # Extract and format error messages
+            error_message = self._format_validation_error(e)
+            raise serializers.ValidationError({"error": error_message})
+
+    def _format_validation_error(self, exception):
+        """
+        Convert Django ValidationError to clean error message
+        """
+        if hasattr(exception, 'message_dict'):
+            # Collect all error messages from all fields
+            messages = []
+            for field, errors in exception.message_dict.items():
+                if isinstance(errors, list):
+                    messages.extend(errors)
+                else:
+                    messages.append(str(errors))
+            # Join multiple messages with comma
+            return ", ".join(messages)
+        elif hasattr(exception, 'messages'):
+            return ", ".join(exception.messages)
+        else:
+            return str(exception)
 
     # ✅ CUSTOM URL: /activate_monitoring/<id>/
     @action(detail=False, methods=["post"], url_path="activate_monitoring/(?P<id>[^/.]+)")
@@ -320,7 +341,11 @@ class CloudTelephonyChannelAssignViewSet(viewsets.ModelViewSet):
         try:
             instance.save()
         except DjangoValidationError as e:
-            raise serializers.ValidationError(e.message_dict if hasattr(e, 'message_dict') else str(e))
+            error_message = self._format_validation_error(e)
+            return Response(
+                {"error": error_message},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         return Response({
             "message": "Monitoring channel activated successfully",
