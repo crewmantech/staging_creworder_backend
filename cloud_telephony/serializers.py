@@ -37,47 +37,42 @@ class CloudTelephonyChannelAssignSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         instance = self.instance
-
         user = data.get("user")
         company = data.get("company")
         type_ = data.get("type")
-        is_active = data.get("is_active")
+        is_active = data.get("is_active", True)
+
+        errors = {}
 
         # Call Agent rule
         if type_ == 1:
             qs = CloudTelephonyChannelAssign.objects.filter(
-                user=user,
-                company=company,
-                type=1
+                user=user, company=company, type=1
             )
             if instance:
                 qs = qs.exclude(id=instance.id)
-
             if qs.exists():
-                raise serializers.ValidationError({
-                    "_all_": "Only one Call Agent channel allowed per user"
-                })
+                errors["_all_"] = ["Only one Call Agent channel allowed per user"]
 
         # Monitoring active rule
         if type_ == 2 and is_active:
             qs = CloudTelephonyChannelAssign.objects.filter(
-                user=user,
-                company=company,
-                type=2,
-                is_active=True
+                user=user, company=company, type=2, is_active=True
             )
             if instance:
                 qs = qs.exclude(id=instance.id)
-
             if qs.exists():
-                raise serializers.ValidationError({
-                    "_all_": "Only one Monitoring channel can be active"
-                })
+                errors.setdefault("_all_", []).append(
+                    "Only one Monitoring channel can be active"
+                )
+
+        if errors:
+            raise serializers.ValidationError(errors)
 
         return data
 
     def create(self, validated_data):
-        # Auto switch monitoring
+        # Auto deactivate other monitoring channels
         if validated_data.get("type") == 2 and validated_data.get("is_active"):
             CloudTelephonyChannelAssign.objects.filter(
                 user=validated_data["user"],
@@ -85,7 +80,6 @@ class CloudTelephonyChannelAssignSerializer(serializers.ModelSerializer):
                 type=2,
                 is_active=True
             ).update(is_active=False)
-
         return super().create(validated_data)
 
 
