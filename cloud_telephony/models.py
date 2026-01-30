@@ -139,9 +139,7 @@ class CloudTelephonyChannelAssign(BaseModel):
                 raise ValidationError("Only one Monitoring channel can be active")
 
     def save(self, *args, **kwargs):
-        self.full_clean()   # triggers clean()
-
-        # Auto switch for monitoring
+        # self.full_clean()   # remove this line
         if self.type == 2 and self.is_active:
             CloudTelephonyChannelAssign.objects.filter(
                 user=self.user,
@@ -149,7 +147,6 @@ class CloudTelephonyChannelAssign(BaseModel):
                 type=2,
                 is_active=True
             ).exclude(id=self.id).update(is_active=False)
-
         super().save(*args, **kwargs)
 
     def __str__(self):
