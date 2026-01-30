@@ -228,6 +228,9 @@ import csv
 from io import TextIOWrapper
 from django.db import transaction
 from datetime import datetime, date as dt_date
+from django.core.exceptions import ValidationError as DjangoValidationError
+from rest_framework import serializers, status, viewsets
+
 
 class CloudTelephonyVendorViewSet(viewsets.ModelViewSet):
     queryset = CloudTelephonyVendor.objects.all()
@@ -267,7 +270,18 @@ class CloudTelephonyChannelAssignViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         company = self.request.user.profile.company
-        serializer.save(company=company)
+        try:
+            serializer.save(company=company)
+        except DjangoValidationError as e:
+            # Convert Django ValidationError to DRF ValidationError
+            raise serializers.ValidationError(e.message_dict if hasattr(e, 'message_dict') else str(e))
+
+    def perform_update(self, serializer):
+        try:
+            serializer.save()
+        except DjangoValidationError as e:
+            # Convert Django ValidationError to DRF ValidationError
+            raise serializers.ValidationError(e.message_dict if hasattr(e, 'message_dict') else str(e))
 
     # ✅ CUSTOM URL: /activate_monitoring/<id>/
     @action(detail=False, methods=["post"], url_path="activate_monitoring/(?P<id>[^/.]+)")
@@ -303,7 +317,10 @@ class CloudTelephonyChannelAssignViewSet(viewsets.ModelViewSet):
 
         # activate this
         instance.is_active = True
-        instance.save()
+        try:
+            instance.save()
+        except DjangoValidationError as e:
+            raise serializers.ValidationError(e.message_dict if hasattr(e, 'message_dict') else str(e))
 
         return Response({
             "message": "Monitoring channel activated successfully",
