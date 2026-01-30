@@ -103,7 +103,8 @@ class CloudTelephonyChannelAssign(BaseModel):
     agent_password = models.CharField(max_length=255, null=True)
     agent_id = models.CharField(max_length=255, null=True)
     camp_id = models.CharField(max_length=255, null=True)
-    other = models.CharField(max_length=500, null=True)
+    other = models.CharField(max_length=500, null=True, blank=True)
+
 
     class Meta:
         db_table = "telephony_channels_assign_table"
