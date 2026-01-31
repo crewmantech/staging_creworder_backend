@@ -1748,7 +1748,7 @@ class EshopboxAPI:
                 "productTitle": item["product_name"],
                 "quantity": item["product_qty"],
                 "itemTotal": item["product_price"],
-                "hsn": item.get("product_hsn", ""),
+                "hsn": str(item.get("product_hsn_number", "0000")),
                 "mrp": item.get("product_mrp", 0),
                 "discount": item.get("product_discount", 0),
                 "taxPercentage": item.get("product_tax", 0),
