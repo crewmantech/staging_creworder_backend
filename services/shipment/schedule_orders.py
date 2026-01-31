@@ -1726,7 +1726,7 @@ class EshopboxAPI:
     # ---------------- MAPPER ---------------- #
 
     @staticmethod
-    def makeJsonForApi(order_data, pickup):
+    def makeJsonForApi(order_data, pickup,channel_id=None):
         items = []
         total_weight = 0
         max_l = max_b = max_h = 0
@@ -1765,7 +1765,7 @@ class EshopboxAPI:
         print( total_weight, max_l, max_b, max_h, "-----------------eschopbox dimensions-------------------")
         print( pickup, "-----------------eschopbox pickup-------------------")
         payload = {
-            "channelId": "CREWORDER",
+            "channelId": channel_id if channel_id else "CREWORDER",
             "customerOrderId": order_data["order_id"],
             "shipmentId": order_data['id'],
             "orderDate": formatted_date,
@@ -1842,7 +1842,7 @@ class EshopboxAPI:
 
     # ---------------- CREATE ORDER ---------------- #
 
-    def schedule_order(self, order_list, company_id, user_id, pickup_id, shipment_vendor):
+    def schedule_order(self, order_list, company_id, user_id, pickup_id, shipment_vendor,channel_id):
 
         OrdersData = Order_Table.objects.filter(company=company_id, id__in=order_list)
         OrdersDataSerializer = OrderTableSerializer(OrdersData, many=True)
@@ -1856,7 +1856,7 @@ class EshopboxAPI:
             try:
                 print("-----------------eschopbox order-------------------", order,pickup_data)
                 
-                payload = self.makeJsonForApi(order, pickup_data)
+                payload = self.makeJsonForApi(order, pickup_data,channel_id)
                 print(payload,"-----------------eschopbox payload-------------------")
                 res = requests.post(self.# The code you provided is not valid Python code. It seems
                 # like you have defined a variable `SHIPMENT_URL` but did not

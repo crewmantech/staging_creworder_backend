@@ -209,7 +209,7 @@ class ScheduleOrders(viewsets.ModelViewSet):
                 shiprocket_service = EshopboxAPI(serialized_data['credential_username'],serialized_data['credential_password'],serialized_data['credential_token'])
                 # _response=shiprocket_service.schedule_order(order_ids, request.user.profile.branch.id, request.user.profile.company.id,serialized_data['shipment_channel_id'],request.user.id)
                 shipment_vendor = serialized_data['shipment_vendor'].get('id')
-                _response=shiprocket_service.schedule_order(order_ids, request.user.profile.company.id,request.user.id,pickup_id,shipment_vendor)
+                _response=shiprocket_service.schedule_order(order_ids, request.user.profile.company.id,request.user.id,pickup_id,shipment_vendor,channel_id)
         if _response:
             return Response(
                 {
