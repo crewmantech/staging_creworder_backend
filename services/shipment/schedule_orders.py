@@ -25,6 +25,27 @@ def eshopbox_date(dt_string):
     """
     dt = datetime.strptime(dt_string, "%d-%b-%Y %I:%M %p")
     return dt.strftime("%Y-%m-%d %H:%M:%S")
+def sanitize_for_eshopbox(payload):
+    import time
+    import re
+
+    # MUST exist
+    payload["ewaybillNumber"] = "0"
+
+    # numeric-only phones + safe emails
+    for addr in ["shippingAddress", "billingAddress"]:
+        phone = payload[addr]["contactPhone"]
+        payload[addr]["contactPhone"] = re.sub(r"\D", "", phone)
+        payload[addr]["email"] = payload[addr]["email"] or "noreply@creworder.com"
+
+    # pickup phone
+    phone = payload["pickupLocation"]["contactNumber"]
+    payload["pickupLocation"]["contactNumber"] = re.sub(r"\D", "", phone)
+
+    # numeric package code (NO letters)
+    payload["package"]["code"] = str(int(time.time()))
+
+    return payload
 
 class ShiprocketScheduleOrder:
     """
@@ -1745,7 +1766,7 @@ class EshopboxAPI:
             max_h = max(max_h, height)
 
             items.append({
-                "itemID": str(item.get("product_sku") or "SKU-001"),
+                "itemID": str(item.get("product_sku") or "SKU001"),
                 "productTitle": item.get("product_name") or "Product",
                 "quantity": int(item.get("product_qty") or 1),
                 "itemTotal": float(item.get("product_price") or 0),
@@ -1776,9 +1797,6 @@ class EshopboxAPI:
                 "date": formatted_date
             },
 
-            # MUST NEVER BE EMPTY
-            "ewaybillNumber": "0",
-
             "shippingAddress": {
                 "customerName": order_data.get("customer_name") or "Customer",
                 "addressLine1": order_data.get("customer_address") or "NA",
@@ -1787,7 +1805,7 @@ class EshopboxAPI:
                 "pincode": str(order_data.get("customer_postal") or "000000"),
                 "country": "India",
                 "contactPhone": order_data.get("customer_phone") or "9999999999",
-                "email": order_data.get("customer_email") or "no-reply@creworder.com",
+                "email": order_data.get("customer_email") or "",
                 "gstin": order_data.get("gstin") or ""
             },
 
@@ -1800,12 +1818,11 @@ class EshopboxAPI:
                 "pincode": str(order_data.get("customer_postal") or "000000"),
                 "country": "India",
                 "contactPhone": order_data.get("customer_phone") or "9999999999",
-                "email": order_data.get("customer_email") or "no-reply@creworder.com"
+                "email": order_data.get("customer_email") or ""
             },
 
             "items": items,
 
-            # ONLY VALID WAY
             "shipmentDimension": {
                 "length": max(max_l, 1),
                 "breadth": max(max_b, 1),
@@ -1829,7 +1846,7 @@ class EshopboxAPI:
 
             "package": {
                 "type": "box",
-                "code": f"PKG-{order_data['id']}",
+                "code": "1",   # will be overwritten
                 "description": "Creworder Shipment",
                 "length": max(max_l, 1),
                 "breadth": max(max_b, 1),
@@ -1838,7 +1855,7 @@ class EshopboxAPI:
             }
         }
 
-        return payload
+        return sanitize_for_eshopbox(payload)
 
     # def makeJsonForApi(order_data, pickup, channel_id=None):
     #     items = []
