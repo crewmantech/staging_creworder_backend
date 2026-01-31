@@ -1988,13 +1988,10 @@ class EshopboxAPI:
         for order in OrdersDataSerializer.data:
             try:
                 print("-----------------eschopbox order-------------------", order,pickup_data)
-                print(SHIPMENT_URL, "-----------------eschopbox SHIPMENT_URL-------------------")
+                print(self.SHIPMENT_URL, "-----------------eschopbox SHIPMENT_URL-------------------")
                 payload = self.makeJsonForApi(order, pickup_data,channel_id)
                 print(payload,"-----------------eschopbox payload-------------------")
-                res = requests.post(self.# The code you provided is not valid Python code. It seems
-                # like you have defined a variable `SHIPMENT_URL` but did not
-                # assign any value to it. The `
-                SHIPMENT_URL, json=payload, headers=self.headers)
+                res = requests.post(self.SHIPMENT_URL, json=payload, headers=self.headers)
                 print(res,"-----------------eschopbox response-------------------")
                 print(res.json(),"-----------------eschopbox response json-------------------")
                 data = res.json()
