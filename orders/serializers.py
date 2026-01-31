@@ -27,6 +27,9 @@ class OrderDetailSerializer(serializers.ModelSerializer):
     final_price_per_unit = serializers.SerializerMethodField()
     final_total_price = serializers.SerializerMethodField()
     product_weight = serializers.SerializerMethodField()
+    product_length = serializers.SerializerMethodField()
+    product_breadth = serializers.SerializerMethodField()
+    product_height = serializers.SerializerMethodField()
     # ✅ NEW FIELDS
     sgst_rate = serializers.SerializerMethodField()
     cgst_rate = serializers.SerializerMethodField()
@@ -82,7 +85,12 @@ class OrderDetailSerializer(serializers.ModelSerializer):
 
     def get_product_weight(self, obj):
         return obj.product.product_weight if obj.product else None
-
+    def get_product_length(self, obj):
+        return obj.product.product_size if obj.product else None
+    def get_product_breadth(self, obj):
+        return obj.product.product_width if obj.product else None
+    def get_product_height(self, obj):
+        return obj.product.product_height if obj.product else None
     def get_product_hsn_number(self, obj):
         return obj.product.product_hsn_number if obj.product else None
 
