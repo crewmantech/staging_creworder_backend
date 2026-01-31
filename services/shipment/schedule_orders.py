@@ -1803,12 +1803,12 @@ class EshopboxAPI:
             "items": items,
 
             # ONLY HERE dimensions are allowed
-            "shipmentDimension": {
-                "length": str(max_l),
-                "breadth": str(max_b),
-                "height": str(max_h),
-                "weight": str(total_weight)
-            },
+            # "shipmentDimension": {
+            #     "length": str(max_l),
+            #     "breadth": str(max_b),
+            #     "height": str(max_h),
+            #     "weight": str(total_weight)
+            # },
             "shipmentLength": str(max_l),
             "shipmentBreadth": str(max_b),
             "shipmentHeight": str(max_h),
