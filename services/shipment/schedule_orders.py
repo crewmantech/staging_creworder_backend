@@ -1762,7 +1762,7 @@ class EshopboxAPI:
             })
 
         payload = {
-            "channelId": channel_id if channel_id else "CREWORDER",
+            "channelId": channel_id or "CREWORDER",
             "customerOrderId": order_data["order_id"],
             "shipmentId": order_data["id"],
             "orderDate": formatted_date,
@@ -1784,8 +1784,8 @@ class EshopboxAPI:
                 "pincode": str(order_data["customer_postal"]),
                 "country": "India",
                 "contactPhone": order_data["customer_phone"],
-                "email": order_data["customer_email"],
-                "gstin": order_data.get("gstin", "")
+                "email": order_data["customer_email"]
+                # "gstin": order_data.get("gstin", "")
             },
 
             "billingIsShipping": True,
@@ -1802,17 +1802,13 @@ class EshopboxAPI:
 
             "items": items,
 
-            # ONLY HERE dimensions are allowed
-            # "shipmentDimension": {
-            #     "length": str(max_l),
-            #     "breadth": str(max_b),
-            #     "height": str(max_h),
-            #     "weight": str(total_weight)
-            # },
-            "shipmentLength": str(max_l),
-            "shipmentBreadth": str(max_b),
-            "shipmentHeight": str(max_h),
-            "shipmentWeight": str(total_weight),
+            # ✅ THIS IS THE ONLY VALID WAY
+            "shipmentDimension": {
+                "length": max_l,
+                "breadth": max_b,
+                "height": max_h,
+                "weight": total_weight
+            },
 
             "pickupLocation": {
                 "locationCode": pickup["id"],
@@ -1825,8 +1821,7 @@ class EshopboxAPI:
                 "city": pickup["city"],
                 "state": pickup["state"],
                 "country": "India",
-                "pincode": str(pickup["pincode"]),
-                #"gstin": pickup.get("gstin", "")
+                "pincode": str(pickup["pincode"])
             },
 
             "package": {
@@ -1837,13 +1832,127 @@ class EshopboxAPI:
                 "breadth": max_b,
                 "height": max_h,
                 "weight": total_weight
-            },
-
-            # Always safe to send (even empty)
-            #"ewaybillNumber": "0"
+            }
         }
 
         return payload
+    # def makeJsonForApi(order_data, pickup, channel_id=None):
+    #     items = []
+    #     total_weight = 0
+    #     max_l = max_b = max_h = 0
+    #     formatted_date = eshopbox_date(order_data["created_at"])
+
+    #     for item in order_data["order_details"]:
+    #         weight = float(item.get("product_weight", 200))
+    #         length = float(item.get("product_length", 10))
+    #         breadth = float(item.get("product_breadth", 10))
+    #         height = float(item.get("product_height", 10))
+
+    #         total_weight += weight
+    #         max_l = max(max_l, length)
+    #         max_b = max(max_b, breadth)
+    #         max_h = max(max_h, height)
+
+    #         items.append({
+    #             "itemID": item["product_sku"],
+    #             "productTitle": item["product_name"],
+    #             "quantity": item["product_qty"],
+    #             "itemTotal": item["product_price"],
+    #             "hsn": str(item.get("product_hsn_number", "0000")),
+    #             "mrp": item.get("product_mrp", 0),
+    #             "discount": item.get("product_discount", 0),
+    #             "taxPercentage": item.get("product_tax", 0),
+    #             "itemLength": length,
+    #             "itemBreadth": breadth,
+    #             "itemHeight": height,
+    #             "itemWeight": weight,
+    #             "ean": item.get("ean", "0"),
+    #             "productImageUrl": item.get("image", "")
+    #         })
+
+    #     payload = {
+    #         "channelId": channel_id if channel_id else "CREWORDER",
+    #         "customerOrderId": order_data["order_id"],
+    #         "shipmentId": order_data["id"],
+    #         "orderDate": formatted_date,
+    #         "isCOD": True if order_data["payment_type_name"] != "Prepaid Payment" else False,
+    #         "invoiceTotal": order_data["total_amount"],
+    #         "shippingMode": "Eshopbox Standard",
+    #         "balanceDue": order_data["cod_amount"],
+
+    #         "invoice": {
+    #             "number": order_data["order_id"],
+    #             "date": formatted_date
+    #         },
+
+    #         "shippingAddress": {
+    #             "customerName": order_data["customer_name"],
+    #             "addressLine1": order_data["customer_address"],
+    #             "city": order_data["customer_city"],
+    #             "state": order_data["customer_state_name"],
+    #             "pincode": str(order_data["customer_postal"]),
+    #             "country": "India",
+    #             "contactPhone": order_data["customer_phone"],
+    #             "email": order_data["customer_email"],
+    #             "gstin": order_data.get("gstin", "")
+    #         },
+
+    #         "billingIsShipping": True,
+    #         "billingAddress": {
+    #             "customerName": order_data["customer_name"],
+    #             "addressLine1": order_data["customer_address"],
+    #             "city": order_data["customer_city"],
+    #             "state": order_data["customer_state_name"],
+    #             "pincode": str(order_data["customer_postal"]),
+    #             "country": "India",
+    #             "contactPhone": order_data["customer_phone"],
+    #             "email": order_data["customer_email"]
+    #         },
+
+    #         "items": items,
+
+    #         # ONLY HERE dimensions are allowed
+    #         # "shipmentDimension": {
+    #         #     "length": str(max_l),
+    #         #     "breadth": str(max_b),
+    #         #     "height": str(max_h),
+    #         #     "weight": str(total_weight)
+    #         # },
+    #         "shipmentLength": str(max_l),
+    #         "shipmentBreadth": str(max_b),
+    #         "shipmentHeight": str(max_h),
+    #         "shipmentWeight": str(total_weight),
+
+    #         "pickupLocation": {
+    #             "locationCode": pickup["id"],
+    #             "locationName": pickup["pickup_location_name"],
+    #             "companyName": pickup["company"],
+    #             "contactPerson": pickup["contact_person_name"],
+    #             "contactNumber": pickup["contact_number"],
+    #             "addressLine1": pickup["complete_address"],
+    #             "addressLine2": pickup.get("address_2", ""),
+    #             "city": pickup["city"],
+    #             "state": pickup["state"],
+    #             "country": "India",
+    #             "pincode": str(pickup["pincode"]),
+    #             #"gstin": pickup.get("gstin", "")
+    #         },
+
+    #         "package": {
+    #             "type": "box",
+    #             "code": f"PKG-{order_data['id']}",
+    #             "description": "Creworder Shipment",
+    #             "length": max_l,
+    #             "breadth": max_b,
+    #             "height": max_h,
+    #             "weight": total_weight
+    #         },
+
+    #         # Always safe to send (even empty)
+    #         #"ewaybillNumber": "0"
+    #     }
+
+    #     return payload
 
     # ---------------- CREATE ORDER ---------------- #
 
