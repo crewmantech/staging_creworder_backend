@@ -1845,6 +1845,8 @@ class EshopboxAPI:
                 # like you have defined a variable `SHIPMENT_URL` but did not
                 # assign any value to it. The `
                 SHIPMENT_URL, json=payload, headers=self.headers)
+                print(res,"-----------------eschopbox response-------------------")
+                print(res.json(),"-----------------eschopbox response json-------------------")
                 data = res.json()
 
                 if res.status_code == 200:
