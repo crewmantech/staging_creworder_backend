@@ -1840,7 +1840,10 @@ class EshopboxAPI:
 
         for order in OrdersDataSerializer.data:
             try:
+                print("-----------------eschopbox order-------------------", order)
+                
                 payload = self.makeJsonForApi(order, pickup_data)
+                print(payload,"-----------------eschopbox payload-------------------")
                 res = requests.post(self.# The code you provided is not valid Python code. It seems
                 # like you have defined a variable `SHIPMENT_URL` but did not
                 # assign any value to it. The `
