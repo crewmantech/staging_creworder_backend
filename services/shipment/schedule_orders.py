@@ -16,6 +16,15 @@ from utils.custom_logger import setup_logging
 
 logger = logging.getLogger(__name__)
 setup_logging(log_file='logs/shipment_service.log', log_level=logging.WARNING)
+from datetime import datetime
+
+def eshopbox_date(dt_string):
+    """
+    Converts '29-Jan-2026 03:08 PM'
+    to '2026-01-29 15:08:00'
+    """
+    dt = datetime.strptime(dt_string, "%d-%b-%Y %I:%M %p")
+    return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 class ShiprocketScheduleOrder:
     """
@@ -1721,6 +1730,7 @@ class EshopboxAPI:
         items = []
         total_weight = 0
         max_l = max_b = max_h = 0
+        formatted_date = eshopbox_date(order_data["created_at"])
         print(order_data["order_details"], "-----------------eschopbox order data-------------------")
 
         for item in order_data["order_details"]:
@@ -1758,7 +1768,7 @@ class EshopboxAPI:
             "channelId": "CREWORDER",
             "customerOrderId": order_data["order_id"],
             "shipmentId": order_data['id'],
-            "orderDate": order_data["created_at"],
+            "orderDate": formatted_date,
             "isCOD": True if order_data["payment_type_name"] != "Prepaid Payment" else False,
             "invoiceTotal": order_data["total_amount"],
             "shippingMode": "Eshopbox Standard",
@@ -1766,7 +1776,7 @@ class EshopboxAPI:
 
             "invoice": {
                 "number": order_data["order_id"],
-                "date": order_data["created_at"]
+                "date": formatted_date
             },
 
             "shippingAddress": {
