@@ -1821,7 +1821,7 @@ class EshopboxAPI:
                 "state": pickup["state"],
                 "country": "India",
                 "pincode": str(pickup["pincode"]),
-                "gstin": pickup.get("gstin", "")
+                #"gstin": pickup.get("gstin", "")
             },
 
             "package": {
@@ -1835,7 +1835,7 @@ class EshopboxAPI:
             },
 
             # Always safe to send (even empty)
-            "ewaybillNumber": "0"
+            #"ewaybillNumber": "0"
         }
 
         return payload
