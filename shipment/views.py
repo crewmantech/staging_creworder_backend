@@ -203,7 +203,7 @@ class ScheduleOrders(viewsets.ModelViewSet):
                     nimbuspost_service = ZoopshipService(
                         serialized_data['credential_username'], serialized_data['credential_password']
                     )
-                    _response=nimbuspost_service.schedule_order_zoopshipservice(order_ids, request.user.profile.branch.id, request.user.profile.company.id,channel_id,request.user.id,pickup_id,shipment_vendor)
+                    _response=nimbuspost_service.schedule_order_zoopshipservice(order_ids, request.user.profile.company.id,request.user.id,pickup_id,shipment_vendor)
         elif serialized_data['shipment_vendor']['name'].lower()=='eshopbox':
             if serialized_data['credential_username']!='' or serialized_data['credential_username']!=None:
                 shiprocket_service = EshopboxAPI(serialized_data['credential_username'],serialized_data['credential_password'],serialized_data['credential_token'])
