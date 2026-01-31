@@ -1717,6 +1717,7 @@ class EshopboxAPI:
         }
         try:
             res = requests.post(self.AUTH_URL, json=payload, timeout=20)
+            print(res.json(), "-----------------Eshopbox Token Response-------------------")
             data = res.json()
             return data.get("access_token")
         except Exception as e:
