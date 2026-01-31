@@ -29,20 +29,17 @@ def sanitize_for_eshopbox(payload):
     import time
     import re
 
-    # MUST exist
     payload["ewaybillNumber"] = "0"
+    payload["shipmentValue"] = payload["invoiceTotal"]
 
-    # numeric-only phones + safe emails
     for addr in ["shippingAddress", "billingAddress"]:
-        phone = payload[addr]["contactPhone"]
-        payload[addr]["contactPhone"] = re.sub(r"\D", "", phone)
+        payload[addr]["contactPhone"] = re.sub(r"\D", "", payload[addr]["contactPhone"])
         payload[addr]["email"] = payload[addr]["email"] or "noreply@creworder.com"
 
-    # pickup phone
-    phone = payload["pickupLocation"]["contactNumber"]
-    payload["pickupLocation"]["contactNumber"] = re.sub(r"\D", "", phone)
+    payload["pickupLocation"]["contactNumber"] = re.sub(
+        r"\D", "", payload["pickupLocation"]["contactNumber"]
+    )
 
-    # numeric package code (NO letters)
     payload["package"]["code"] = str(int(time.time()))
 
     return payload
