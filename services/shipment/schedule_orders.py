@@ -31,6 +31,7 @@ def sanitize_for_eshopbox(payload):
 
     payload["ewaybillNumber"] = "0"
     payload["shipmentValue"] = payload["invoiceTotal"]
+    payload["collectableAmount"] = payload["balanceDue"]
 
     for addr in ["shippingAddress", "billingAddress"]:
         payload[addr]["contactPhone"] = re.sub(r"\D", "", payload[addr]["contactPhone"])
