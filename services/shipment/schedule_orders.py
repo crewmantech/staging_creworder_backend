@@ -1726,12 +1726,11 @@ class EshopboxAPI:
     # ---------------- MAPPER ---------------- #
 
     @staticmethod
-    def makeJsonForApi(order_data, pickup,channel_id=None):
+    def makeJsonForApi(order_data, pickup, channel_id=None):
         items = []
         total_weight = 0
         max_l = max_b = max_h = 0
         formatted_date = eshopbox_date(order_data["created_at"])
-        print(order_data["order_details"], "-----------------eschopbox order data-------------------")
 
         for item in order_data["order_details"]:
             weight = float(item.get("product_weight", 200))
@@ -1745,7 +1744,7 @@ class EshopboxAPI:
             max_h = max(max_h, height)
 
             items.append({
-                "itemID": item["product_sku"],        # SKU (critical)
+                "itemID": item["product_sku"],
                 "productTitle": item["product_name"],
                 "quantity": item["product_qty"],
                 "itemTotal": item["product_price"],
@@ -1760,25 +1759,17 @@ class EshopboxAPI:
                 "ean": item.get("ean", ""),
                 "productImageUrl": item.get("image", "")
             })
-        print(items, "-----------------eschopbox items-------------------",order_data["order_id"],order_data['id'],order_data["created_at"])
-        print(True if order_data["payment_type_name"] != "Prepaid Payment" else False, "-----------------eschopbox isCOD-------------------")
-        print( total_weight, max_l, max_b, max_h, "-----------------eschopbox dimensions-------------------")
-        print( pickup, "-----------------eschopbox pickup-------------------")
+
         payload = {
             "channelId": channel_id if channel_id else "CREWORDER",
             "customerOrderId": order_data["order_id"],
-            "shipmentId": order_data['id'],
+            "shipmentId": order_data["id"],
             "orderDate": formatted_date,
             "isCOD": True if order_data["payment_type_name"] != "Prepaid Payment" else False,
             "invoiceTotal": order_data["total_amount"],
             "shippingMode": "Eshopbox Standard",
             "balanceDue": order_data["cod_amount"],
-            "description": "Creworder Shipment",
-            "length": max_l,
-            "breadth": max_b,
-            "height": max_h,
-            "weight": total_weight,
-            "declaredValue": order_data["total_amount"],
+
             "invoice": {
                 "number": order_data["order_id"],
                 "date": formatted_date
@@ -1810,13 +1801,14 @@ class EshopboxAPI:
 
             "items": items,
 
+            # ONLY HERE dimensions are allowed
             "shipmentDimension": {
                 "length": max_l,
                 "breadth": max_b,
                 "height": max_h,
                 "weight": total_weight
             },
-    
+
             "pickupLocation": {
                 "locationCode": pickup["id"],
                 "locationName": pickup["pickup_location_name"],
@@ -1840,9 +1832,12 @@ class EshopboxAPI:
                 "breadth": max_b,
                 "height": max_h,
                 "weight": total_weight
-            }
+            },
+
+            # Always safe to send (even empty)
+            "ewaybillNumber": ""
         }
-        print(payload, "-----------------eschopbox payload-------------------")
+
         return payload
 
     # ---------------- CREATE ORDER ---------------- #
