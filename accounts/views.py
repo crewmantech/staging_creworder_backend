@@ -2265,7 +2265,25 @@ class PickUpPointView(viewsets.ModelViewSet):
                 "data": {}  # Add any mock data here if needed
             }
             
-        
+        elif serialized_data['shipment_vendor']['name'].lower() == "eshopbox":
+            tekipost_payload = {
+                "warehouse_name": mutable_data["pickup_location_name"],
+                "contact_person_name": mutable_data["contact_person_name"],
+                "contact_no": mutable_data["contact_number"],
+                "address_line_1": mutable_data["complete_address"],
+                "address_line_2": mutable_data.get("landmark", ""),
+                "landmark": mutable_data.get("landmark", ""),
+                "pincode": mutable_data["pincode"],
+                "city": mutable_data["city"],
+                "state": mutable_data["state"]
+            }
+            # api_response = self.send_to_tekipost(tekipost_payload)
+            api_response = {
+                "success": True,
+                "message": "Simulated API success for eshopbox",
+                "data": {}  # Add any mock data here if needed
+            }
+            
         else:
             return Response({"error": "Invalid vendor specified"}, status=status.HTTP_400_BAD_REQUEST)
         # ✅ Only Save Data in DB if API Call is Successful

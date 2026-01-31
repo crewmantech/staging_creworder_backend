@@ -1672,6 +1672,11 @@ class ZoopshipService:
 
 
 
+
+
+
+
+
 class EshopboxAPI:
     AUTH_URL = "https://auth.myeshopbox.com/api/v1/generateToken"
     ORDER_URL = "https://wms.eshopbox.com/api/order"
@@ -1714,10 +1719,22 @@ class EshopboxAPI:
     @staticmethod
     def makeJsonForApi(order_data, pickup):
         items = []
+        total_weight = 0
+        max_l = max_b = max_h = 0
 
         for item in order_data["order_details"]:
+            weight = float(item.get("weight", 200))
+            length = float(item.get("length", 10))
+            breadth = float(item.get("width", 10))
+            height = float(item.get("height", 10))
+
+            total_weight += weight
+            max_l = max(max_l, length)
+            max_b = max(max_b, breadth)
+            max_h = max(max_h, height)
+
             items.append({
-                "itemID": item["product_sku"],     # SKU is key
+                "itemID": item["product_sku"],        # SKU (critical)
                 "productTitle": item["product_name"],
                 "quantity": item["product_qty"],
                 "itemTotal": item["product_price"],
@@ -1725,10 +1742,12 @@ class EshopboxAPI:
                 "mrp": item.get("product_mrp", 0),
                 "discount": item.get("product_discount", 0),
                 "taxPercentage": item.get("product_tax", 0),
-                "itemLength": item.get("length", 10),
-                "itemBreadth": item.get("width", 10),
-                "itemHeight": item.get("height", 10),
-                "itemWeight": item.get("weight", 100)
+                "itemLength": length,
+                "itemBreadth": breadth,
+                "itemHeight": height,
+                "itemWeight": weight,
+                "ean": item.get("ean", ""),
+                "productImageUrl": item.get("image", "")
             })
 
         payload = {
@@ -1740,7 +1759,26 @@ class EshopboxAPI:
             "invoiceTotal": order_data["total_amount"],
             "shippingMode": "Eshopbox Standard",
             "balanceDue": order_data["cod_amount"],
+
+            "invoice": {
+                "number": order_data["order_id"],
+                "date": order_data["created_at"]
+            },
+
             "shippingAddress": {
+                "customerName": order_data["customer_name"],
+                "addressLine1": order_data["customer_address"],
+                "city": order_data["customer_city"],
+                "state": order_data["customer_state_name"],
+                "pincode": order_data["customer_postal"],
+                "country": "India",
+                "contactPhone": order_data["customer_phone"],
+                "email": order_data["customer_email"],
+                "gstin": order_data.get("gstin", "")
+            },
+
+            "billingIsShipping": True,
+            "billingAddress": {
                 "customerName": order_data["customer_name"],
                 "addressLine1": order_data["customer_address"],
                 "city": order_data["customer_city"],
@@ -1750,8 +1788,16 @@ class EshopboxAPI:
                 "contactPhone": order_data["customer_phone"],
                 "email": order_data["customer_email"]
             },
-            "billingIsShipping": True,
+
             "items": items,
+
+            "shipmentDimension": {
+                "length": max_l,
+                "breadth": max_b,
+                "height": max_h,
+                "weight": total_weight
+            },
+
             "pickupLocation": {
                 "locationCode": pickup["id"],
                 "locationName": pickup["pickup_location_name"],
@@ -1759,10 +1805,22 @@ class EshopboxAPI:
                 "contactPerson": pickup["contact_person_name"],
                 "contactNumber": pickup["contact_number"],
                 "addressLine1": pickup["complete_address"],
+                "addressLine2": pickup.get("address_2", ""),
                 "city": pickup["city"],
                 "state": pickup["state"],
                 "country": "India",
-                "pincode": pickup["pincode"]
+                "pincode": pickup["pincode"],
+                "gstin": pickup.get("gstin", "")
+            },
+
+            "package": {
+                "type": "box",
+                "code": f"PKG-{order_data['id']}",
+                "description": "Creworder Shipment",
+                "length": max_l,
+                "breadth": max_b,
+                "height": max_h,
+                "weight": total_weight
             }
         }
 
@@ -1783,7 +1841,10 @@ class EshopboxAPI:
         for order in OrdersDataSerializer.data:
             try:
                 payload = self.makeJsonForApi(order, pickup_data)
-                res = requests.post(self.SHIPMENT_URL, json=payload, headers=self.headers)
+                res = requests.post(self.# The code you provided is not valid Python code. It seems
+                # like you have defined a variable `SHIPMENT_URL` but did not
+                # assign any value to it. The `
+                SHIPMENT_URL, json=payload, headers=self.headers)
                 data = res.json()
 
                 if res.status_code == 200:
@@ -1842,4 +1903,116 @@ class EshopboxAPI:
             "doorstepQc": False
         }
         res = requests.post(url, json=payload, headers=self.headers)
+        return res.json()
+    
+    def track_bulk_shipments(self, tracking_ids: list):
+        """
+        tracking_ids = ["1223", "44567"]
+        """
+        ids = ",".join(tracking_ids)
+        url = f"https://wms.eshopbox.com/api/v1/shipping/trackingDetails?trackingIds={ids}"
+
+        res = requests.get(url, headers=self.headers, timeout=30)
+        return res.json()
+    
+    def cancel_shipment(self, tracking_id):
+        url = "https://wms.eshopbox.com/api/v1/shipping/cancel"
+        payload = {"trackingId": tracking_id}
+
+        res = requests.post(url, json=payload, headers=self.headers, timeout=30)
+        return res.json()
+    def create_return_shipment(self, order_data, pickup):
+        """
+        Creates reverse pickup (return shipment) in Eshopbox
+        order_data = serialized Order_Table
+        pickup = customer pickup (address where courier will collect return)
+        """
+
+        items = []
+        total_weight = 0
+        max_l = max_b = max_h = 0
+
+        for item in order_data["order_details"]:
+            weight = float(item.get("weight", 100))
+            length = float(item.get("length", 10))
+            breadth = float(item.get("width", 10))
+            height = float(item.get("height", 10))
+
+            total_weight += weight
+            max_l = max(max_l, length)
+            max_b = max(max_b, breadth)
+            max_h = max(max_h, height)
+
+            items.append({
+                "itemID": item["product_sku"],     # SKU
+                "productTitle": item["product_name"],
+                "quantity": item["product_qty"],
+                "itemTotal": item["product_price"],
+                "hsn": item.get("product_hsn", ""),
+                "mrp": item.get("product_mrp", 0),
+                "discount": item.get("product_discount", 0),
+                "taxPercentage": item.get("product_tax", 0),
+                "returnReason": item.get("return_reason", "Customer Return"),
+                "ean": item.get("ean", ""),
+                "length": length,
+                "breadth": breadth,
+                "height": height,
+                "weight": weight,
+                "qcDetails": item.get("qcDetails", {})
+            })
+
+        payload = {
+            "channelId": "CREWORDER",
+            "customerOrderId": order_data["order_id"],
+            "shipmentId": f"RTN-{order_data['id']}",
+            "orderDate": order_data["created_at"],
+            "isCOD": True if order_data["payment_type_name"] != "Prepaid Payment" else False,
+            "invoiceTotal": order_data["total_amount"],
+            "shippingMode": "Standard",
+
+            "invoice": {
+                "number": order_data["order_id"],
+                "date": order_data["created_at"]
+            },
+
+            # Where courier will DELIVER return (your warehouse)
+            "shippingAddress": {
+                "locationCode": pickup["id"],
+                "locationName": pickup["pickup_location_name"],
+                "companyName": pickup["company_name"],
+                "contactPerson": pickup["contact_person_name"],
+                "contactNumber": pickup["contact_number"],
+                "addressLine1": pickup["complete_address"],
+                "addressLine2": pickup.get("address_2", ""),
+                "city": pickup["city"],
+                "state": pickup["state"],
+                "pincode": pickup["pincode"],
+                "country": "India",
+                "gstin": pickup.get("gstin", "")
+            },
+
+            "items": items,
+
+            "returnDimension": {
+                "length": max_l,
+                "breadth": max_b,
+                "height": max_h,
+                "weight": total_weight
+            },
+
+            # Where courier will PICKUP return (customer)
+            "pickupLocation": {
+                "customerName": order_data["customer_name"],
+                "addressLine1": order_data["customer_address"],
+                "city": order_data["customer_city"],
+                "state": order_data["customer_state_name"],
+                "pincode": order_data["customer_postal"],
+                "country": "India",
+                "contactPhone": order_data["customer_phone"],
+                "email": order_data["customer_email"]
+            }
+        }
+
+        url = "https://wms.eshopbox.com/api/v1/shipping/return"
+        res = requests.post(url, json=payload, headers=self.headers, timeout=30)
         return res.json()
