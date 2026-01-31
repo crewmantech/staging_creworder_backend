@@ -546,14 +546,12 @@ class BranchViewSet(viewsets.ModelViewSet):
         if user.profile.user_type == "agent":
             # Get all permission codenames the user has
             user_permissions = set(user.get_all_permissions())
-            print(user_permissions,"-----------------494")
             allowed = []
             for branch in base_qs:
                 company_slug = branch.company.name.replace(" ", "_").lower()
                 branch_slug = branch.name.replace(" ", "_").lower()
 
                 perm_full = f"{branch._meta.app_label}.branch_view_{company_slug}_{branch_slug}"
-                print(perm_full,"----------------------501")
                 if perm_full in user_permissions:
                     allowed.append(branch.id)
 
