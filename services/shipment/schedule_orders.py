@@ -1734,10 +1734,10 @@ class EshopboxAPI:
         print(order_data["order_details"], "-----------------eschopbox order data-------------------")
 
         for item in order_data["order_details"]:
-            weight = float(item.get("weight", 200))
-            length = float(item.get("length", 10))
-            breadth = float(item.get("width", 10))
-            height = float(item.get("height", 10))
+            weight = float(item.get("product_weight", 200))
+            length = float(item.get("product_length", 10))
+            breadth = float(item.get("product_breadth", 10))
+            height = float(item.get("product_height", 10))
 
             total_weight += weight
             max_l = max(max_l, length)
