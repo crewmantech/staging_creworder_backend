@@ -204,6 +204,8 @@ from django.core.files.base import ContentFile
 from orders.serializers import OrderTableSerializer
 from services.cloud_telephoney.cloud_telephoney_service import CloudConnectService, TataSmartfloService,SansSoftwareService
 from .models import (
+    CallActivity,
+    CallLead,
     CallLog,
     CallRecording,
     CloudTelephonyVendor, 
@@ -213,6 +215,7 @@ from .models import (
     UserMailSetup
 )
 from .serializers import (
+    CallLeadSerializer,
     CallLogSerializer,
     CallRecordingInputSerializer,
     CallRecordingModelSerializer,
@@ -223,6 +226,7 @@ from .serializers import (
     SecretKeySerializer, 
     UserMailSetupSerializer
 )
+from django.shortcuts import get_object_or_404
 import requests
 import csv
 from io import TextIOWrapper
@@ -230,7 +234,7 @@ from django.db import transaction
 from datetime import datetime, date as dt_date
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers, status, viewsets
-
+from django.utils import timezone
 
 class CloudTelephonyVendorViewSet(viewsets.ModelViewSet):
     queryset = CloudTelephonyVendor.objects.all()
@@ -1446,3 +1450,75 @@ class CustomerDataByMobileAPI(APIView):
         }
 
         return Response(response_data, status=status.HTTP_200_OK)
+    
+class CallActivityCreateAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        phone = request.data["phone"]
+        call_log_id = request.data["call_log_id"]
+
+        call_log = get_object_or_404(CallLog, id=call_log_id)
+
+        lead, _ = CallLead.objects.get_or_create(
+            phone=phone,
+            defaults={"created_by": request.user}
+        )
+
+        activity = CallActivity.objects.create(
+            lead=lead,
+            call_log=call_log,
+            activity_type=request.data["activity_type"],
+            status=request.data["status"],
+            remark=request.data["remark"],
+            next_followup=request.data.get("next_followup"),
+            updated_by=request.user
+        )
+
+        # snapshot update
+        lead.last_call = call_log
+        lead.last_status = activity.status
+        lead.last_remark = activity.remark
+        lead.save()
+
+        return Response({
+            "success": True,
+            "lead_id": lead.id,
+            "activity_id": activity.id
+        })
+    
+
+class CallLeadDetailAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, phone):
+        lead = CallLead.objects.filter(phone=phone).first()
+
+        if not lead:
+            return Response({"new_number": True})
+
+        serializer = CallLeadSerializer(lead)
+        return Response(serializer.data)
+
+class TodayFollowupAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        today = timezone.now().date()
+
+        qs = CallActivity.objects.filter(
+            next_followup__date=today
+        )
+
+        data = [
+            {
+                "phone": a.lead.phone,
+                "status": a.status,
+                "remark": a.remark,
+                "time": a.next_followup,
+                "agent": a.updated_by.username
+            }
+            for a in qs
+        ]
+
+        return Response(data)

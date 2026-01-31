@@ -257,3 +257,48 @@ class CallLog(models.Model):
 
     def __str__(self):
         return f"{self.call_id} - {self.status}"
+    
+
+class CallLead(BaseModel):
+    phone = models.CharField(max_length=20, unique=True)
+
+    name = models.CharField(max_length=100, blank=True, null=True)
+
+    last_call = models.ForeignKey(
+        CallLog, on_delete=models.SET_NULL, null=True, blank=True
+    )
+
+    last_status = models.CharField(max_length=50, blank=True, null=True)
+    last_remark = models.TextField(blank=True, null=True)
+
+    created_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.phone
+
+
+class CallActivity(BaseModel):
+
+    lead = models.ForeignKey(
+        CallLead, on_delete=models.CASCADE, related_name="activities"
+    )
+
+    call_log = models.ForeignKey(
+        CallLog, on_delete=models.CASCADE
+    )
+
+    activity_type = models.CharField(max_length=20, null=True, blank=True)
+    status = models.CharField(max_length=50)
+    remark = models.TextField()
+
+    next_followup = models.DateTimeField(null=True, blank=True)
+
+    updated_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)

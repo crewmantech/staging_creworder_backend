@@ -1,5 +1,7 @@
 from rest_framework import serializers
 from .models import (
+    CallActivity,
+    CallLead,
     CallLog,
     CallRecording,
     CloudTelephonyVendor, 
@@ -136,4 +138,18 @@ class CloudTelephonyChannelAssignCSVSerializer(serializers.ModelSerializer):
 class CallLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = CallLog
+        fields = "__all__"
+
+
+class CallActivitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CallActivity
+        fields = "__all__"
+
+
+class CallLeadSerializer(serializers.ModelSerializer):
+    activities = CallActivitySerializer(many=True)
+
+    class Meta:
+        model = CallLead
         fields = "__all__"

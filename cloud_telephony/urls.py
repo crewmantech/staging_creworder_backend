@@ -11,6 +11,8 @@ from rest_framework.routers import DefaultRouter
 #     UserMailSetupView
 # )
 from .views import (
+    CallActivityCreateAPIView,
+    CallLeadDetailAPIView,
     CallServiceViewSet,
     CloudConnectWebhookAPIView,
     CloudTelephonyChannelAssignCSVUploadAPIView,
@@ -20,7 +22,8 @@ from .views import (
     CustomerDataByMobileAPI,
     GetNumberAPIView,
     SaveCallRecordingAPIView,
-    SecretKeyViewSet, 
+    SecretKeyViewSet,
+    TodayFollowupAPIView, 
     UserMailSetupViewSet
 )
 router = DefaultRouter()
@@ -45,6 +48,9 @@ urlpatterns = [
         name="cloudconnect-webhook"
     ),
     path("customer-data/", CustomerDataByMobileAPI.as_view(), name="customer-data-by-mobile"),
+    path("api/call-lead/<str:phone>/", CallLeadDetailAPIView.as_view()),
+    path("api/call-followups/today/", TodayFollowupAPIView.as_view()),
+    path("api/call-activity/", CallActivityCreateAPIView.as_view()),
     # path(
     #     "createCloudTelephoneyChannel/",
     #     CreateCloudTelephoneyChannel.as_view(),
