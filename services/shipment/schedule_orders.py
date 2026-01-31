@@ -1756,7 +1756,7 @@ class EshopboxAPI:
                 "itemBreadth": breadth,
                 "itemHeight": height,
                 "itemWeight": weight,
-                "ean": item.get("ean", ""),
+                "ean": item.get("ean", "0"),
                 "productImageUrl": item.get("image", "")
             })
 
