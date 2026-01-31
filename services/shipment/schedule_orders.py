@@ -1843,7 +1843,7 @@ class EshopboxAPI:
     # ---------------- CREATE ORDER ---------------- #
 
     def schedule_order(self, order_list, company_id, user_id, pickup_id, shipment_vendor,channel_id):
-
+        print(channel_id, "-----------------eschopbox channel_id-------------------")
         OrdersData = Order_Table.objects.filter(company=company_id, id__in=order_list)
         OrdersDataSerializer = OrderTableSerializer(OrdersData, many=True)
 
