@@ -1721,7 +1721,7 @@ class EshopboxAPI:
         items = []
         total_weight = 0
         max_l = max_b = max_h = 0
-
+        print(order_data, "-----------------eschopbox order data-------------------")
         for item in order_data["order_details"]:
             weight = float(item.get("weight", 200))
             length = float(item.get("length", 10))
@@ -1823,7 +1823,7 @@ class EshopboxAPI:
                 "weight": total_weight
             }
         }
-
+        print(payload, "-----------------eschopbox payload-------------------")
         return payload
 
     # ---------------- CREATE ORDER ---------------- #
@@ -1840,7 +1840,7 @@ class EshopboxAPI:
 
         for order in OrdersDataSerializer.data:
             try:
-                print("-----------------eschopbox order-------------------", order)
+                print("-----------------eschopbox order-------------------", order,pickup_data)
                 
                 payload = self.makeJsonForApi(order, pickup_data)
                 print(payload,"-----------------eschopbox payload-------------------")
