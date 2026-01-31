@@ -1734,10 +1734,10 @@ class EshopboxAPI:
         formatted_date = eshopbox_date(order_data["created_at"])
 
         for item in order_data["order_details"]:
-            weight = float(item.get("product_weight", 200))
-            length = float(item.get("product_length", 10))
-            breadth = float(item.get("product_breadth", 10))
-            height = float(item.get("product_height", 10))
+            weight = float(item.get("product_weight") or 1)
+            length = float(item.get("product_length") or 1)
+            breadth = float(item.get("product_breadth") or 1)
+            height = float(item.get("product_height") or 1)
 
             total_weight += weight
             max_l = max(max_l, length)
@@ -1745,97 +1745,101 @@ class EshopboxAPI:
             max_h = max(max_h, height)
 
             items.append({
-                "itemID": item["product_sku"],
-                "productTitle": item["product_name"],
-                "quantity": item["product_qty"],
-                "itemTotal": item["product_price"],
-                "hsn": str(item.get("product_hsn_number", "0000")),
-                "mrp": item.get("product_mrp", 0),
-                "discount": item.get("product_discount", 0),
-                "taxPercentage": item.get("product_tax", 0),
+                "itemID": str(item.get("product_sku") or "SKU-001"),
+                "productTitle": item.get("product_name") or "Product",
+                "quantity": int(item.get("product_qty") or 1),
+                "itemTotal": float(item.get("product_price") or 0),
+                "hsn": str(item.get("product_hsn_number") or "0000"),
+                "mrp": float(item.get("product_mrp") or 0),
+                "discount": float(item.get("product_discount") or 0),
+                "taxPercentage": float(item.get("product_tax") or 0),
                 "itemLength": length,
                 "itemBreadth": breadth,
                 "itemHeight": height,
                 "itemWeight": weight,
-                "ean": item.get("ean", "0"),
-                "productImageUrl": item.get("image", "")
+                "ean": str(item.get("ean") or "0"),
+                "productImageUrl": item.get("image") or ""
             })
 
         payload = {
             "channelId": channel_id or "CREWORDER",
-            "customerOrderId": order_data["order_id"],
-            "shipmentId": order_data["id"],
+            "customerOrderId": str(order_data["order_id"]),
+            "shipmentId": str(order_data["id"]),
             "orderDate": formatted_date,
-            "isCOD": True if order_data["payment_type_name"] != "Prepaid Payment" else False,
-            "invoiceTotal": order_data["total_amount"],
+            "isCOD": order_data.get("payment_type_name") != "Prepaid Payment",
+            "invoiceTotal": float(order_data.get("total_amount") or 0),
             "shippingMode": "Eshopbox Standard",
-            "balanceDue": order_data["cod_amount"],
+            "balanceDue": float(order_data.get("cod_amount") or 0),
 
             "invoice": {
-                "number": order_data["order_id"],
+                "number": str(order_data["order_id"]),
                 "date": formatted_date
             },
 
+            # MUST NEVER BE EMPTY
+            "ewaybillNumber": "0",
+
             "shippingAddress": {
-                "customerName": order_data["customer_name"],
-                "addressLine1": order_data["customer_address"],
-                "city": order_data["customer_city"],
-                "state": order_data["customer_state_name"],
-                "pincode": str(order_data["customer_postal"]),
+                "customerName": order_data.get("customer_name") or "Customer",
+                "addressLine1": order_data.get("customer_address") or "NA",
+                "city": order_data.get("customer_city") or "NA",
+                "state": order_data.get("customer_state_name") or "NA",
+                "pincode": str(order_data.get("customer_postal") or "000000"),
                 "country": "India",
-                "contactPhone": order_data["customer_phone"],
-                "email": order_data["customer_email"]
-                # "gstin": order_data.get("gstin", "")
+                "contactPhone": order_data.get("customer_phone") or "9999999999",
+                "email": order_data.get("customer_email") or "no-reply@creworder.com",
+                "gstin": order_data.get("gstin") or ""
             },
 
             "billingIsShipping": True,
             "billingAddress": {
-                "customerName": order_data["customer_name"],
-                "addressLine1": order_data["customer_address"],
-                "city": order_data["customer_city"],
-                "state": order_data["customer_state_name"],
-                "pincode": str(order_data["customer_postal"]),
+                "customerName": order_data.get("customer_name") or "Customer",
+                "addressLine1": order_data.get("customer_address") or "NA",
+                "city": order_data.get("customer_city") or "NA",
+                "state": order_data.get("customer_state_name") or "NA",
+                "pincode": str(order_data.get("customer_postal") or "000000"),
                 "country": "India",
-                "contactPhone": order_data["customer_phone"],
-                "email": order_data["customer_email"]
+                "contactPhone": order_data.get("customer_phone") or "9999999999",
+                "email": order_data.get("customer_email") or "no-reply@creworder.com"
             },
 
             "items": items,
 
-            # ✅ THIS IS THE ONLY VALID WAY
+            # ONLY VALID WAY
             "shipmentDimension": {
-                "length": max_l,
-                "breadth": max_b,
-                "height": max_h,
-                "weight": total_weight
+                "length": max(max_l, 1),
+                "breadth": max(max_b, 1),
+                "height": max(max_h, 1),
+                "weight": max(total_weight, 0.5)
             },
 
             "pickupLocation": {
-                "locationCode": pickup["id"],
-                "locationName": pickup["pickup_location_name"],
-                "companyName": pickup["company"],
-                "contactPerson": pickup["contact_person_name"],
-                "contactNumber": pickup["contact_number"],
-                "addressLine1": pickup["complete_address"],
-                "addressLine2": pickup.get("address_2", ""),
-                "city": pickup["city"],
-                "state": pickup["state"],
+                "locationCode": str(pickup.get("id") or "LOC001"),
+                "locationName": pickup.get("pickup_location_name") or "Warehouse",
+                "companyName": pickup.get("company") or "COMPANY",
+                "contactPerson": pickup.get("contact_person_name") or "Manager",
+                "contactNumber": pickup.get("contact_number") or "9999999999",
+                "addressLine1": pickup.get("complete_address") or "NA",
+                "addressLine2": pickup.get("address_2") or "",
+                "city": pickup.get("city") or "NA",
+                "state": pickup.get("state") or "NA",
                 "country": "India",
-                "pincode": str(pickup["pincode"])
+                "pincode": str(pickup.get("pincode") or "000000")
             },
 
             "package": {
                 "type": "box",
                 "code": f"PKG-{order_data['id']}",
                 "description": "Creworder Shipment",
-                "length": max_l,
-                "breadth": max_b,
-                "height": max_h,
-                "weight": total_weight
+                "length": max(max_l, 1),
+                "breadth": max(max_b, 1),
+                "height": max(max_h, 1),
+                "weight": max(total_weight, 0.5)
             }
         }
 
         return payload
+
     # def makeJsonForApi(order_data, pickup, channel_id=None):
     #     items = []
     #     total_weight = 0
