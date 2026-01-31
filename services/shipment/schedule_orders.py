@@ -1773,7 +1773,12 @@ class EshopboxAPI:
             "invoiceTotal": order_data["total_amount"],
             "shippingMode": "Eshopbox Standard",
             "balanceDue": order_data["cod_amount"],
-
+            "description": "Creworder Shipment",
+            "length": max_l,
+            "breadth": max_b,
+            "height": max_h,
+            "weight": total_weight,
+            "declaredValue": order_data["total_amount"],
             "invoice": {
                 "number": order_data["order_id"],
                 "date": formatted_date
