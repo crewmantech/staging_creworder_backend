@@ -1750,11 +1750,14 @@ class EshopboxAPI:
                 "ean": item.get("ean", ""),
                 "productImageUrl": item.get("image", "")
             })
-        print(items, "-----------------eschopbox items-------------------")
+        print(items, "-----------------eschopbox items-------------------",order_data["order_id"],order_data['id'],order_data["created_at"])
+        print(True if order_data["payment_type_name"] != "Prepaid Payment" else False, "-----------------eschopbox isCOD-------------------")
+        print( total_weight, max_l, max_b, max_h, "-----------------eschopbox dimensions-------------------")
+        print( pickup, "-----------------eschopbox pickup-------------------")
         payload = {
             "channelId": "CREWORDER",
             "customerOrderId": order_data["order_id"],
-            "shipmentId": f"SHP-{order_data['id']}",
+            "shipmentId": order_data['id'],
             "orderDate": order_data["created_at"],
             "isCOD": True if order_data["payment_type_name"] != "Prepaid Payment" else False,
             "invoiceTotal": order_data["total_amount"],
