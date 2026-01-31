@@ -1769,7 +1769,7 @@ class EshopboxAPI:
             "invoiceTotal": order_data["total_amount"],
             "shippingMode": "Eshopbox Standard",
             "balanceDue": order_data["cod_amount"],
-
+            "ewaybillNumber": "0",
             "invoice": {
                 "number": order_data["order_id"],
                 "date": formatted_date
