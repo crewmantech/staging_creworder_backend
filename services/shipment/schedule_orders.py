@@ -1801,11 +1801,11 @@ class EshopboxAPI:
                 "height": max_h,
                 "weight": total_weight
             },
-
+    
             "pickupLocation": {
                 "locationCode": pickup["id"],
                 "locationName": pickup["pickup_location_name"],
-                "companyName": pickup["company_name"],
+                "companyName": pickup["company"],
                 "contactPerson": pickup["contact_person_name"],
                 "contactNumber": pickup["contact_number"],
                 "addressLine1": pickup["complete_address"],
