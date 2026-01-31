@@ -42,7 +42,7 @@ class ShipmentModel(models.Model):  # Shipment Model
     credential_token = models.CharField(max_length=255, null=True, blank=True)
     provider_priority = models.IntegerField()
     status = models.IntegerField(choices=STATUS_CHOICES)
-    shipment_channel_id = models.IntegerField()
+    shipment_channel_id = models.CharField(max_length=255,null=True, blank=True)
 
     shipment_vendor = models.ForeignKey(
         ShipmentVendor, on_delete=models.CASCADE, null=True, blank=True, related_name="shipments"
