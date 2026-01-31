@@ -1780,7 +1780,7 @@ class EshopboxAPI:
                 "addressLine1": order_data["customer_address"],
                 "city": order_data["customer_city"],
                 "state": order_data["customer_state_name"],
-                "pincode": order_data["customer_postal"],
+                "pincode": str(order_data["customer_postal"]),
                 "country": "India",
                 "contactPhone": order_data["customer_phone"],
                 "email": order_data["customer_email"],
@@ -1793,7 +1793,7 @@ class EshopboxAPI:
                 "addressLine1": order_data["customer_address"],
                 "city": order_data["customer_city"],
                 "state": order_data["customer_state_name"],
-                "pincode": order_data["customer_postal"],
+                "pincode": str(order_data["customer_postal"]),
                 "country": "India",
                 "contactPhone": order_data["customer_phone"],
                 "email": order_data["customer_email"]
@@ -1820,7 +1820,7 @@ class EshopboxAPI:
                 "city": pickup["city"],
                 "state": pickup["state"],
                 "country": "India",
-                "pincode": pickup["pincode"],
+                "pincode": str(pickup["pincode"]),
                 "gstin": pickup.get("gstin", "")
             },
 
