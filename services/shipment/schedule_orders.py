@@ -1721,7 +1721,8 @@ class EshopboxAPI:
         items = []
         total_weight = 0
         max_l = max_b = max_h = 0
-        print(order_data, "-----------------eschopbox order data-------------------")
+        print(order_data["order_details"], "-----------------eschopbox order data-------------------")
+
         for item in order_data["order_details"]:
             weight = float(item.get("weight", 200))
             length = float(item.get("length", 10))
@@ -1749,7 +1750,7 @@ class EshopboxAPI:
                 "ean": item.get("ean", ""),
                 "productImageUrl": item.get("image", "")
             })
-
+        print(items, "-----------------eschopbox items-------------------")
         payload = {
             "channelId": "CREWORDER",
             "customerOrderId": order_data["order_id"],
