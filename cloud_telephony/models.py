@@ -4,6 +4,11 @@ from accounts.models import Company, Branch
 from accounts.utils import generate_unique_id
 from middleware.request_middleware import get_request
 
+import hashlib
+import re
+
+def is_md5(value):
+    return bool(re.fullmatch(r"[a-f0-9]{32}", value or ""))
 class BaseModel(models.Model):
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="%(class)s_created_by")
     updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="%(class)s_updated_by")
@@ -139,7 +144,13 @@ class CloudTelephonyChannelAssign(BaseModel):
                 raise ValidationError("Only one Monitoring channel can be active")
 
     def save(self, *args, **kwargs):
-        self.full_clean()   # triggers clean()
+        self.full_clean()
+
+        # Hash only if not already md5
+        if self.agent_password and not is_md5(self.agent_password):
+            self.agent_password = hashlib.md5(
+                self.agent_password.encode()
+            ).hexdigest()
 
         # Auto switch for monitoring
         if self.type == 2 and self.is_active:
