@@ -189,11 +189,14 @@ class ShipmentsConfig(AppConfig):
                                 print(awb_number,"------------------AWB NUMBER-------------------")
                                 response = eshopbox_service.track_bulk_shipments([awb_number])
                                 print(response,"------------------Eshopbox Response-------------------")
-                                if not response.get("status"):
+                                if response.get("status") != "SUCCESS":
                                     continue
 
                                 shipment_status = response.get("data", {}).get("status")
-                            
+                                tracking_list = response.get("trackingDetailList", [])
+                                if not tracking_list:
+                                    continue
+                                shipment_status = tracking_list[0].get("currentStatus")
                                 if shipment_status:
                                     mapped_status = get_main_order_status_for_vendor_status(vendor_id, shipment_status)
                                     if mapped_status:
@@ -201,14 +204,14 @@ class ShipmentsConfig(AppConfig):
                                         if order.order_status_id != order_status.id:
                                             order.order_status = order_status
                                             order.save()
-                                            logger.info(f"[Nimbuspost] Updated order {order.id} to status {shipment_status}")
+                                            logger.info(f"[eshopbox] Updated order {order.id} to status {shipment_status}")
                                             try:
                                                 trigger_order_status_notifications(company, order_status.id, order.id)
                                             except Exception as e:
                                                 print(f"Error triggering order status notification: {e}")
                                                 pass 
                             except Exception as e:
-                                logger.error(f"[Nimbuspost] Error updating order {order.id}: {e}")
+                                logger.error(f"[eshopbox] Error updating order {order.id}: {e}")
 
                     elif vendor_name == 'zoopship' and shipmentData['credential_username']:
                         zoopship_service = ZoopshipService(
@@ -259,7 +262,7 @@ class ShipmentsConfig(AppConfig):
         scheduler = BackgroundScheduler()
         scheduler.add_job(
             fetch_and_update_shipments,
-            IntervalTrigger(minutes=3),  # Run every 20 minutes
+            IntervalTrigger(minutes=20),  # Run every 20 minutes
             id="fetch_and_update_shipments",
             max_instances=1,
             # misfire_grace_time=30,  # Optional
