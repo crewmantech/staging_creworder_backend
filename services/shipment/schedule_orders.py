@@ -1995,16 +1995,17 @@ class EshopboxAPI:
                 print(res,"-----------------eschopbox response-------------------")
                 print(res.json(),"-----------------eschopbox response json-------------------")
                 data = res.json()
+      
 
                 if res.status_code == 200:
                     order_status, _ = OrderStatus.objects.get_or_create(name="PICKUP PENDING")
 
                     Order_Table.objects.filter(id=order["id"]).update(
-                        order_wayBill=data.get("trackingID"),
+                        order_wayBill=data.get("trackingId"),
                         courier_name=data.get("courierName"),
                         awb_response=data,
                         shipment_id=data.get("id"),
-                        vendor_order_id=data.get("shipmentId"),
+                        vendor_order_id=data.get("trackingId"),
                         is_booked=1,
                         order_status=order_status.id,
                         shipment_vendor=shipment_vendor
