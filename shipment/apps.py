@@ -187,7 +187,7 @@ class ShipmentsConfig(AppConfig):
                                 
                                 awb_number = order.order_wayBill
                                 
-                                response = eshopbox_service.track_shipment(awb_number)
+                                response = eshopbox_service.track_bulk_shipments([awb_number])
                                 print(response,"------------------Eshopbox Response-------------------")
                                 if not response.get("status"):
                                     continue
