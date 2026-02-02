@@ -1,7 +1,7 @@
 from cloud_telephony.models import CloudTelephonyChannelAssign
 
 
-def get_company_from_agent_campaign(agent_id, campaign_id):
+def get_company_from_agent_campaign(agent_id):
     assign = CloudTelephonyChannelAssign.objects.filter(
         agent_id=agent_id
     ).select_related("company").first()
