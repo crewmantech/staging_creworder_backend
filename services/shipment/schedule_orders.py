@@ -1825,7 +1825,7 @@ class EshopboxAPI:
                 "length": max(max_l, 1),
                 "breadth": max(max_b, 1),
                 "height": max(max_h, 1),
-                "weight": max(total_weight, 0.5)
+                "weight": max(total_weight*1000, 0.5)
             },
 
             "pickupLocation": {
