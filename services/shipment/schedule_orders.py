@@ -2110,7 +2110,7 @@ class EshopboxAPI:
                 "weight": weight,
                 "qcDetails": item.get("qcDetails", {})
             })
-
+        print(total_weight, "-----------------Total Weight-------------------",total_weight*1000)
         payload = {
             "channelId": "CREWORDER",
             "customerOrderId": order_data["order_id"],
