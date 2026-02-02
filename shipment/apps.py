@@ -169,7 +169,8 @@ class ShipmentsConfig(AppConfig):
                                 logger.error(f"[Nimbuspost] Error updating order {order.id}: {e}")
                     
                     elif vendor_name == 'eshopbox' and shipmentData['credential_username']:
-                        nimbuspost_service = EshopboxAPI(
+                        print("In Eshopbox-----------------")
+                        eshopbox_service = EshopboxAPI(
                             shipmentData['credential_username'],shipmentData['credential_password'],serialized_data['credential_token']
                         )
                         excluded_statuses = [
@@ -186,7 +187,8 @@ class ShipmentsConfig(AppConfig):
                                 
                                 awb_number = order.order_wayBill
                                 
-                                response = nimbuspost_service.track_shipment(awb_number)
+                                response = eshopbox_service.track_shipment(awb_number)
+                                print(response,"------------------Eshopbox Response-------------------")
                                 if not response.get("status"):
                                     continue
 
@@ -257,7 +259,7 @@ class ShipmentsConfig(AppConfig):
         scheduler = BackgroundScheduler()
         scheduler.add_job(
             fetch_and_update_shipments,
-            IntervalTrigger(minutes=20),  # Run every 20 minutes
+            IntervalTrigger(minutes=3),  # Run every 20 minutes
             id="fetch_and_update_shipments",
             max_instances=1,
             # misfire_grace_time=30,  # Optional
