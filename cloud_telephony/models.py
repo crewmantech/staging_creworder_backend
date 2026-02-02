@@ -245,6 +245,9 @@ class CallLog(models.Model):
     direction = models.CharField(max_length=20, blank=True, null=True)
 
     campaign_id = models.CharField(max_length=20, blank=True, null=True)
+
+    company = models.ForeignKey(Company, on_delete=models.SET_NULL, null=True, blank=True)
+
     session_id = models.CharField(max_length=50, blank=True, null=True)
     transfer_id = models.CharField(max_length=20, blank=True, null=True)
     job_id = models.CharField(max_length=20, blank=True, null=True)
@@ -254,10 +257,6 @@ class CallLog(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return f"{self.call_id} - {self.status}"
-    
 
 class CallLead(BaseModel):
     phone = models.CharField(max_length=20, unique=True)

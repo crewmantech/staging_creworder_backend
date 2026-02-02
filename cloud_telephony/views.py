@@ -196,6 +196,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from cloud_telephony.utils import get_company_from_agent_campaign
 from follow_up.models import Appointment, Follow_Up
 from follow_up.serializers import AppointmentSerializer, FollowUpSerializer
 from lead_management.models import Lead
@@ -1353,20 +1354,17 @@ from rest_framework import status as drf_status
 from django.utils.timezone import now
 from rest_framework.permissions import AllowAny
 class CloudConnectWebhookAPIView(APIView):
-    """
-    CloudConnect Webhook Receiver (DRF)
-    """
-    
-
     permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
-        # CloudConnect sends form-encoded data
         data = request.data
 
         call_id = data.get("callid")
         status_value = data.get("status")
         phone = data.get("callernumber")
+
+        agent_id = data.get("agent_id")
+        campaign_id = data.get("campaignId")
 
         if not call_id or not status_value or not phone:
             return Response(
@@ -1374,15 +1372,19 @@ class CloudConnectWebhookAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        # 🔥 Resolve company
+        company = get_company_from_agent_campaign(agent_id, campaign_id)
+
         call_log, created = CallLog.objects.update_or_create(
             call_id=call_id,
             defaults={
                 "call_uuid": data.get("call_uuid"),
                 "phone": phone,
-                "agent_id": data.get("agent_id"),
+                "agent_id": agent_id,
                 "status": status_value,
                 "direction": data.get("call_direction"),
-                "campaign_id": data.get("campaignId"),
+                "campaign_id": campaign_id,
+                "company": company,   # ✅ auto mapped
                 "session_id": data.get("sessionId"),
                 "transfer_id": data.get("transfer_id"),
                 "job_id": data.get("job_id"),
@@ -1397,11 +1399,11 @@ class CloudConnectWebhookAPIView(APIView):
                 "received": True,
                 "call_id": call_id,
                 "status": status_value,
+                "company_id": company.id if company else None,
                 "created": created
             },
             status=status.HTTP_200_OK
         )
-
 
 class CustomerDataByMobileAPI(APIView):
     """
