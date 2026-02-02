@@ -1373,7 +1373,7 @@ class CloudConnectWebhookAPIView(APIView):
             )
 
         # 🔥 Resolve company
-        company = get_company_from_agent_campaign(agent_id, campaign_id)
+        company = get_company_from_agent_campaign(agent_id)
         print(company,"-------------------company")
         call_log, created = CallLog.objects.update_or_create(
             call_id=call_id,
