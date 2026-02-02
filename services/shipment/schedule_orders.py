@@ -2147,7 +2147,7 @@ class EshopboxAPI:
                 "length": max_l,
                 "breadth": max_b,
                 "height": max_h,
-                "weight": total_weight
+                "weight": total_weight*1000  # in grams
             },
 
             # Where courier will PICKUP return (customer)

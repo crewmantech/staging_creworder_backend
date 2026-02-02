@@ -1416,38 +1416,38 @@ class EmailSchedule(BaseModel):
         return f"{self.email} | {self.branch.name} | {self.time_interval} | {self.template_type}"
     
 
-class CallQcsTable(BaseModel):
+# class CallQcsTable(BaseModel):
 
-    QUESTION_TYPE = (
-        ("critical", "Critical"),
-        ("normal", "Normal"),
-    )
+#     QUESTION_TYPE = (
+#         ("critical", "Critical"),
+#         ("normal", "Normal"),
+#     )
 
-    ANSWER_TYPE = (
-        ("yes_no", "Yes / No"),
-        ("text", "Text / Details"),
-        ("rating", "Rating (1-5)"),
-    )
+#     ANSWER_TYPE = (
+#         ("yes_no", "Yes / No"),
+#         ("text", "Text / Details"),
+#         ("rating", "Rating (1-5)"),
+#     )
 
-    question = models.TextField(null=False)
+#     question = models.TextField(null=False)
 
-    question_type = models.CharField(
-        max_length=20,
-        choices=QUESTION_TYPE,
-        default="normal"
-    )
+#     question_type = models.CharField(
+#         max_length=20,
+#         choices=QUESTION_TYPE,
+#         default="normal"
+#     )
 
-    answer_type = models.CharField(
-        max_length=20,
-        choices=ANSWER_TYPE,
-        default="yes_no"
-    )
+#     answer_type = models.CharField(
+#         max_length=20,
+#         choices=ANSWER_TYPE,
+#         default="yes_no"
+#     )
 
-    created_at = models.DateTimeField(default=now)
-    updated_at = models.DateTimeField(auto_now=True)
+#     created_at = models.DateTimeField(default=now)
+#     updated_at = models.DateTimeField(auto_now=True)
 
-    class Meta:
-        db_table = 'call_qcs_table'
+#     class Meta:
+#         db_table = 'call_qcs_table'
 
-    def __str__(self):
-        return f"[{self.question_type}] ({self.answer_type}) {self.question}"
+#     def __str__(self):
+#         return f"[{self.question_type}] ({self.answer_type}) {self.question}"
