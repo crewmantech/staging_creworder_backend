@@ -1406,10 +1406,8 @@ class CloudConnectWebhookAPIView(APIView):
         )
 
 class CustomerDataByMobileAPI(APIView):
-    """
-    Get all related data by mobile number
-    """ 
     permission_classes = [IsAuthenticated]
+
     def get(self, request):
         user = request.user
         company = user.profile.company
@@ -1421,26 +1419,27 @@ class CustomerDataByMobileAPI(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Orders
+        last10 = mobile[-10:]
+
         orders = Order_Table.objects.filter(
-            customer_phone__endswith=mobile[-10:],
+            customer_phone__endswith=last10,
             company=company,
             is_deleted=False
         )
 
-        # Call Logs
-        calls = CallLog.objects.filter(phone=mobile)
-
-        # Appointments
-        appointments = Appointment.objects.filter(
-            company=company,
-            patient_phone__endswith=mobile[-10:]
+        calls = CallLog.objects.filter(
+            phone__endswith=last10,
+            company=company
         )
 
-        # Follow Ups
+        appointments = Appointment.objects.filter(
+            company=company,
+            patient_phone__endswith=last10
+        )
+
         followups = Follow_Up.objects.filter(
             company=company,
-            customer_phone__endswith=mobile[-10:]
+            customer_phone__endswith=last10
         )
 
         response_data = {
@@ -1457,27 +1456,37 @@ class CallActivityCreateAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        company = request.user.profile.company
+
         phone = request.data["phone"]
         call_log_id = request.data["call_log_id"]
 
-        call_log = get_object_or_404(CallLog, id=call_log_id)
+        call_log = get_object_or_404(
+            CallLog,
+            id=call_log_id,
+            company=company
+        )
 
         lead, _ = CallLead.objects.get_or_create(
             phone=phone,
-            defaults={"created_by": request.user}
+            company=company,
+            defaults={
+                "created_by": request.user
+            }
         )
 
         activity = CallActivity.objects.create(
             lead=lead,
             call_log=call_log,
-            activity_type=request.data["activity_type"],
+            company=company,
+            activity_type=request.data.get("activity_type"),
             status=request.data["status"],
             remark=request.data["remark"],
             next_followup=request.data.get("next_followup"),
             updated_by=request.user
         )
 
-        # snapshot update
+        # snapshot
         lead.last_call = call_log
         lead.last_status = activity.status
         lead.last_remark = activity.remark
@@ -1488,13 +1497,17 @@ class CallActivityCreateAPIView(APIView):
             "lead_id": lead.id,
             "activity_id": activity.id
         })
-    
 
 class CallLeadDetailAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, phone):
-        lead = CallLead.objects.filter(phone=phone).first()
+        company = request.user.profile.company
+
+        lead = CallLead.objects.filter(
+            phone=phone,
+            company=company
+        ).first()
 
         if not lead:
             return Response({"new_number": True})
@@ -1507,10 +1520,12 @@ class TodayFollowupAPIView(APIView):
 
     def get(self, request):
         today = timezone.now().date()
+        company = request.user.profile.company
 
         qs = CallActivity.objects.filter(
+            company=company,
             next_followup__date=today
-        )
+        ).select_related("lead", "updated_by")
 
         data = [
             {
@@ -1518,7 +1533,7 @@ class TodayFollowupAPIView(APIView):
                 "status": a.status,
                 "remark": a.remark,
                 "time": a.next_followup,
-                "agent": a.updated_by.username
+                "agent": a.updated_by.username if a.updated_by else None
             }
             for a in qs
         ]

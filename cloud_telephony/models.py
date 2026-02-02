@@ -259,7 +259,11 @@ class CallLog(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
 class CallLead(BaseModel):
-    phone = models.CharField(max_length=20, unique=True)
+    phone = models.CharField(max_length=20)
+
+    company = models.ForeignKey(
+        Company, on_delete=models.CASCADE
+    )
 
     name = models.CharField(max_length=100, blank=True, null=True)
 
@@ -276,8 +280,11 @@ class CallLead(BaseModel):
 
     created_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        unique_together = ("phone", "company")
+
     def __str__(self):
-        return self.phone
+        return f"{self.phone} - {self.company.name}"
 
 
 class CallActivity(BaseModel):
@@ -288,6 +295,10 @@ class CallActivity(BaseModel):
 
     call_log = models.ForeignKey(
         CallLog, on_delete=models.CASCADE
+    )
+
+    company = models.ForeignKey(
+        Company, on_delete=models.CASCADE
     )
 
     activity_type = models.CharField(max_length=20, null=True, blank=True)
