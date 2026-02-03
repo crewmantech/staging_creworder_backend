@@ -1416,38 +1416,43 @@ class EmailSchedule(BaseModel):
         return f"{self.email} | {self.branch.name} | {self.time_interval} | {self.template_type}"
     
 
-# class CallQcsTable(BaseModel):
 
-#     QUESTION_TYPE = (
-#         ("critical", "Critical"),
-#         ("normal", "Normal"),
-#     )
+class CallQcsTable(BaseModel):
 
-#     ANSWER_TYPE = (
-#         ("yes_no", "Yes / No"),
-#         ("text", "Text / Details"),
-#         ("rating", "Rating (1-5)"),
-#     )
+    QUESTION_TYPE = (
+        ("critical", "Critical"),
+        ("normal", "Normal"),
+    )
 
-#     question = models.TextField(null=False)
+    ANSWER_TYPE = (
+        ("yes_no", "Yes / No"),
+        ("text", "Text"),
+        ("rating", "Rating"),
+    )
 
-#     question_type = models.CharField(
-#         max_length=20,
-#         choices=QUESTION_TYPE,
-#         default="normal"
-#     )
+    question = models.TextField()
+    question_type = models.CharField(max_length=20, choices=QUESTION_TYPE)
+    answer_type = models.CharField(max_length=20, choices=ANSWER_TYPE)
+    weight = models.FloatField(default=1)
 
-#     answer_type = models.CharField(
-#         max_length=20,
-#         choices=ANSWER_TYPE,
-#         default="yes_no"
-#     )
 
-#     created_at = models.DateTimeField(default=now)
-#     updated_at = models.DateTimeField(auto_now=True)
+class CallQcsScore(BaseModel):
+   
+   
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE)
+    agent = models.ForeignKey(User, on_delete=models.CASCADE)
 
-#     class Meta:
-#         db_table = 'call_qcs_table'
+    final_score = models.FloatField(default=0)
+    recording_url = models.FileField(upload_to="call_recordings/", null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
 
-#     def __str__(self):
-#         return f"[{self.question_type}] ({self.answer_type}) {self.question}"
+
+class CallQcAnswer(BaseModel):
+    qc = models.ForeignKey(CallQcsScore, related_name="answers", on_delete=models.CASCADE)
+    question = models.ForeignKey(CallQcsTable, on_delete=models.CASCADE)
+
+    answer_yes_no = models.BooleanField(null=True, blank=True)
+    answer_text = models.TextField(null=True, blank=True)
+    answer_rating = models.IntegerField(null=True, blank=True)
+    is_critical = models.BooleanField(default=False)

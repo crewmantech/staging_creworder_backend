@@ -1,6 +1,8 @@
 from rest_framework.response import Response
 from rest_framework import status
 
+from cloud_telephony.models import CloudTelephonyChannelAssign
+
 
 
 def custom_response(success=True, message="", data=None, errors=None, status_code=200):
@@ -137,3 +139,21 @@ TEMPLATE_TYPE_CHOICES = (
     ("ORDERQC", "Orderqc Email"),
 )
 
+
+
+import requests
+from django.core.files.base import ContentFile
+
+def download_and_save_recording(call_id, url):
+    res = requests.get(url, timeout=20)
+    if res.status_code == 200:
+        return ContentFile(res.content, name=f"{call_id}.mp3")
+    return None
+
+
+
+def get_user_from_agent_campaign(agent_id):
+    assign = CloudTelephonyChannelAssign.objects.filter(
+        agent_id=agent_id
+    ).select_related("user").first()
+    return assign.user if assign else None

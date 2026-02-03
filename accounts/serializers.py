@@ -13,7 +13,7 @@ from staging_creworder_backend import settings
 from lead_management.models import Lead, LeadSourceModel
 from orders.models import  Products
 from services.email.email_service import send_email
-from .models import  Agreement, AttendanceSession, CallQcScore, CallQcTable, CompanyInquiry, CompanySalary, CompanyUserAPIKey, Doctor, EmailSchedule, Enquiry, InterviewApplication, QcScore, ReminderNotes, StickyNote, User, Company, Package,Employees, Notice1, Branch, FormEnquiry, SupportTicket, Module, \
+from .models import  Agreement, AttendanceSession, CallQcAnswer, CallQcScore, CallQcTable, CallQcsScore, CallQcsTable, CompanyInquiry, CompanySalary, CompanyUserAPIKey, Doctor, EmailSchedule, Enquiry, InterviewApplication, QcScore, ReminderNotes, StickyNote, User, Company, Package,Employees, Notice1, Branch, FormEnquiry, SupportTicket, Module, \
     Department, Designation, Leaves, Holiday, Award, Appreciation, ShiftTiming, Attendance,Shift_Roster,PackageDetailsModel,CustomAuthGroup,\
     PickUpPoint,UserTargetsDelails,AdminBankDetails,AllowedIP,QcTable
 import string
@@ -1039,3 +1039,40 @@ class EmailScheduleListSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
+
+
+class CallQcsTableSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CallQcsTable
+        fields = "__all__"
+
+class AnswerSerializer(serializers.ModelSerializer):
+    question = serializers.CharField(source="question.question")
+
+    class Meta:
+        model = CallQcAnswer
+        fields = [
+            "question",
+            "answer_yes_no",
+            "answer_rating",
+            "answer_text",
+            "is_critical"
+        ]
+
+class CallSummarySerializer(serializers.ModelSerializer):
+    agent = serializers.CharField(source="agent.username")
+    branch = serializers.CharField(source="branch.name")
+    company = serializers.CharField(source="company.name")
+    answers = AnswerSerializer(many=True)
+
+    class Meta:
+        model = CallQcsScore
+        fields = [
+            "call_id",
+            "company",
+            "branch",
+            "agent",
+            "final_score",
+            "recording_url",
+            "answers"
+        ]

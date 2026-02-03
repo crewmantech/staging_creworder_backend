@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
 
-from .views import AgentAttendanceUserWiseAPIView, AgreementViewSet, AssignRole,AgentListByManagerAPIView, AgentListByTeamleadAPIView, BranchWiseAttendanceAPIView, BulkAttendanceMarkAPIView, BulkEmailScheduleAPIView, CSVEmployeeUpdateView, CSVUserUploadView, CallQcScoreViewSet, CallQcViewSet, CompanyInquiryViewSet, CompanyMonthlySalaryPreviewAPIView, CompanyMonthlySummaryView, CompanySalaryViewSet, CompanyUserAPIKeyViewSet, CompanyUserViewSet, CustomPasswordResetView, DeleteUserListView, DoctorViewSet, EnquiryViewSet, ForceLogoutView, InterviewApplicationViewSet, ManagerTeamLeadAgentAPIView, ManagerViewSet, MonthlyCompanyStatsView, QcScoreViewSet, ReminderNotesViewSet, ResetPasswordAPIView, StickyNoteViewSet, TeamleadViewSet, UpdateTeamLeadManagerAPIView, UserExportView, UserPermissionStatusView, UserViewSet, CompanyViewSet, PackageViewSet, UserPermissionsView, \
+from .views import AgentAttendanceUserWiseAPIView, AgentDashboardAPI, AgreementViewSet, AssignRole,AgentListByManagerAPIView, AgentListByTeamleadAPIView, BranchWiseAttendanceAPIView, BulkAttendanceMarkAPIView, BulkEmailScheduleAPIView, CSVEmployeeUpdateView, CSVUserUploadView, CallQcScoreViewSet, CallQcViewSet, CallQcsTableViewSet, CallSummaryAPI, CompanyBranchDashboardAPI, CompanyInquiryViewSet, CompanyMonthlySalaryPreviewAPIView, CompanyMonthlySummaryView, CompanySalaryViewSet, CompanyUserAPIKeyViewSet, CompanyUserViewSet, CustomPasswordResetView, DeleteUserListView, DoctorViewSet, EnquiryViewSet, ForceLogoutView, InterviewApplicationViewSet, ManagerTeamLeadAgentAPIView, ManagerViewSet, MonthlyCompanyStatsView, QcScoreViewSet, ReminderNotesViewSet, ResetPasswordAPIView, StickyNoteViewSet, SubmitCallQcAPI, TeamleadViewSet, UpdateTeamLeadManagerAPIView, UserExportView, UserPermissionStatusView, UserViewSet, CompanyViewSet, PackageViewSet, UserPermissionsView, \
     UserProfileViewSet, \
     NoticeViewSet, BranchViewSet, AdminSelfSignUp, FormEnquiryViewSet, SupportTicketViewSet, ModuleViewSet, \
     GetSpecificUsers, \
@@ -55,6 +55,7 @@ router.register(r'reminder-notes', ReminderNotesViewSet, basename='remindernotes
 router.register(r"interviews", InterviewApplicationViewSet, basename="interview")
 router.register(r"company-salary", CompanySalaryViewSet, basename="company-salary")
 router.register(r"doctors", DoctorViewSet, basename="doctor")
+router.register(r"call-qc-questions", CallQcsTableViewSet,basename="call-qc-questions")
 # router.register(r'assign-role',AssignRole,basename='assign-role')
 urlpatterns = [
     path('', include(router.urls)),
@@ -95,4 +96,8 @@ urlpatterns = [
     path("attendance-bulk-mark/",BulkAttendanceMarkAPIView.as_view(),name="bulk-mark-attendance"),
     path("employees/csv-update/", CSVEmployeeUpdateView.as_view()),
     path("email-schedule/", BulkEmailScheduleAPIView.as_view()),
+    path("qc-submit/", SubmitCallQcAPI.as_view()),
+    path("qc-call/<str:call_id>/", CallSummaryAPI.as_view()),
+    path("qc-agent-dashboard/", AgentDashboardAPI.as_view()),
+    path("qc-company-branches/", CompanyBranchDashboardAPI.as_view()),
 ]

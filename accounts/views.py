@@ -29,10 +29,10 @@ from services.email.email_service import send_email
 from services.shipment.schedule_orders import ShiprocketScheduleOrder,TekipostService
 from shipment.models import ShipmentModel, ShipmentVendor
 from shipment.serializers import ShipmentSerializer
-from .models import  Agreement, AttendanceSession, CallQcScore, CallQcTable, CompanyInquiry, CompanySalary, CompanyUserAPIKey, Doctor, EmailSchedule, Enquiry, InterviewApplication, QcScore, ReminderNotes, StickyNote, User, Company, Package, Employees, Notice1, Branch, FormEnquiry, SupportTicket, Module, \
+from .models import  Agreement, AttendanceSession, CallQcAnswer, CallQcScore, CallQcTable, CallQcsScore, CallQcsTable, CompanyInquiry, CompanySalary, CompanyUserAPIKey, Doctor, EmailSchedule, Enquiry, InterviewApplication, QcScore, ReminderNotes, StickyNote, User, Company, Package, Employees, Notice1, Branch, FormEnquiry, SupportTicket, Module, \
     Department, Designation, Leaves, Holiday, Award, Appreciation, ShiftTiming, Attendance, AllowedIP,Shift_Roster,CustomAuthGroup,PickUpPoint, UserStatus,\
     UserTargetsDelails,AdminBankDetails,QcTable,OTPAttempt,LoginAttempt
-from .serializers import  AgreementSerializer, BulkEmailScheduleSerializer, CallQcScoreSerializer, CallQcSerialiazer, CompanyInquirySerializer, CompanySalarySerializer, CompanyUserAPIKeySerializer, CustomPasswordResetSerializer, DoctorSerializer, EmailScheduleListSerializer, EnquirySerializer, InterviewApplicationSerializer, NewPasswordSerializer,  QcScoreSerializer, ReminderNotesSerializer, StickyNoteSerializer, UpdateTeamLeadManagerSerializer, UserSerializer, CompanySerializer, PackageSerializer, \
+from .serializers import  AgreementSerializer, BulkEmailScheduleSerializer, CallQcScoreSerializer, CallQcSerialiazer, CallQcsTableSerializer, CallSummarySerializer, CompanyInquirySerializer, CompanySalarySerializer, CompanyUserAPIKeySerializer, CustomPasswordResetSerializer, DoctorSerializer, EmailScheduleListSerializer, EnquirySerializer, InterviewApplicationSerializer, NewPasswordSerializer,  QcScoreSerializer, ReminderNotesSerializer, StickyNoteSerializer, UpdateTeamLeadManagerSerializer, UserSerializer, CompanySerializer, PackageSerializer, \
     UserProfileSerializer, NoticeSerializer, BranchSerializer, UserSignupSerializer, FormEnquirySerializer, \
     SupportTicketSerializer, ModuleSerializer, DepartmentSerializer, DesignationSerializer, LeaveSerializer, \
     HolidaySerializer, AwardSerializer, AppreciationSerializer, ShiftSerializer, AttendanceSerializer,ShiftRosterSerializer, \
@@ -41,7 +41,7 @@ from .serializers import  AgreementSerializer, BulkEmailScheduleSerializer, Call
 
 from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 from rest_framework.permissions import IsAuthenticated, AllowAny, DjangoObjectPermissions
-from django.db.models import Q, Count,Avg
+from django.db.models import Q, Count,Avg,Max,Min,Sum
 from dj_rest_auth.views import LoginView
 from .permissions import CanChangeCompanyStatusPermission, CanEditOwnCompanyPermission,CanLeaveApproveAndDisapprove, HasPermission,IsAdminOrSuperAdmin, IsAuthenticatedOrReadOnly, IsSuperAdmin
 from django.core.files.storage import default_storage
@@ -65,8 +65,7 @@ from accounts import models
 from rest_framework.pagination import PageNumberPagination
 from django.shortcuts import redirect
 import uuid
-from accounts.utils import reassign_user_assets_on_suspension
-
+from accounts.utils import download_and_save_recording, get_user_from_agent_campaign, reassign_user_assets_on_suspension
 from accounts import permissions
 
 class StandardResultsSetPagination(PageNumberPagination):
@@ -4259,7 +4258,7 @@ class ReminderNotesViewSet(viewsets.ModelViewSet):
         serializer.save(company=user.profile.company, branch=user.profile.branch)
 
 from orders.models import Order_Table
-from django.db.models import Sum
+
 class UserMonthlyPerformanceAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -5504,3 +5503,128 @@ class BulkEmailScheduleAPIView(APIView):
             },
             status=status.HTTP_200_OK
         )
+
+class CallQcsTableViewSet(viewsets.ModelViewSet):
+    queryset = CallQcsTable.objects.all()
+    serializer_class = CallQcsTableSerializer
+    permission_classes = [IsAuthenticated]
+
+
+class SubmitCallQcAPI(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        company = request.user.profile.company
+        agent_id = request.data["agent_id"]
+        agent = get_user_from_agent_campaign(agent_id)
+        branch = request.user.profile.branch
+
+        call_id = request.data["call_id"]
+        answers = request.data["answers"]
+        recording_api_url = request.data.get("recording_api_url")
+
+        qc, _ = CallQcScore.objects.get_or_create(
+            call_id=call_id,
+            defaults={"company": company, "branch": branch, "agent": agent}
+        )
+
+        qc.answers.all().delete()
+
+        total_weight = 0
+        total_score = 0
+        critical_failed = False
+
+        for ans in answers:
+            q = CallQcsTable.objects.get(id=ans["question_id"])
+
+            obj = CallQcAnswer.objects.create(
+                qc=qc,
+                question=q,
+                answer_yes_no=ans.get("answer_yes_no"),
+                answer_text=ans.get("answer_text"),
+                answer_rating=ans.get("answer_rating")
+            )
+
+            if q.question_type == "critical":
+                if q.answer_type == "yes_no" and ans.get("answer_yes_no") is False:
+                    obj.is_critical = True
+                    critical_failed = True
+
+            if q.answer_type == "rating":
+                total_weight += q.weight
+                total_score += q.weight * int(ans["answer_rating"])
+
+            obj.save()
+
+        qc.final_score = round(total_score / total_weight, 2)
+
+        if critical_failed and recording_api_url and not qc.recording_url:
+            file_obj = download_and_save_recording(call_id, recording_api_url)
+            if file_obj:
+                qc.recording_url.save(file_obj.name, file_obj)
+
+        qc.save()
+
+        return Response({
+            "call_id": call_id,
+            "final_score": qc.final_score,
+            "critical_failed": critical_failed,
+            "recording_url": qc.recording_url.url if qc.recording_url else None
+        })
+
+
+class CallSummaryAPI(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, call_id):
+        qc = CallQcsScore.objects.get(call_id=call_id)
+        return Response(CallSummarySerializer(qc).data)
+
+
+class AgentDashboardAPI(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        agent = request.user
+        qs = CallQcsScore.objects.filter(agent=agent)
+
+        return Response({
+            "agent": agent.username,
+            "total_calls": qs.count(),
+            "average_score": round(qs.aggregate(Avg("final_score"))["final_score__avg"] or 0, 2),
+            "best_score": qs.aggregate(Max("final_score"))["final_score__max"],
+            "worst_score": qs.aggregate(Min("final_score"))["final_score__min"],
+            "critical_calls": qs.filter(answers__is_critical=True).distinct().count(),
+            "last_calls": [
+                {
+                    "call_id": c.call_id,
+                    "score": c.final_score,
+                    "critical": c.answers.filter(is_critical=True).exists()
+                } for c in qs.order_by("-created_at")[:10]
+            ]
+        })
+
+
+class CompanyBranchDashboardAPI(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        company = request.user.profile.company
+        branch = request.user.profile.branch
+
+        data = []
+        if branch:
+            qs = CallQcsScore.objects.filter(branch=branch)
+            data.append({
+                "branch": branch.name,
+                "total_calls": qs.count(),
+                "average_score": round(qs.aggregate(Avg("final_score"))["final_score__avg"] or 0, 2),
+                "critical_calls": qs.filter(
+                    answers__is_critical=True
+                ).distinct().count()
+            })
+
+        return Response({
+            "company": company.name,
+            "branches": data
+        })
