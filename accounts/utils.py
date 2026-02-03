@@ -1,7 +1,7 @@
 from rest_framework.response import Response
 from rest_framework import status
 
-from cloud_telephony.models import CloudTelephonyChannelAssign
+
 
 
 
@@ -152,8 +152,3 @@ def download_and_save_recording(call_id, url):
 
 
 
-def get_user_from_agent_campaign(agent_id):
-    assign = CloudTelephonyChannelAssign.objects.filter(
-        agent_id=agent_id
-    ).select_related("user").first()
-    return assign.user if assign else None

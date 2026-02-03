@@ -21,6 +21,7 @@ from rest_framework.decorators import action
 
 from chat.models import Notification
 from cloud_telephony.models import CloudTelephonyChannelAssign
+from cloud_telephony.utils import get_user_from_agent_campaign
 from orders.models import Category, OrderValueSetting, Products
 from kyc.models import KYC
 from kyc.serializers import KYCSerializer
@@ -65,7 +66,7 @@ from accounts import models
 from rest_framework.pagination import PageNumberPagination
 from django.shortcuts import redirect
 import uuid
-from accounts.utils import download_and_save_recording, get_user_from_agent_campaign, reassign_user_assets_on_suspension
+from accounts.utils import download_and_save_recording, reassign_user_assets_on_suspension
 from accounts import permissions
 
 class StandardResultsSetPagination(PageNumberPagination):
