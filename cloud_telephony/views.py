@@ -1468,7 +1468,7 @@ class CallActivityCreateAPIView(APIView):
         # )
         call_log = get_object_or_404(
             CallLog,
-            id=call_log_id
+          call_id=call_log_id  
             # company=company
         )
 
