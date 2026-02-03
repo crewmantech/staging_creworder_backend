@@ -1460,21 +1460,23 @@ class CallActivityCreateAPIView(APIView):
 
         phone = request.data["phone"]
         call_log_id = request.data["call_log_id"]
+        name = request.data.get("name")  # 👈 incoming name
 
-        # call_log = get_object_or_404(
-        #     CallLog,
-        #     id=call_log_id,
-        #     company=company
-        # )
         call_log = get_object_or_404(CallLog, call_id=call_log_id)
 
-        lead, _ = CallLead.objects.get_or_create(
+        lead, created = CallLead.objects.get_or_create(
             phone=phone,
             company=company,
             defaults={
-                "created_by": request.user
+                "created_by": request.user,
+                "name": name
             }
         )
+
+        # 🔥 update name if already exists and name is sent
+        if not created and name:
+            lead.name = name
+            lead.save(update_fields=["name"])
 
         activity = CallActivity.objects.create(
             lead=lead,
@@ -1491,10 +1493,11 @@ class CallActivityCreateAPIView(APIView):
         lead.last_call = call_log
         lead.last_status = activity.status
         lead.last_remark = activity.remark
-        lead.save()
+        lead.save(update_fields=["last_call", "last_status", "last_remark"])
 
         return Response({
             "success": True,
+            "created": created,
             "lead_id": lead.id,
             "activity_id": activity.id
         })
