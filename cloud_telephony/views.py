@@ -1461,10 +1461,15 @@ class CallActivityCreateAPIView(APIView):
         phone = request.data["phone"]
         call_log_id = request.data["call_log_id"]
 
+        # call_log = get_object_or_404(
+        #     CallLog,
+        #     id=call_log_id,
+        #     company=company
+        # )
         call_log = get_object_or_404(
             CallLog,
-            id=call_log_id,
-            company=company
+            id=call_log_id
+            # company=company
         )
 
         lead, _ = CallLead.objects.get_or_create(
