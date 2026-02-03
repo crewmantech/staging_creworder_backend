@@ -142,6 +142,10 @@ class CallLogSerializer(serializers.ModelSerializer):
 
 
 class CallActivitySerializer(serializers.ModelSerializer):
+    user_name = serializers.CharField(
+        source="updated_by.username",
+        read_only=True
+    )
     class Meta:
         model = CallActivity
         fields = "__all__"
@@ -149,7 +153,11 @@ class CallActivitySerializer(serializers.ModelSerializer):
 
 class CallLeadSerializer(serializers.ModelSerializer):
     activities = CallActivitySerializer(many=True)
+    new_number = serializers.SerializerMethodField()
 
     class Meta:
         model = CallLead
         fields = "__all__"
+
+    def get_new_number(self, obj):
+        return False
