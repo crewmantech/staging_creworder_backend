@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
 
-from .views import AgentAttendanceUserWiseAPIView, AgentDashboardAPI, AgreementViewSet, AssignRole,AgentListByManagerAPIView, AgentListByTeamleadAPIView, BranchWiseAttendanceAPIView, BulkAttendanceMarkAPIView, BulkEmailScheduleAPIView, CSVEmployeeUpdateView, CSVUserUploadView, CallQcScoreViewSet, CallQcViewSet, CallQcsTableViewSet, CallSummaryAPI, CompanyBranchDashboardAPI, CompanyInquiryViewSet, CompanyMonthlySalaryPreviewAPIView, CompanyMonthlySummaryView, CompanySalaryViewSet, CompanyUserAPIKeyViewSet, CompanyUserViewSet, CustomPasswordResetView, DeleteUserListView, DoctorViewSet, EnquiryViewSet, ForceLogoutView, InterviewApplicationViewSet, ManagerTeamLeadAgentAPIView, ManagerViewSet, MonthlyCompanyStatsView, QcScoreViewSet, ReminderNotesViewSet, ResetPasswordAPIView, StickyNoteViewSet, SubmitCallQcAPI, TeamleadViewSet, UpdateTeamLeadManagerAPIView, UserExportView, UserPermissionStatusView, UserViewSet, CompanyViewSet, PackageViewSet, UserPermissionsView, \
+from .views import AgentAttendanceUserWiseAPIView, AgentDashboardAPI, AgreementViewSet, AssignRole,AgentListByManagerAPIView, AgentListByTeamleadAPIView, BranchWiseAttendanceAPIView, BulkAttendanceMarkAPIView, BulkEmailScheduleAPIView, CSVEmployeeUpdateView, CSVUserUploadView, CallQcFormAPI, CallQcScoreViewSet, CallQcViewSet, CallQcsTableViewSet, CallSummaryAPI, CompanyBranchDashboardAPI, CompanyInquiryViewSet, CompanyMonthlySalaryPreviewAPIView, CompanyMonthlySummaryView, CompanySalaryViewSet, CompanyUserAPIKeyViewSet, CompanyUserViewSet, CustomPasswordResetView, DeleteUserListView, DoctorViewSet, EnquiryViewSet, ForceLogoutView, InterviewApplicationViewSet, ManagerTeamLeadAgentAPIView, ManagerViewSet, MonthlyCompanyStatsView, QcScoreViewSet, ReminderNotesViewSet, ResetPasswordAPIView, StickyNoteViewSet, SubmitCallQcAPI, TeamleadViewSet, UpdateTeamLeadManagerAPIView, UserExportView, UserPermissionStatusView, UserViewSet, CompanyViewSet, PackageViewSet, UserPermissionsView, \
     UserProfileViewSet, \
     NoticeViewSet, BranchViewSet, AdminSelfSignUp, FormEnquiryViewSet, SupportTicketViewSet, ModuleViewSet, \
     GetSpecificUsers, \
@@ -100,4 +100,5 @@ urlpatterns = [
     path("qc-call/<str:call_id>/", CallSummaryAPI.as_view()),
     path("qc-agent-dashboard/", AgentDashboardAPI.as_view()),
     path("qc-company-branches/", CompanyBranchDashboardAPI.as_view()),
+    path("api-qc-form/", CallQcFormAPI.as_view()),
 ]
