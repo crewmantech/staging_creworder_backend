@@ -33,7 +33,7 @@ from shipment.serializers import ShipmentSerializer
 from .models import  Agreement, AttendanceSession, CallQcAnswer, CallQcScore, CallQcTable, CallQcsScore, CallQcsTable, CompanyInquiry, CompanySalary, CompanyUserAPIKey, Doctor, EmailSchedule, Enquiry, InterviewApplication, QcScore, ReminderNotes, StickyNote, User, Company, Package, Employees, Notice1, Branch, FormEnquiry, SupportTicket, Module, \
     Department, Designation, Leaves, Holiday, Award, Appreciation, ShiftTiming, Attendance, AllowedIP,Shift_Roster,CustomAuthGroup,PickUpPoint, UserStatus,\
     UserTargetsDelails,AdminBankDetails,QcTable,OTPAttempt,LoginAttempt
-from .serializers import  AgreementSerializer, BulkEmailScheduleSerializer, CallQcScoreSerializer, CallQcSerialiazer, CallQcsTableSerializer, CallSummarySerializer, CompanyInquirySerializer, CompanySalarySerializer, CompanyUserAPIKeySerializer, CustomPasswordResetSerializer, DoctorSerializer, EmailScheduleListSerializer, EnquirySerializer, InterviewApplicationSerializer, NewPasswordSerializer,  QcScoreSerializer, ReminderNotesSerializer, StickyNoteSerializer, UpdateTeamLeadManagerSerializer, UserSerializer, CompanySerializer, PackageSerializer, \
+from .serializers import  AgreementSerializer, BulkEmailScheduleSerializer, CallFormQuestionSerializer, CallQcScoreSerializer, CallQcSerialiazer, CallQcsTableSerializer, CallSummarySerializer, CompanyInquirySerializer, CompanySalarySerializer, CompanyUserAPIKeySerializer, CustomPasswordResetSerializer, DoctorSerializer, EmailScheduleListSerializer, EnquirySerializer, InterviewApplicationSerializer, NewPasswordSerializer,  QcScoreSerializer, ReminderNotesSerializer, StickyNoteSerializer, UpdateTeamLeadManagerSerializer, UserSerializer, CompanySerializer, PackageSerializer, \
     UserProfileSerializer, NoticeSerializer, BranchSerializer, UserSignupSerializer, FormEnquirySerializer, \
     SupportTicketSerializer, ModuleSerializer, DepartmentSerializer, DesignationSerializer, LeaveSerializer, \
     HolidaySerializer, AwardSerializer, AppreciationSerializer, ShiftSerializer, AttendanceSerializer,ShiftRosterSerializer, \
@@ -5628,4 +5628,44 @@ class CompanyBranchDashboardAPI(APIView):
         return Response({
             "company": company.name,
             "branches": data
+        })
+
+
+class CallQcFormAPI(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        call_id = request.query_params.get("call_id")
+        agent_id = request.query_params.get("agent_id")
+        if agent_id is None and call_id is None:
+            return Response(
+                {"error": "call_id and agent_id are required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if call_id:
+            qc = CallQcsScore.objects.filter(
+                call_id=call_id,
+            ).first()
+        else:
+            qc = CallQcsScore.objects.filter(
+                agent_id=agent_id
+            ).first()
+
+        answers = CallQcAnswer.objects.filter(qc=qc) if qc else []
+
+        answer_map = {a.question_id: a for a in answers}
+
+        questions = CallQcsTable.objects.all()
+
+        serializer = CallFormQuestionSerializer(
+            questions,
+            many=True,
+            context={"answer_map": answer_map}
+        )
+
+        return Response({
+            "call_id": call_id,
+            "agent_id": agent_id,
+            "final_score": qc.final_score if qc else None,
+            "questions": serializer.data
         })

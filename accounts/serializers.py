@@ -1076,3 +1076,36 @@ class CallSummarySerializer(serializers.ModelSerializer):
             "recording_url",
             "answers"
         ]
+
+
+
+class CallFormQuestionSerializer(serializers.ModelSerializer):
+    question_id = serializers.IntegerField(source="id")
+    answer_yes_no = serializers.SerializerMethodField()
+    answer_text = serializers.SerializerMethodField()
+    answer_rating = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CallQcsTable
+        fields = [
+            "question_id",
+            "question",
+            "question_type",
+            "answer_type",
+            "weight",
+            "answer_yes_no",
+            "answer_text",
+            "answer_rating"
+        ]
+
+    def get_answer_yes_no(self, obj):
+        ans = self.context["answer_map"].get(obj.id)
+        return ans.answer_yes_no if ans else None
+
+    def get_answer_text(self, obj):
+        ans = self.context["answer_map"].get(obj.id)
+        return ans.answer_text if ans else None
+
+    def get_answer_rating(self, obj):
+        ans = self.context["answer_map"].get(obj.id)
+        return ans.answer_rating if ans else None
