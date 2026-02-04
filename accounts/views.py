@@ -5637,11 +5637,19 @@ class CallQcFormAPI(APIView):
     def get(self, request):
         call_id = request.query_params.get("call_id")
         agent_id = request.query_params.get("agent_id")
-
-        qc = CallQcsScore.objects.filter(
-            call_id=call_id,
-            agent_id=agent_id
-        ).first()
+        if agent_id is None or call_id is None:
+            return Response(
+                {"error": "call_id and agent_id are required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if call_id:
+            qc = CallQcsScore.objects.filter(
+                call_id=call_id,
+            ).first()
+        else:
+            qc = CallQcsScore.objects.filter(
+                agent_id=agent_id
+            ).first()
 
         answers = CallQcAnswer.objects.filter(qc=qc) if qc else []
 
