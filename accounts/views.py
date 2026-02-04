@@ -5766,7 +5766,7 @@ class CallQcListAPI(APIView):
             qs = qs.filter(branch_id=branch)
 
         if user_id:
-            qs = qs.filter(user_id=user_id)
+            qs = qs.filter(user=user_id)
 
         if critical:
             qs = qs.filter(critical_failed=critical.lower() == "true")
