@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import CallQc, CallQcAnswer, CallQcsScore, Company, ExpiringToken, InterviewApplication, LoginAttempt, LoginLog, OTPAttempt
+from .models import CallQc, CallQcAnswer, CallQcsAnswer, CallQcsScore, Company, ExpiringToken, InterviewApplication, LoginAttempt, LoginLog, OTPAttempt
 from .models import Package
 from .models import PackageDetailsModel
 from .models import Employees
@@ -63,3 +63,4 @@ admin.site.register(QcScore)
 admin.site.register(CallQcAnswer) 
 admin.site.register(CallQcsScore)  
 admin.site.register(CallQc) 
+admin.site.register(CallQcsAnswer)
