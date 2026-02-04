@@ -5755,18 +5755,19 @@ class CallQcListAPI(APIView):
 
         qs = CallQc.objects.filter(company=user.profile.company)
 
+        user_id = request.query_params.get("user_id")
         agent = request.query_params.get("agent")
         branch = request.query_params.get("branch")
         critical = request.query_params.get("critical")
-        user_id = request.user.query_params.get("user_id")
+
+        if user_id:
+            qs = qs.filter(user_id=user_id)
+
         if agent:
             qs = qs.filter(agent_id=agent)
 
         if branch:
             qs = qs.filter(branch_id=branch)
-
-        if user_id:
-            qs = qs.filter(user=user_id)
 
         if critical:
             qs = qs.filter(critical_failed=critical.lower() == "true")
