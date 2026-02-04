@@ -5795,7 +5795,11 @@ class CallQcQuestionReportAPI(APIView):
         user_id = request.query_params.get("user")
         from_date = request.query_params.get("from")
         to_date = request.query_params.get("to")
-
+        company = request.user.profile.company
+        qs = qs.filter(qc__company=company)
+        branch = request.query_params.get("branch")
+        if branch:
+            qs = qs.filter(qc__branch_id=branch)
         if agent:
             qs = qs.filter(qc__agent_id=agent)
 
