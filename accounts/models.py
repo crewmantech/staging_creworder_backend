@@ -1470,7 +1470,8 @@ class CallQc(BaseModel):
 
     critical_failed = models.BooleanField(default=False)
     total_score = models.FloatField(default=0)
-
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 class CallQcsAnswer(BaseModel):
     qc = models.ForeignKey(CallQc, on_delete=models.CASCADE, related_name="answers")
     question = models.ForeignKey(CallQcsTable, on_delete=models.CASCADE)
