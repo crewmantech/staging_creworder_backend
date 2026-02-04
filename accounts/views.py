@@ -33,7 +33,7 @@ from shipment.serializers import ShipmentSerializer
 from .models import  Agreement, AttendanceSession, CallQc, CallQcAnswer, CallQcScore, CallQcTable, CallQcsAnswer, CallQcsScore, CallQcsTable, CompanyInquiry, CompanySalary, CompanyUserAPIKey, Doctor, EmailSchedule, Enquiry, InterviewApplication, QcScore, ReminderNotes, StickyNote, User, Company, Package, Employees, Notice1, Branch, FormEnquiry, SupportTicket, Module, \
     Department, Designation, Leaves, Holiday, Award, Appreciation, ShiftTiming, Attendance, AllowedIP,Shift_Roster,CustomAuthGroup,PickUpPoint, UserStatus,\
     UserTargetsDelails,AdminBankDetails,QcTable,OTPAttempt,LoginAttempt
-from .serializers import  AgreementSerializer, BulkEmailScheduleSerializer, CallFormQuestionSerializer, CallQcCreateSerializer, CallQcDetailSerializer, CallQcListSerializer, CallQcScoreSerializer, CallQcSerialiazer, CallQcsTableSerializer, CallSummarySerializer, CompanyInquirySerializer, CompanySalarySerializer, CompanyUserAPIKeySerializer, CustomPasswordResetSerializer, DoctorSerializer, EmailScheduleListSerializer, EnquirySerializer, InterviewApplicationSerializer, NewPasswordSerializer,  QcScoreSerializer, ReminderNotesSerializer, StickyNoteSerializer, UpdateTeamLeadManagerSerializer, UserSerializer, CompanySerializer, PackageSerializer, \
+from .serializers import  AgreementSerializer, BulkEmailScheduleSerializer, CallFormQuestionSerializer, CallQcCreateSerializer, CallQcDetailSerializer, CallQcListSerializer, CallQcScoreSerializer, CallQcSerialiazer, CallQcsTableSerializer, CallSummarySerializer, CompanyInquirySerializer, CompanyQcSerializer, CompanySalarySerializer, CompanyUserAPIKeySerializer, CustomPasswordResetSerializer, DoctorSerializer, EmailScheduleListSerializer, EnquirySerializer, InterviewApplicationSerializer, NewPasswordSerializer,  QcScoreSerializer, ReminderNotesSerializer, StickyNoteSerializer, UpdateTeamLeadManagerSerializer, UserSerializer, CompanySerializer, PackageSerializer, \
     UserProfileSerializer, NoticeSerializer, BranchSerializer, UserSignupSerializer, FormEnquirySerializer, \
     SupportTicketSerializer, ModuleSerializer, DepartmentSerializer, DesignationSerializer, LeaveSerializer, \
     HolidaySerializer, AwardSerializer, AppreciationSerializer, ShiftSerializer, AttendanceSerializer,ShiftRosterSerializer, \
@@ -5793,8 +5793,8 @@ class CallQcQuestionReportAPI(APIView):
 
         agent = request.query_params.get("agent")
         user_id = request.query_params.get("user")
-        from_date = request.query_params.get("from")
-        to_date = request.query_params.get("to")
+        from_date = request.query_params.get("start_date")
+        to_date = request.query_params.get("end_date")
         company = request.user.profile.company
         qs = qs.filter(qc__company=company)
         branch = request.query_params.get("branch")
@@ -5843,3 +5843,37 @@ class CallQcQuestionReportAPI(APIView):
             data.append(row)
 
         return Response(data)
+from django.utils.timezone import make_aware
+class CompanyAllQcAPI(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        company = request.user.profile.company
+
+        qs = CallQc.objects.filter(company=company)\
+            .select_related("user", "branch")\
+            .prefetch_related("answers", "answers__question")\
+            .order_by("-created_at")
+
+        # filters
+        agent_id = request.query_params.get("agent_id")
+        critical = request.query_params.get("critical")
+        start_date = request.query_params.get("start_date")
+        end_date = request.query_params.get("end_date")
+
+        if agent_id:
+            qs = qs.filter(agent_id=agent_id)
+
+        if critical == "true":
+            qs = qs.filter(critical_failed=True)
+
+        if start_date:
+            start = make_aware(datetime.strptime(start_date, "%Y-%m-%d"))
+            qs = qs.filter(created_at__gte=start)
+
+        if end_date:
+            end = make_aware(datetime.strptime(end_date, "%Y-%m-%d"))
+            qs = qs.filter(created_at__lte=end)
+
+        serializer = CompanyQcSerializer(qs, many=True)
+        return Response(serializer.data)

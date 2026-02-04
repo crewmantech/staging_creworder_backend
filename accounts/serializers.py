@@ -1140,3 +1140,38 @@ class CallQcDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = CallQc
         fields = "__all__"
+
+class CompanyQcAnswerSerializer(serializers.ModelSerializer):
+    question = serializers.CharField(source="question.question")
+    question_id = serializers.IntegerField(source="question.id")
+
+    class Meta:
+        model = CallQcsAnswer
+        fields = [
+            "question_id",
+            "question",
+            "answer_text",
+            "answer_bool",
+            "answer_rating",
+            "score"
+        ]
+
+class CompanyQcSerializer(serializers.ModelSerializer):
+    user = serializers.CharField(source="user.username")
+    branch = serializers.CharField(source="branch.name")
+    answers = CompanyQcAnswerSerializer(many=True)
+
+    class Meta:
+        model = CallQc
+        fields = [
+            "call_id",
+            "agent_id",
+            "user",
+            "branch",
+            "critical_failed",
+            "total_score",
+            "recording_url",
+            "created_at",
+            "answers"
+        ]
+
