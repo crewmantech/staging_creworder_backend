@@ -706,15 +706,18 @@ class CallServiceViewSet(viewsets.ViewSet):
 
             cloud_connect_service = CloudConnectService(channel.token, channel.tenent_id)
             response_data = cloud_connect_service.get_call_details(date, phone_number)
+            print(response_data,"---------------------700")
             if response_data.get("code") != 200:
                 return Response(
                     {"error": "Failed to retrieve call details."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
+            print("-------705------")
             qc_call_ids = set(
                 CallQc.objects.filter(company=company)
                 .values_list("call_id", flat=True)
             )
+            print(qc_call_ids,"---------------------710")
             data = response_data.get("result", {})
             print(data,"---------------------705")
             qc_call_ids = set(
