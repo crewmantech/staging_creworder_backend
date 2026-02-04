@@ -145,10 +145,17 @@ import requests
 from django.core.files.base import ContentFile
 
 def download_and_save_recording(call_id, url):
-    res = requests.get(url, timeout=20)
-    if res.status_code == 200:
-        return ContentFile(res.content, name=f"{call_id}.mp3")
-    return None
+    try:
+        res = requests.get(url, timeout=15)
+        res.raise_for_status()
 
+        return ContentFile(
+            res.content,
+            name=f"{call_id}.mp3"
+        )
+
+    except requests.exceptions.RequestException as e:
+        print("Recording download failed:", e)
+        return None
 
 
