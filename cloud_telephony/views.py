@@ -716,7 +716,7 @@ class CallServiceViewSet(viewsets.ViewSet):
                 .values_list("call_id", flat=True)
             )
             data = response_data.get("result", {})
-            
+            print(data,"---------------------705")
             qc_call_ids = set(
             CallQc.objects.filter(company=company)
             .values_list("call_id", flat=True)
@@ -729,6 +729,7 @@ class CallServiceViewSet(viewsets.ViewSet):
                     call_id = value.get("call_id")
                     recording_path = value.get("recording_path")
                     if has_valid_recording(recording_path):
+                        print("-----732---has recording---")
                         value["recording_path"] = recording_path
 
                         # Recording exists?
