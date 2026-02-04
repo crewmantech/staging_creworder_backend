@@ -5789,7 +5789,7 @@ class CallQcQuestionReportAPI(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        qs = CallQcAnswer.objects.select_related("question", "qc")
+        qs = CallQcsAnswer.objects.select_related("question", "qc")
 
         agent = request.query_params.get("agent")
         user_id = request.query_params.get("user")
