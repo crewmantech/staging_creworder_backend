@@ -5637,7 +5637,7 @@ class CallQcFormAPI(APIView):
     def get(self, request):
         call_id = request.query_params.get("call_id")
         agent_id = request.query_params.get("agent_id")
-        if agent_id is None or call_id is None:
+        if agent_id is None and call_id is None:
             return Response(
                 {"error": "call_id and agent_id are required."},
                 status=status.HTTP_400_BAD_REQUEST
