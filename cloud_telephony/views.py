@@ -695,7 +695,7 @@ class CallServiceViewSet(viewsets.ViewSet):
             )
 
         cloud_vendor = channel.cloudtelephony_vendor.name.lower()
-
+        print(cloud_vendor,"------------------696")
         # ============ CLOUD CONNECT ============
         if cloud_vendor == 'cloud connect':
             if not channel.token or not channel.tenent_id:
