@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
 
-from .views import AgentAttendanceUserWiseAPIView, AgentDashboardAPI, AgreementViewSet, AssignRole,AgentListByManagerAPIView, AgentListByTeamleadAPIView, BranchWiseAttendanceAPIView, BulkAttendanceMarkAPIView, BulkEmailScheduleAPIView, CSVEmployeeUpdateView, CSVUserUploadView, CallQcCreateAPI, CallQcDetailAPI, CallQcFormAPI, CallQcListAPI, CallQcScoreViewSet, CallQcViewSet, CallQcsTableViewSet, CallSummaryAPI, CompanyBranchDashboardAPI, CompanyInquiryViewSet, CompanyMonthlySalaryPreviewAPIView, CompanyMonthlySummaryView, CompanySalaryViewSet, CompanyUserAPIKeyViewSet, CompanyUserViewSet, CustomPasswordResetView, DeleteUserListView, DoctorViewSet, EnquiryViewSet, ForceLogoutView, InterviewApplicationViewSet, ManagerTeamLeadAgentAPIView, ManagerViewSet, MonthlyCompanyStatsView, QcScoreViewSet, ReminderNotesViewSet, ResetPasswordAPIView, StickyNoteViewSet, SubmitCallQcAPI, TeamleadViewSet, UpdateTeamLeadManagerAPIView, UserExportView, UserPermissionStatusView, UserViewSet, CompanyViewSet, PackageViewSet, UserPermissionsView, \
+from .views import AgentAttendanceUserWiseAPIView, AgentDashboardAPI, AgreementViewSet, AssignRole,AgentListByManagerAPIView, AgentListByTeamleadAPIView, BranchWiseAttendanceAPIView, BulkAttendanceMarkAPIView, BulkEmailScheduleAPIView, CSVEmployeeUpdateView, CSVUserUploadView, CallQcCreateAPI, CallQcDetailAPI, CallQcFormAPI, CallQcListAPI, CallQcQuestionReportAPI, CallQcScoreViewSet, CallQcViewSet, CallQcsTableViewSet, CallSummaryAPI, CompanyBranchDashboardAPI, CompanyInquiryViewSet, CompanyMonthlySalaryPreviewAPIView, CompanyMonthlySummaryView, CompanySalaryViewSet, CompanyUserAPIKeyViewSet, CompanyUserViewSet, CustomPasswordResetView, DeleteUserListView, DoctorViewSet, EnquiryViewSet, ForceLogoutView, InterviewApplicationViewSet, ManagerTeamLeadAgentAPIView, ManagerViewSet, MonthlyCompanyStatsView, QcScoreViewSet, ReminderNotesViewSet, ResetPasswordAPIView, StickyNoteViewSet, SubmitCallQcAPI, TeamleadViewSet, UpdateTeamLeadManagerAPIView, UserExportView, UserPermissionStatusView, UserViewSet, CompanyViewSet, PackageViewSet, UserPermissionsView, \
     UserProfileViewSet, \
     NoticeViewSet, BranchViewSet, AdminSelfSignUp, FormEnquiryViewSet, SupportTicketViewSet, ModuleViewSet, \
     GetSpecificUsers, \
@@ -104,4 +104,5 @@ urlpatterns = [
      path("create-qc/", CallQcCreateAPI.as_view(), name="call-qc-create"),
     path("list-qc/", CallQcListAPI.as_view(), name="call-qc-list"),
     path("qc-details/<str:call_id>/", CallQcDetailAPI.as_view(), name="call-qc-detail"),
+    path("qc-report/", CallQcQuestionReportAPI.as_view(), name="call-qc-report"),
 ]

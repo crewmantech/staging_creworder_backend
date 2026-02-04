@@ -5783,3 +5783,59 @@ class CallQcDetailAPI(APIView):
         qc = get_object_or_404(CallQc, call_id=call_id)
         data = CallQcDetailSerializer(qc).data
         return Response(data)
+
+from django.utils.dateparse import parse_date
+class CallQcQuestionReportAPI(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        qs = CallQcAnswer.objects.select_related("question", "qc")
+
+        agent = request.query_params.get("agent")
+        user_id = request.query_params.get("user")
+        from_date = request.query_params.get("from")
+        to_date = request.query_params.get("to")
+
+        if agent:
+            qs = qs.filter(qc__agent_id=agent)
+
+        if user_id:
+            qs = qs.filter(qc__user_id=user_id)
+
+        if from_date:
+            qs = qs.filter(qc__created_at__date__gte=parse_date(from_date))
+
+        if to_date:
+            qs = qs.filter(qc__created_at__date__lte=parse_date(to_date))
+
+        data = []
+        questions = CallQcsTable.objects.all()
+
+        for q in questions:
+            q_answers = qs.filter(question=q)
+
+            total_calls = q_answers.count()
+            avg_score = q_answers.aggregate(avg=Avg("score"))["avg"] or 0
+
+            row = {
+                "question_id": q.id,
+                "question": q.question,
+                "question_type": q.question_type,
+                "answer_type": q.answer_type,
+                "total_calls": total_calls,
+                "avg_score": round(avg_score, 2)
+            }
+
+            if q.answer_type == "yes_no":
+                row["yes_count"] = q_answers.filter(answer_bool=True).count()
+                row["no_count"] = q_answers.filter(answer_bool=False).count()
+
+            if q.answer_type == "rating":
+                row["avg_rating"] = round(
+                    q_answers.aggregate(avg=Avg("answer_rating"))["avg"] or 0,
+                    2
+                )
+
+            data.append(row)
+
+        return Response(data)
