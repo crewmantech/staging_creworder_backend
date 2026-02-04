@@ -30,10 +30,10 @@ from services.email.email_service import send_email
 from services.shipment.schedule_orders import ShiprocketScheduleOrder,TekipostService
 from shipment.models import ShipmentModel, ShipmentVendor
 from shipment.serializers import ShipmentSerializer
-from .models import  Agreement, AttendanceSession, CallQcAnswer, CallQcScore, CallQcTable, CallQcsScore, CallQcsTable, CompanyInquiry, CompanySalary, CompanyUserAPIKey, Doctor, EmailSchedule, Enquiry, InterviewApplication, QcScore, ReminderNotes, StickyNote, User, Company, Package, Employees, Notice1, Branch, FormEnquiry, SupportTicket, Module, \
+from .models import  Agreement, AttendanceSession, CallQc, CallQcAnswer, CallQcScore, CallQcTable, CallQcsAnswer, CallQcsScore, CallQcsTable, CompanyInquiry, CompanySalary, CompanyUserAPIKey, Doctor, EmailSchedule, Enquiry, InterviewApplication, QcScore, ReminderNotes, StickyNote, User, Company, Package, Employees, Notice1, Branch, FormEnquiry, SupportTicket, Module, \
     Department, Designation, Leaves, Holiday, Award, Appreciation, ShiftTiming, Attendance, AllowedIP,Shift_Roster,CustomAuthGroup,PickUpPoint, UserStatus,\
     UserTargetsDelails,AdminBankDetails,QcTable,OTPAttempt,LoginAttempt
-from .serializers import  AgreementSerializer, BulkEmailScheduleSerializer, CallFormQuestionSerializer, CallQcScoreSerializer, CallQcSerialiazer, CallQcsTableSerializer, CallSummarySerializer, CompanyInquirySerializer, CompanySalarySerializer, CompanyUserAPIKeySerializer, CustomPasswordResetSerializer, DoctorSerializer, EmailScheduleListSerializer, EnquirySerializer, InterviewApplicationSerializer, NewPasswordSerializer,  QcScoreSerializer, ReminderNotesSerializer, StickyNoteSerializer, UpdateTeamLeadManagerSerializer, UserSerializer, CompanySerializer, PackageSerializer, \
+from .serializers import  AgreementSerializer, BulkEmailScheduleSerializer, CallFormQuestionSerializer, CallQcCreateSerializer, CallQcDetailSerializer, CallQcListSerializer, CallQcScoreSerializer, CallQcSerialiazer, CallQcsTableSerializer, CallSummarySerializer, CompanyInquirySerializer, CompanySalarySerializer, CompanyUserAPIKeySerializer, CustomPasswordResetSerializer, DoctorSerializer, EmailScheduleListSerializer, EnquirySerializer, InterviewApplicationSerializer, NewPasswordSerializer,  QcScoreSerializer, ReminderNotesSerializer, StickyNoteSerializer, UpdateTeamLeadManagerSerializer, UserSerializer, CompanySerializer, PackageSerializer, \
     UserProfileSerializer, NoticeSerializer, BranchSerializer, UserSignupSerializer, FormEnquirySerializer, \
     SupportTicketSerializer, ModuleSerializer, DepartmentSerializer, DesignationSerializer, LeaveSerializer, \
     HolidaySerializer, AwardSerializer, AppreciationSerializer, ShiftSerializer, AttendanceSerializer,ShiftRosterSerializer, \
@@ -5669,3 +5669,113 @@ class CallQcFormAPI(APIView):
             "final_score": qc.final_score if qc else None,
             "questions": serializer.data
         })
+
+class CallQcCreateAPI(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = CallQcCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        call_id = data["call_id"]
+        agent_id = data["agent_id"]
+        recording_api_url = data.get("recording_api_url")
+        answers = data["answers"]
+
+        # Prevent duplicate QC
+        if CallQc.objects.filter(call_id=call_id).exists():
+            return Response({"error": "QC already exists"}, status=400)
+
+        user = get_user_from_agent_campaign(agent_id)
+        if not user:
+            return Response({"error": "Invalid agent"}, status=400)
+
+        qc = CallQc.objects.create(
+            call_id=call_id,
+            agent_id=agent_id,
+            user=user,
+            company=user.profile.company,
+            branch=user.profile.branch
+        )
+
+        critical_failed = False
+        total_score = 0
+
+        for ans in answers:
+            q = ans["question"]
+
+            score = 0
+            if q.answer_type == "yes_no":
+                score = q.weight if ans.get("answer_bool") else 0
+
+            elif q.answer_type == "rating":
+                score = (ans.get("answer_rating", 0) / 5) * q.weight
+
+            elif q.answer_type == "text":
+                score = q.weight
+
+            if q.question_type == "critical" and score == 0:
+                critical_failed = True
+
+            CallQcsAnswer.objects.create(
+                qc=qc,
+                question=q,
+                answer_text=ans.get("answer_text"),
+                answer_bool=ans.get("answer_bool"),
+                answer_rating=ans.get("answer_rating"),
+                score=score
+            )
+
+            total_score += score
+
+        qc.total_score = total_score
+        qc.critical_failed = critical_failed
+
+        # Save recording ONLY if critical failed
+        if critical_failed and recording_api_url and not qc.recording_url:
+            file_obj = download_and_save_recording(call_id, recording_api_url)
+            if file_obj:
+                qc.recording_url.save(file_obj.name, file_obj)
+
+        qc.save()
+
+        return Response({
+            "call_id": qc.call_id,
+            "critical_failed": qc.critical_failed,
+            "total_score": qc.total_score
+        })
+
+
+class CallQcListAPI(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        qs = CallQc.objects.filter(company=user.profile.company)
+
+        agent = request.query_params.get("agent")
+        branch = request.query_params.get("branch")
+        critical = request.query_params.get("critical")
+
+        if agent:
+            qs = qs.filter(agent_id=agent)
+
+        if branch:
+            qs = qs.filter(branch_id=branch)
+
+        if critical:
+            qs = qs.filter(critical_failed=critical.lower() == "true")
+
+        data = CallQcListSerializer(qs, many=True).data
+        return Response(data)
+
+
+class CallQcDetailAPI(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, call_id):
+        qc = get_object_or_404(CallQc, call_id=call_id)
+        data = CallQcDetailSerializer(qc).data
+        return Response(data)

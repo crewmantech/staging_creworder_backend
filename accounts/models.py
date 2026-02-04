@@ -1456,3 +1456,28 @@ class CallQcAnswer(BaseModel):
     answer_text = models.TextField(null=True, blank=True)
     answer_rating = models.IntegerField(null=True, blank=True)
     is_critical = models.BooleanField(default=False)
+
+class CallQc(BaseModel):
+    call_id = models.CharField(max_length=100, unique=True)
+    
+    agent_id = models.CharField(max_length=50)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE)
+
+    recording_url = models.FileField(upload_to="qc_recordings/", null=True, blank=True)
+
+    critical_failed = models.BooleanField(default=False)
+    total_score = models.FloatField(default=0)
+
+class CallQcsAnswer(BaseModel):
+    qc = models.ForeignKey(CallQc, on_delete=models.CASCADE, related_name="answers")
+    question = models.ForeignKey(CallQcsTable, on_delete=models.CASCADE)
+
+    answer_text = models.TextField(null=True, blank=True)
+    answer_bool = models.BooleanField(null=True, blank=True)
+    answer_rating = models.IntegerField(null=True, blank=True)
+
+    score = models.FloatField(default=0)
+

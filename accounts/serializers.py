@@ -13,7 +13,7 @@ from staging_creworder_backend import settings
 from lead_management.models import Lead, LeadSourceModel
 from orders.models import  Products
 from services.email.email_service import send_email
-from .models import  Agreement, AttendanceSession, CallQcAnswer, CallQcScore, CallQcTable, CallQcsScore, CallQcsTable, CompanyInquiry, CompanySalary, CompanyUserAPIKey, Doctor, EmailSchedule, Enquiry, InterviewApplication, QcScore, ReminderNotes, StickyNote, User, Company, Package,Employees, Notice1, Branch, FormEnquiry, SupportTicket, Module, \
+from .models import  Agreement, AttendanceSession, CallQc, CallQcAnswer, CallQcScore, CallQcTable, CallQcsAnswer, CallQcsScore, CallQcsTable, CompanyInquiry, CompanySalary, CompanyUserAPIKey, Doctor, EmailSchedule, Enquiry, InterviewApplication, QcScore, ReminderNotes, StickyNote, User, Company, Package,Employees, Notice1, Branch, FormEnquiry, SupportTicket, Module, \
     Department, Designation, Leaves, Holiday, Award, Appreciation, ShiftTiming, Attendance,Shift_Roster,PackageDetailsModel,CustomAuthGroup,\
     PickUpPoint,UserTargetsDelails,AdminBankDetails,AllowedIP,QcTable
 import string
@@ -1109,3 +1109,34 @@ class CallFormQuestionSerializer(serializers.ModelSerializer):
     def get_answer_rating(self, obj):
         ans = self.context["answer_map"].get(obj.id)
         return ans.answer_rating if ans else None
+    
+
+class CallQcAnswerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CallQcsAnswer
+        fields = ("question", "answer_text", "answer_bool", "answer_rating")
+
+class CallQcCreateSerializer(serializers.Serializer):
+    call_id = serializers.CharField()
+    agent_id = serializers.CharField()
+    recording_api_url = serializers.CharField(required=False)
+    answers = CallQcAnswerSerializer(many=True)
+
+class CallQcListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CallQc
+        fields = (
+            "call_id",
+            "agent_id",
+            "critical_failed",
+            "total_score",
+            "created_at"
+        )
+
+
+class CallQcDetailSerializer(serializers.ModelSerializer):
+    answers = CallQcAnswerSerializer(many=True)
+
+    class Meta:
+        model = CallQc
+        fields = "__all__"
