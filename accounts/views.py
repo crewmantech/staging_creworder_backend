@@ -5703,7 +5703,7 @@ class CallQcCreateAPI(APIView):
         total_score = 0
 
         for ans in answers:
-            q = ans["question"]
+            q = ans["question_id"]
 
             score = 0
             if q.answer_type == "yes_no":
