@@ -196,8 +196,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from accounts.models import CallQc
-from cloud_telephony.utils import get_company_from_agent_campaign, has_valid_recording
+from cloud_telephony.utils import get_company_from_agent_campaign
 from follow_up.models import Appointment, Follow_Up
 from follow_up.serializers import AppointmentSerializer, FollowUpSerializer
 from lead_management.models import Lead
@@ -684,7 +683,6 @@ class CallServiceViewSet(viewsets.ViewSet):
             }, status=status.HTTP_400_BAD_REQUEST)
 
         user = request.user
-        company = user.profile.company 
         try:
             channel_assign = CloudTelephonyChannelAssign.objects.get(user_id=user.id,is_active=True)
             channel = channel_assign.cloud_telephony_channel
@@ -695,7 +693,7 @@ class CallServiceViewSet(viewsets.ViewSet):
             )
 
         cloud_vendor = channel.cloudtelephony_vendor.name.lower()
-        print(cloud_vendor,"------------------696")
+
         # ============ CLOUD CONNECT ============
         if cloud_vendor == 'cloud connect':
             if not channel.token or not channel.tenent_id:
@@ -706,48 +704,12 @@ class CallServiceViewSet(viewsets.ViewSet):
 
             cloud_connect_service = CloudConnectService(channel.token, channel.tenent_id)
             response_data = cloud_connect_service.get_call_details(date, phone_number)
-            print(response_data,"---------------------700")
             if response_data.get("code") != 200:
                 return Response(
                     {"error": "Failed to retrieve call details."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            print("-------705------")
-            qc_call_ids = set(
-                CallQc.objects.filter(company=company)
-                .values_list("call_id", flat=True)
-            )
-            print(qc_call_ids,"---------------------710")
-            data = response_data.get("result", {})
-            print(data,"---------------------705")
-            qc_call_ids = set(
-            CallQc.objects.filter(company=company)
-            .values_list("call_id", flat=True)
-                    )
-
-            calls = []
-
-            for key, value in data.items():
-                if key.isdigit():
-                    call_id = value.get("call_id")
-                    recording_path = value.get("recording_path")
-                    if has_valid_recording(recording_path):
-                        print("-----732---has recording---")
-                        value["recording_path"] = recording_path
-
-                        # Recording exists?
-                        value["has_recording"] = has_valid_recording(recording_path)
-
-                        # QC done?
-                        value["call_qc"] = call_id in qc_call_ids
-
-                        calls.append(value)
-
-            return Response({
-                "success": True,
-                "data": calls,
-                "message": response_data.get("status_message", "Call details retrieved successfully.")
-            }, status=status.HTTP_200_OK)
+        
             return Response({
                 "success": True,
                 "data": response_data.get("result", {}),
