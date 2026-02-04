@@ -5800,7 +5800,7 @@ class CallQcQuestionReportAPI(APIView):
             qs = qs.filter(qc__agent_id=agent)
 
         if user_id:
-            qs = qs.filter(qc__user_id=user_id)
+            qs = qs.filter(qc__user__id=user_id) 
 
         if from_date:
             qs = qs.filter(qc__created_at__date__gte=parse_date(from_date))
