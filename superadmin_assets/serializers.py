@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 # from accounts.models import SupportTicket
-from .models import EmailCredentials, SMSCredentials,SupportTickets, SandboxCredentials, MenuModel,SubMenusModel,SettingsMenu,PixelCodeModel,BennerModel, SupportQuestion,ThemeSettingModel,SuperAdminCompany
+from .models import EmailCredentials, SMSCredentials,SupportTickets, SandboxCredentials, MenuModel,SubMenusModel,SettingsMenu,PixelCodeModel,BennerModel, SupportQuestion,ThemeSettingModel,SuperAdminCompany,Language
 from phonenumber_field.serializerfields import PhoneNumberField
 from rest_framework.serializers import ModelSerializer
 from django.contrib.auth.models import User
@@ -198,4 +198,9 @@ class TicketSolutionSerializer(serializers.ModelSerializer):
             'solution_description',
             'solution_image'
         ]
+        
+class LanguageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Language
+        fields = "__all__"
 

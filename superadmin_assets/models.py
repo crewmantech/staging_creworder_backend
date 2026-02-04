@@ -399,3 +399,13 @@ class SupportTickets(BaseModel):
             last_no = int(last.ticket_id.split('-')[-1]) if last else 0
             self.ticket_id = f"TCK-{year}-{last_no + 1:05d}"
         super().save(*args, **kwargs)
+        
+class Language(BaseModel):
+    name = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'language_table'
+    def __str__(self):
+        return f"{self.id} by {self.name}"

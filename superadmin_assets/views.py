@@ -3,10 +3,10 @@ from django.shortcuts import render
 # from accounts.models import SupportTicket
 from accounts.views import StandardResultsSetPagination
 from superadmin_assets.permissions import IsAssignedOrSuperAdmin, IsSuperAdmin
-from .serializers import APISandboxSerializer, EmailCredentialsSerializer, MenuSerializer, SMSCredentialsSerializer,SubMenuSerializer,SettingMenuSerializer,PixelCodeModelSerializer,BannerModelSerializer, SuperAdminCompanySerializer, SupportQuestionSerializer, SupportTicketCreateSerializer, SupportTicketDetailSerializer, SupportTicketListSerializer,ThemeSettingSerializer,TicketSolutionSerializer,AssignTicketSerializer
+from .serializers import APISandboxSerializer, EmailCredentialsSerializer, MenuSerializer, SMSCredentialsSerializer,SubMenuSerializer,SettingMenuSerializer,PixelCodeModelSerializer,BannerModelSerializer, SuperAdminCompanySerializer, SupportQuestionSerializer, SupportTicketCreateSerializer, SupportTicketDetailSerializer, SupportTicketListSerializer,ThemeSettingSerializer,TicketSolutionSerializer,AssignTicketSerializer,LanguageSerializer
 from rest_framework.views import APIView
 from rest_framework import viewsets, status
-from .models import EmailCredentials, SMSCredentials, SandboxCredentials, MenuModel,SubMenusModel,SettingsMenu,PixelCodeModel,BennerModel, SuperAdminCompany, SupportQuestion, SupportTickets,ThemeSettingModel
+from .models import EmailCredentials, SMSCredentials, SandboxCredentials, MenuModel,SubMenusModel,SettingsMenu,PixelCodeModel,BennerModel, SuperAdminCompany, SupportQuestion, SupportTickets,ThemeSettingModel,Language
 from django.db.models import Q
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -193,3 +193,25 @@ class SupportTicketViewSet(viewsets.ModelViewSet):
             "ticket_id": ticket.ticket_id,
             "status": ticket.status
         })
+        
+class LanguageViewSet(viewsets.ModelViewSet):
+    queryset = Language.objects.all()
+    serializer_class = LanguageSerializer
+    pagination_class = None
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+
+        # If only one object exists, return dict
+        if queryset.count() == 1:
+            return Response({
+                "success": True,
+                "data": serializer.data[0]
+            }, status=status.HTTP_200_OK)
+
+        # Otherwise return list
+        return Response({
+            "success": True,
+            "data": serializer.data
+        }, status=status.HTTP_200_OK)
