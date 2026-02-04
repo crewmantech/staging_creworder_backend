@@ -204,3 +204,4 @@ class LanguageSerializer(serializers.ModelSerializer):
         model = Language
         fields = "__all__"
 
+

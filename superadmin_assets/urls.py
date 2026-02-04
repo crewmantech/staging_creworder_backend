@@ -21,3 +21,4 @@ router.register(r'support/tickets', SupportTicketViewSet, basename='support-tick
 urlpatterns = [
     path('', include(router.urls)),
 ]
+
