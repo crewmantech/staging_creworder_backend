@@ -5813,7 +5813,7 @@ class CallQcQuestionReportAPI(APIView):
 
         for q in questions:
             q_answers = qs.filter(question=q)
-
+            print(q_answers,"---------------------5816")
             total_calls = q_answers.count()
             avg_score = q_answers.aggregate(avg=Avg("score"))["avg"] or 0
 
