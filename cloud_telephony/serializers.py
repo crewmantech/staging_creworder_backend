@@ -37,8 +37,8 @@ class CloudTelephonyChannelAssignSerializer(serializers.ModelSerializer):
         model = CloudTelephonyChannelAssign
         fields = "__all__"
     def get_vendor_name(self, obj):
-        if obj.channel and obj.channel.cloudtelephony_vendor:
-            return obj.channel.cloudtelephony_vendor.name
+        if obj.cloud_telephony_channel and obj.cloud_telephony_channel.cloudtelephony_vendor:
+            return obj.cloud_telephony_channel.cloudtelephony_vendor.name
         return None
     def validate(self, data):
         instance = self.instance
