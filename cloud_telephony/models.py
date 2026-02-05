@@ -7,6 +7,8 @@ from middleware.request_middleware import get_request
 import hashlib
 import re
 
+from superadmin_assets.models import Language
+
 def is_md5(value):
     return bool(re.fullmatch(r"[a-f0-9]{32}", value or ""))
 class BaseModel(models.Model):
@@ -271,7 +273,14 @@ class CallLog(models.Model):
 
 class CallLead(BaseModel):
     phone = models.CharField(max_length=20)
+    address = models.TextField(blank=True, null=True)  # ✅ NEW
 
+    language = models.ForeignKey(
+        Language,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )  # ✅ 
     company = models.ForeignKey(
         Company, on_delete=models.CASCADE
     )

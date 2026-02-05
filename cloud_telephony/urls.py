@@ -13,6 +13,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     CallActivityCreateAPIView,
     CallLeadDetailAPIView,
+    CallLogListAPIView,
     CallServiceViewSet,
     CloudConnectWebhookAPIView,
     CloudTelephonyChannelAssignCSVUploadAPIView,
@@ -51,6 +52,7 @@ urlpatterns = [
     path("call-lead/<str:phone>/", CallLeadDetailAPIView.as_view()),
     path("call-followups/today/", TodayFollowupAPIView.as_view()),
     path("call-activity/", CallActivityCreateAPIView.as_view()),
+    path("call-logs/", CallLogListAPIView.as_view(), name="call-log-list"),
     # path(
     #     "createCloudTelephoneyChannel/",
     #     CreateCloudTelephoneyChannel.as_view(),

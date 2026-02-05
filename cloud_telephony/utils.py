@@ -29,3 +29,12 @@ def has_valid_recording(path):
         return True
 
     return False
+def get_agent_id_by_user(user_id):
+    
+    qs = CloudTelephonyChannelAssign.objects.filter(
+        user_id=user_id,
+        is_active=True  
+    )
+    assign = qs.order_by("priority", "created_at").first()
+
+    return assign.agent_id if assign else None

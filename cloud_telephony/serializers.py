@@ -157,6 +157,10 @@ class CallActivitySerializer(serializers.ModelSerializer):
 class CallLeadSerializer(serializers.ModelSerializer):
     activities = CallActivitySerializer(many=True)
     new_number = serializers.SerializerMethodField()
+    language_name = serializers.CharField(
+        source="language.name",
+        read_only=True
+    )
 
     class Meta:
         model = CallLead
@@ -164,3 +168,12 @@ class CallLeadSerializer(serializers.ModelSerializer):
 
     def get_new_number(self, obj):
         return False
+
+
+class CloudTelephonyChannelAssignBulkSerializer(serializers.Serializer):
+    items = CloudTelephonyChannelAssignSerializer(many=True)
+
+    def validate_items(self, items):
+        if not items:
+            raise serializers.ValidationError("No data provided")
+        return items

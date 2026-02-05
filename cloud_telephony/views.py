@@ -197,7 +197,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from accounts.models import CallQc
-from cloud_telephony.utils import get_company_from_agent_campaign, has_valid_recording
+from cloud_telephony.utils import get_agent_id_by_user, get_company_from_agent_campaign, has_valid_recording
 from follow_up.models import Appointment, Follow_Up
 from follow_up.serializers import AppointmentSerializer, FollowUpSerializer
 from lead_management.models import Lead
@@ -205,6 +205,7 @@ from orders.models import Order_Table
 from django.core.files.base import ContentFile
 from orders.serializers import OrderTableSerializer
 from services.cloud_telephoney.cloud_telephoney_service import CloudConnectService, TataSmartfloService,SansSoftwareService
+from superadmin_assets.models import Language
 from .models import (
     CallActivity,
     CallLead,
@@ -221,6 +222,7 @@ from .serializers import (
     CallLogSerializer,
     CallRecordingInputSerializer,
     CallRecordingModelSerializer,
+    CloudTelephonyChannelAssignBulkSerializer,
     CloudTelephonyChannelAssignCSVSerializer,
     CloudTelephonyVendorSerializer, 
     CloudTelephonyChannelSerializer, 
@@ -1312,63 +1314,50 @@ class CloudTelephonyChannelAssignCSVUploadAPIView(APIView):
 
     @transaction.atomic
     def post(self, request):
-        user = request.user
-        company = user.profile.company
+        company = request.user.profile.company
 
-        file = request.FILES.get("file")
-        if not file:
-            return Response(
-                {"error": "CSV file is required"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        serializer = CloudTelephonyChannelAssignBulkSerializer(
+            data={"items": request.data},
+            context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
 
-        csv_file = TextIOWrapper(file.file, encoding="utf-8")
-        reader = csv.DictReader(csv_file)
+        success = []
+        failed = []
 
-        success, failed = [], []
-
-        for row_number, row in enumerate(reader, start=1):
+        for index, item in enumerate(serializer.validated_data["items"], start=1):
             try:
-                # 🔹 clean empty strings → None
-                cleaned_data = {
-                    k: (v if v not in ["", "null", "NULL"] else None)
-                    for k, v in row.items()
-                }
-
-                serializer = CloudTelephonyChannelAssignCSVSerializer(
-                    data=cleaned_data,
-                    context={"request": request}
-                )
-                serializer.is_valid(raise_exception=True)
-
-                target_user = serializer.validated_data.get("user")
+                user = item.get("user")
 
                 instance = CloudTelephonyChannelAssign.objects.filter(
-                    user=target_user,
+                    user=user,
                     company=company
                 ).first()
 
                 if instance:
-                    # 🔁 update only non-null fields
-                    for field, value in serializer.validated_data.items():
+                    # 🔁 update only provided fields
+                    for field, value in item.items():
                         if value is not None:
                             setattr(instance, field, value)
                     instance.save()
                     success.append(
-                        {"row": row_number, "status": "updated"}
+                        {"row": index, "status": "updated", "id": instance.id}
                     )
                 else:
-                    serializer.save(company=company)
+                    obj = CloudTelephonyChannelAssign.objects.create(
+                        company=company,
+                        **item
+                    )
                     success.append(
-                        {"row": row_number, "status": "created"}
+                        {"row": index, "status": "created", "id": obj.id}
                     )
 
             except Exception as e:
                 failed.append(
                     {
-                        "row": row_number,
+                        "row": index,
                         "error": str(e),
-                        "data": row
+                        "data": item
                     }
                 )
 
@@ -1376,8 +1365,8 @@ class CloudTelephonyChannelAssignCSVUploadAPIView(APIView):
             {
                 "success": True,
                 "summary": {
-                    "total_rows": row_number,
-                    "processed": len(success),
+                    "total": len(request.data),
+                    "created_or_updated": len(success),
                     "failed": len(failed),
                 },
                 "success_rows": success,
@@ -1385,6 +1374,7 @@ class CloudTelephonyChannelAssignCSVUploadAPIView(APIView):
             },
             status=status.HTTP_200_OK
         )
+
 
 
 from rest_framework import status as drf_status
@@ -1442,7 +1432,11 @@ class CloudConnectWebhookAPIView(APIView):
             status=status.HTTP_200_OK
         )
 
+
 class CustomerDataByMobileAPI(APIView):
+    """
+    Get all related data by mobile number
+    """ 
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -1469,11 +1463,13 @@ class CustomerDataByMobileAPI(APIView):
             company=company
         )
 
+        # Appointments
         appointments = Appointment.objects.filter(
             company=company,
             patient_phone__endswith=last10
         )
 
+        # Follow Ups
         followups = Follow_Up.objects.filter(
             company=company,
             customer_phone__endswith=last10
@@ -1497,23 +1493,45 @@ class CallActivityCreateAPIView(APIView):
 
         phone = request.data["phone"]
         call_log_id = request.data["call_log_id"]
-        name = request.data.get("name")  # 👈 incoming name
+
+        name = request.data.get("name")
+        address = request.data.get("address")  # ✅ NEW
+        language_id = request.data.get("language")  # ✅ NEW (id)
 
         call_log = get_object_or_404(CallLog, call_id=call_log_id)
+
+        language = None
+        if language_id:
+            language = Language.objects.filter(id=language_id).first()
 
         lead, created = CallLead.objects.get_or_create(
             phone=phone,
             company=company,
             defaults={
                 "created_by": request.user,
-                "name": name
+                "name": name,
+                "address": address,
+                "language": language
             }
         )
 
-        # 🔥 update name if already exists and name is sent
-        if not created and name:
+        # 🔁 Update fields if lead already exists
+        update_fields = []
+
+        if name:
             lead.name = name
-            lead.save(update_fields=["name"])
+            update_fields.append("name")
+
+        if address:
+            lead.address = address
+            update_fields.append("address")
+
+        if language:
+            lead.language = language
+            update_fields.append("language")
+
+        if update_fields:
+            lead.save(update_fields=update_fields)
 
         activity = CallActivity.objects.create(
             lead=lead,
@@ -1580,3 +1598,38 @@ class TodayFollowupAPIView(APIView):
         ]
 
         return Response(data)
+
+class CallLogListAPIView(viewsets.ListAPIView):
+    serializer_class = CallLogSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        company = user.profile.company
+
+        agent_param = self.request.query_params.get("agent_id")
+        status_param = self.request.query_params.get("status")
+        session_id = self.request.query_params.get("session_id")
+        campaign_id = self.request.query_params.get("campaign_id")
+
+        # 🔹 Base queryset → company level security
+        queryset = CallLog.objects.filter(company=company)
+
+        # 🔹 Agent filter (only if provided)
+        if agent_param:
+            agent_id = get_agent_id_by_user(agent_param)
+            if not agent_id:
+                return CallLog.objects.none()
+            queryset = queryset.filter(agent_id=agent_id)
+
+        # 🔹 Other filters (optional)
+        if campaign_id:
+            queryset = queryset.filter(campaign_id=campaign_id)
+
+        if status_param:
+            queryset = queryset.filter(status__icontains=status_param)
+
+        if session_id:
+            queryset = queryset.filter(session_id__icontains=session_id)
+
+        return queryset.order_by("-created_at")
