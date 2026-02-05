@@ -1129,7 +1129,7 @@ class GetNumberAPIView(APIView):
             result = details_response.get("result", {})
             return Response({
                 "success": True,
-                "phone_number": result.get("phone_number"),
+                "phone_number": result.get("phone_number")[-10:],
                 "message": details_response.get("status_message")
             }, status=status.HTTP_200_OK)
         elif cloud_vendor == 'sansoftwares':
