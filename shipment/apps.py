@@ -51,7 +51,7 @@ class ShipmentsConfig(AppConfig):
                     vendor_name = vendor_data.get('name', '').lower()
                     company = shipmentData["company_id"]  # CharField
                     # branch = shipmentData["branch_id"]    # CharField
-
+                    print(f"Processing shipment for vendor: {vendor_name}, company: {company}")  # Debug
                     # --- SHIPROCKET ---
                     if vendor_name == 'shiprocket' and shipmentData['credential_username']:
                         shiprocket_service = ShiprocketScheduleOrder(
@@ -262,7 +262,7 @@ class ShipmentsConfig(AppConfig):
         scheduler = BackgroundScheduler()
         scheduler.add_job(
             fetch_and_update_shipments,
-            IntervalTrigger(minutes=20),  # Run every 20 minutes
+            IntervalTrigger(minutes=2),  # Run every 20 minutes
             id="fetch_and_update_shipments",
             max_instances=1,
             # misfire_grace_time=30,  # Optional
