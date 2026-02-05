@@ -32,11 +32,14 @@ class CloudTelephonyChannelSerializer(serializers.ModelSerializer):
 
 class CloudTelephonyChannelAssignSerializer(serializers.ModelSerializer):
     company = serializers.PrimaryKeyRelatedField(read_only=True)
-
+    vendor_name = serializers.SerializerMethodField()
     class Meta:
         model = CloudTelephonyChannelAssign
         fields = "__all__"
-
+    def get_vendor_name(self, obj):
+        if obj.channel and obj.channel.cloudtelephony_vendor:
+            return obj.channel.cloudtelephony_vendor.name
+        return None
     def validate(self, data):
         instance = self.instance
         user = data.get("user")
