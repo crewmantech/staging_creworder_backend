@@ -1177,7 +1177,7 @@ class GetNumberAPIView(APIView):
             return Response(
                 {
                     "success": True,
-                    "phone_number": phone_number,
+                    "phone_number": phone_number[-10:],
                     "message": details_response.get("message")
                 },
                 status=status.HTTP_200_OK
