@@ -1598,8 +1598,8 @@ class TodayFollowupAPIView(APIView):
         ]
 
         return Response(data)
-
-class CallLogListAPIView(viewsets.ListAPIView):
+from rest_framework.generics import ListAPIView
+class CallLogListAPIView(ListAPIView):
     serializer_class = CallLogSerializer
     permission_classes = [IsAuthenticated]
 
