@@ -1735,6 +1735,7 @@ class EshopboxAPI:
             "refresh_token": self.refresh_token
         }
         try:
+            print(payload, "-----------------Eshopbox Token Payload-------------------")
             res = requests.post(self.AUTH_URL, json=payload, timeout=20)
             print(res.json(), "-----------------Eshopbox Token Response-------------------")
             data = res.json()

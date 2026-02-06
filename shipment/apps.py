@@ -170,9 +170,11 @@ class ShipmentsConfig(AppConfig):
                     
                     elif vendor_name == 'eshopbox' and shipmentData['credential_username']:
                         print("In Eshopbox-----------------")
+                        print(shipmentData['credential_username'],"-----------------Eshopbox Credential Username-------------------",shipmentData['credential_password'],"-----------------Eshopbox Credential Password-------------------",serialized_data['credential_token'],"-----------------Eshopbox Credential Token-------------------")
                         eshopbox_service = EshopboxAPI(
                             shipmentData['credential_username'],shipmentData['credential_password'],serialized_data['credential_token']
                         )
+                        
                         excluded_statuses = [
                             'ACCEPTED', 'No Response', 'Future Order', 'Non Serviceable',
                             'DELIVERED', 'RTO DELIVERED', 'EXCEPTION',"PENDING"
