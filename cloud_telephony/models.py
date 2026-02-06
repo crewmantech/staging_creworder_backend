@@ -258,7 +258,11 @@ class CallLog(models.Model):
 
     phone = models.CharField(max_length=20)
     agent_id = models.CharField(max_length=20, blank=True, null=True)
+    campaign_id = models.CharField(max_length=50, blank=True, null=True)
+    campaign_name = models.CharField(max_length=100, blank=True, null=True)
 
+    queue_id = models.CharField(max_length=50, blank=True, null=True)
+    queue_name = models.CharField(max_length=100, blank=True, null=True)
     status = models.CharField(max_length=20)
     direction = models.CharField(max_length=20, blank=True, null=True)
 

@@ -1498,11 +1498,39 @@ class CallActivityCreateAPIView(APIView):
         call_log_id = request.data["call_log_id"]
 
         name = request.data.get("name")
-        address = request.data.get("address")  # ✅ NEW
-        language_id = request.data.get("language")  # ✅ NEW (id)
+        address = request.data.get("address")
+        language_id = request.data.get("language")
+
+        campaign_id = request.data.get("campaign_id")
+        campaign_name = request.data.get("campaign_name")
+        queue_id = request.data.get("queue_id")
+        queue_name = request.data.get("queue_name")
 
         call_log = get_object_or_404(CallLog, call_id=call_log_id)
 
+        # ✅ Update CallLog fields if provided
+        update_call_log_fields = []
+
+        if campaign_id:
+            call_log.campaign_id = campaign_id
+            update_call_log_fields.append("campaign_id")
+
+        if campaign_name:
+            call_log.campaign_name = campaign_name
+            update_call_log_fields.append("campaign_name")
+
+        if queue_id:
+            call_log.queue_id = queue_id
+            update_call_log_fields.append("queue_id")
+
+        if queue_name:
+            call_log.queue_name = queue_name
+            update_call_log_fields.append("queue_name")
+
+        if update_call_log_fields:
+            call_log.save(update_fields=update_call_log_fields)
+
+        # language
         language = None
         if language_id:
             language = Language.objects.filter(id=language_id).first()
@@ -1518,7 +1546,7 @@ class CallActivityCreateAPIView(APIView):
             }
         )
 
-        # 🔁 Update fields if lead already exists
+        # update lead fields
         update_fields = []
 
         if name:
@@ -1536,6 +1564,7 @@ class CallActivityCreateAPIView(APIView):
         if update_fields:
             lead.save(update_fields=update_fields)
 
+        # create activity
         activity = CallActivity.objects.create(
             lead=lead,
             call_log=call_log,
@@ -1547,7 +1576,7 @@ class CallActivityCreateAPIView(APIView):
             updated_by=request.user
         )
 
-        # snapshot
+        # snapshot update
         lead.last_call = call_log
         lead.last_status = activity.status
         lead.last_remark = activity.remark
