@@ -39,8 +39,8 @@ class ShipmentsConfig(AppConfig):
 
         # Main function to fetch and update all shipments from Shiprocket, Tekipost, Nimbuspost
         def fetch_and_update_shipments():
-            print("0000000000000in fetch")
-            try:
+            # print("0000000000000in fetch")
+            # try:
                 shipments = ShipmentModel.objects.filter(status=1)
                 serializer = ShipmentSerializer(shipments, many=True)
                 serialized_data = serializer.data
@@ -254,8 +254,8 @@ class ShipmentsConfig(AppConfig):
                                                 pass 
                             except Exception as e:
                                 logger.error(f"[zoopship] Error updating order {order.id}: {e}")
-            except Exception as e:
-                logger.error(f"Error fetching shipment details: {e}")
+            # except Exception as e:
+            #     logger.error(f"Error fetching shipment details: {e}")
 
 
         # Set up the scheduler to periodically call the `fetch_and_update_shipments` function
