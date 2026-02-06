@@ -181,10 +181,10 @@ class ShipmentsConfig(AppConfig):
                             order_wayBill__isnull=False,
                             company=company
                         ).exclude(order_wayBill='').exclude(order_status__name__in=excluded_statuses)
-
+                        print(orders,"  tst")
                         for order in orders:
-                            try:
-                                
+                            # try:
+                                print(order,"------------------order-------------------")
                                 awb_number = order.order_wayBill
                                 print(awb_number,"------------------AWB NUMBER-------------------")
                                 response = eshopbox_service.track_bulk_shipments([awb_number])
@@ -210,8 +210,8 @@ class ShipmentsConfig(AppConfig):
                                             except Exception as e:
                                                 print(f"Error triggering order status notification: {e}")
                                                 pass 
-                            except Exception as e:
-                                logger.error(f"[eshopbox] Error updating order {order.id}: {e}")
+                            # except Exception as e:
+                            #     logger.error(f"[eshopbox] Error updating order {order.id}: {e}")
 
                     elif vendor_name == 'zoopship' and shipmentData['credential_username']:
                         zoopship_service = ZoopshipService(
