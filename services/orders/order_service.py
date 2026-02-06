@@ -286,11 +286,11 @@ def soft_delete_order(order_id):
 def soft_delete_multiple_orders(order_ids):
 
     existing_orders = Order_Table.objects.filter(
-        id__in=order_ids,
+        order_id__in=order_ids,
         is_deleted=False
     )
 
-    existing_ids = list(existing_orders.values_list("id", flat=True))
+    existing_ids = list(existing_orders.values_list("order_id", flat=True))
 
     # bulk update
     existing_orders.update(is_deleted=True)
