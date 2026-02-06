@@ -1125,13 +1125,7 @@ class CallQcCreateSerializer(serializers.Serializer):
 class CallQcListSerializer(serializers.ModelSerializer):
     class Meta:
         model = CallQc
-        fields = (
-            "call_id",
-            "agent_id",
-            "critical_failed",
-            "total_score",
-            "created_at"
-        )
+        fields = "__all__"
 
 
 class CallQcDetailSerializer(serializers.ModelSerializer):

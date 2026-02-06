@@ -5754,7 +5754,10 @@ class CallQcListAPI(APIView):
         user = request.user
 
         qs = CallQc.objects.filter(company=user.profile.company)
-
+        if user.profile.user_type == "agent":
+            qs = qs.filter(
+                Q(created_by=user) | Q(updated_by=user)
+            )
         user_id = request.query_params.get("user_id")
         agent = request.query_params.get("agent")
         branch = request.query_params.get("branch")
