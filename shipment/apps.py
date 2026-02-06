@@ -44,7 +44,7 @@ class ShipmentsConfig(AppConfig):
                 shipments = ShipmentModel.objects.filter(status=1)
                 serializer = ShipmentSerializer(shipments, many=True)
                 serialized_data = serializer.data
-
+                print(serialized_data,"------------------Serialized Shipment Data-------------------")  # Debug: Check serialized data
                 for shipmentData in serialized_data:
                     vendor_data = shipmentData['shipment_vendor']
                     vendor_id = vendor_data.get('id')
