@@ -999,7 +999,7 @@ class FilterOrdersView(viewsets.ViewSet):
         queryset = Order_Table.objects.filter(
             company=company,is_deleted=False
         )
-        queryset = Order_Table.objects.all()
+        # queryset = Order_Table.objects.all()
         filter_conditions = Q()
 
         # ----------------------------------
@@ -3860,7 +3860,7 @@ class OrderListView(APIView):
     def _filters(self, request):
         branch = request.GET.get("branch", request.user.profile.branch_id)
         company = request.user.profile.company
-        filters = {"branch": branch, "company": company}
+        filters = {"branch": branch, "company": company,"is_deleted": False}
 
         month = request.GET.get("month")
         year = request.GET.get("year")
