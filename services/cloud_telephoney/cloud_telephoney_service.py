@@ -539,7 +539,7 @@ class SansSoftwareService:
         url = f"{self.BASE_URL}/{endpoint.lstrip('/')}"
         headers = {"Content-Type": "application/json"}
         response = requests.post(url, json=data, headers=headers)
-        print(response,"----------542")
+        print(response.text,"----------542")
         # You can add error handling/logging here if needed
         return response.json()
 
