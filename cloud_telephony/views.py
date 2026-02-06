@@ -197,7 +197,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from accounts.models import CallQc
-from cloud_telephony.utils import get_agent_id_by_user, get_company_from_agent_campaign, has_valid_recording
+from cloud_telephony.utils import duration_to_seconds, get_agent_id_by_user, get_company_from_agent_campaign, has_valid_recording
 from follow_up.models import Appointment, Follow_Up
 from follow_up.serializers import AppointmentSerializer, FollowUpSerializer
 from lead_management.models import Lead
@@ -726,14 +726,17 @@ class CallServiceViewSet(viewsets.ViewSet):
                 if key.isdigit():
                     call_id = value.get("call_id")
                     recording_path = value.get("recording_path")
-                    if has_valid_recording(recording_path):
+                    call_duration = value.get("call_duration", "00:00:00")
+
+                    duration_seconds = duration_to_seconds(call_duration)
+
+                    # ✅ Check duration > 20 seconds
+                    if duration_seconds > 20 and has_valid_recording(recording_path):
+
                         print("-----732---has recording---")
+
                         value["recording_path"] = recording_path
-
-                        # Recording exists?
-                        value["has_recording"] = has_valid_recording(recording_path)
-
-                        # QC done?
+                        value["has_recording"] = True
                         value["call_qc"] = call_id in qc_call_ids
 
                         calls.append(value)

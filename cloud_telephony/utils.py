@@ -38,3 +38,10 @@ def get_agent_id_by_user(user_id):
     assign = qs.order_by("priority", "created_at").first()
 
     return assign.agent_id if assign else None
+
+def duration_to_seconds(duration_str):
+    try:
+        h, m, s = map(int, duration_str.split(":"))
+        return h * 3600 + m * 60 + s
+    except Exception:
+        return 0
