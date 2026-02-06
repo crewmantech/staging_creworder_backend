@@ -169,7 +169,7 @@ class ShipmentsConfig(AppConfig):
                                 logger.error(f"[Nimbuspost] Error updating order {order.id}: {e}")
                     
                     elif vendor_name == 'eshopbox' and shipmentData['credential_username']:
-                        print("In Eshopbox-----------------")
+                        print("In Eshopbox-----------------",shipmentData)
                         print(shipmentData['credential_username'],"-----------------Eshopbox Credential Username-------------------",shipmentData['credential_password'],"-----------------Eshopbox Credential Password-------------------",serialized_data['credential_token'],"-----------------Eshopbox Credential Token-------------------")
                         eshopbox_service = EshopboxAPI(
                             shipmentData['credential_username'],shipmentData['credential_password'],serialized_data['credential_token']
