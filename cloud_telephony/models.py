@@ -149,7 +149,12 @@ class CloudTelephonyChannelAssign(BaseModel):
         self.full_clean()
 
         # Hash only if not already md5
-        if self.agent_password and not is_md5(self.agent_password):
+        if (
+            self.agent_password
+            and self.cloud_telephony_channel
+            and self.cloud_telephony_channel.cloudtelephony_vendor.name == "Cloud Connect"
+            and not is_md5(self.agent_password)
+        ):
             self.agent_password = hashlib.md5(
                 self.agent_password.encode()
             ).hexdigest()
