@@ -578,14 +578,20 @@ class SansSoftwareService:
 
         from_date = f"{start_date} 00:00:00"
         to_date = f"{end_date} 23:59:59"
+        if phone_number:
 
-        data = {
-            "Phone_number": phone_number,
-            "process_id": process_id or self.process_id,
-            "from_date": from_date,
-            "to_date": to_date,
-        }
-
+            data = {
+                "Phone_number": phone_number,
+                "process_id": process_id or self.process_id,
+                "from_date": from_date,
+                "to_date": to_date,
+            }
+        else:
+            data = {
+                "process_id": process_id or self.process_id,
+                "from_date": from_date,
+                "to_date": to_date,
+            }
         print(data, "-----------342")
 
         return self._post_request("api/getAllCallLogDetail", data)
