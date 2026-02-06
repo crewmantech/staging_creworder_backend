@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
-from .views import AcceptedOrdersReportAPIView, AllowStatusViewSet, ChangeOrderStatusAPIView, CreateRepeatOrderAPIView, CustomerStateViewSet, ExternalOrderCreateView, FilterOrdersCreatedView, FilterOrdersView1, FilteredOrderViewSet, MainOrderStatusAPIView, NotificationsConfigViewSet, OrderAggregationByStatusAPIView,OrderAggregationByStatusAPIViewPerformance, OrderLocationReportView, OrderLogListView, OrderStatusAPIView,FilterOrdersView, OrderStatusWorkflowViewSet, OrderValueSettingViewSet, PaymentStatusViewSet, PaymentTypeViewSet,PincodeLocalityViewSet,BulkOrderUploadView, ProductOrderSummaryView1, RecurringOrdersAPIView, ReturnTypeViewSet, ScanOrderAPIView, SendMonthlyOrderReportAPIView, UpdateOrderStatusAndPaymentStatusView,OrderMetricsAPIView,ProductOrderSummaryView,LableLayoutAPIView,LableInvoiceAPIView,CSVProductUploadView,PaymentMethodViewSet,OrderAggregationByPerformance,OFDListView,CheckPhoneDuplicateAPIView
+from .views import AcceptedOrdersReportAPIView, AllowStatusViewSet, BulkOrderDeleteAPIView, ChangeOrderStatusAPIView, CreateRepeatOrderAPIView, CustomerStateViewSet, ExternalOrderCreateView, FilterOrdersCreatedView, FilterOrdersView1, FilteredOrderViewSet, MainOrderStatusAPIView, NotificationsConfigViewSet, OrderAggregationByStatusAPIView,OrderAggregationByStatusAPIViewPerformance, OrderLocationReportView, OrderLogListView, OrderStatusAPIView,FilterOrdersView, OrderStatusWorkflowViewSet, OrderValueSettingViewSet, PaymentStatusViewSet, PaymentTypeViewSet,PincodeLocalityViewSet,BulkOrderUploadView, ProductOrderSummaryView1, RecurringOrdersAPIView, ReturnTypeViewSet, ScanOrderAPIView, SendMonthlyOrderReportAPIView, UpdateOrderStatusAndPaymentStatusView,OrderMetricsAPIView,ProductOrderSummaryView,LableLayoutAPIView,LableInvoiceAPIView,CSVProductUploadView,PaymentMethodViewSet,OrderAggregationByPerformance,OFDListView,CheckPhoneDuplicateAPIView
 
 router = DefaultRouter()
 router.register(r'order_status',OrderStatusAPIView)
@@ -91,5 +91,6 @@ urlpatterns = [
     path('ofd-orders/', OFDListView.as_view(), name='ofd-list'), 
     path('check-phone-duplicate/', CheckPhoneDuplicateAPIView.as_view(), name='check-phone-duplicate'),
     path("send-monthly-order-report/",SendMonthlyOrderReportAPIView.as_view(),name="send-monthly-order-report"),
+    path("bulk-delete-orders/", BulkOrderDeleteAPIView.as_view(), name="bulk-delete-orders"),
 
 ]

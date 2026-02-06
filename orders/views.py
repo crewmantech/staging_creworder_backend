@@ -95,6 +95,7 @@ from services.orders.order_service import (
     createOrders,
     get_single_order,
     orderLogInsert,
+    soft_delete_multiple_orders,
     soft_delete_order,
     updateOrders,
     deleteOrder,
@@ -5235,5 +5236,28 @@ class SendMonthlyOrderReportAPIView(APIView):
 
         return Response(
             {"message": "Monthly reports sent successfully"},
+            status=status.HTTP_200_OK
+        )
+
+class BulkOrderDeleteAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    def delete(self, request):
+        order_ids = request.data.get("order_ids", [])
+
+        if not order_ids:
+            return Response(
+                {"Success": False, "Error": "order_ids required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        deleted_ids, not_found_ids = soft_delete_multiple_orders(order_ids)
+
+        return Response(
+            {
+                "Success": True,
+                "deleted_ids": deleted_ids,
+                "not_found_ids": not_found_ids,
+                "message": f"{len(deleted_ids)} orders deleted successfully"
+            },
             status=status.HTTP_200_OK
         )

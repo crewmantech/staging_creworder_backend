@@ -283,6 +283,21 @@ def soft_delete_order(order_id):
         return True
     except ObjectDoesNotExist:
         return False
+def soft_delete_multiple_orders(order_ids):
+
+    existing_orders = Order_Table.objects.filter(
+        id__in=order_ids,
+        is_deleted=False
+    )
+
+    existing_ids = list(existing_orders.values_list("id", flat=True))
+
+    # bulk update
+    existing_orders.update(is_deleted=True)
+
+    not_found_ids = list(set(order_ids) - set(existing_ids))
+
+    return existing_ids, not_found_ids
 # def getOrderDetails(usrid,id=None):
 #     try:
 #         userData = Employees.objects.filter(user_id=usrid).first()

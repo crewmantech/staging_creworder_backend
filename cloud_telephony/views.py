@@ -766,11 +766,11 @@ class CallServiceViewSet(viewsets.ViewSet):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            # if not phone_number:
-            #     return Response(
-            #         {"error": "phone_number is required for Sanssoftwares call details."},
-            #         status=status.HTTP_400_BAD_REQUEST
-            #     )
+            if not phone_number:
+                return Response(
+                    {"error": "phone_number is required for Sanssoftwares call details."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
             sans_service = SansSoftwareService(process_id=process_id)
             response_data = sans_service.get_all_call_log_detail(phone_number,date,date)
