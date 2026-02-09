@@ -341,3 +341,4 @@ class CallActivity(BaseModel):
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
+

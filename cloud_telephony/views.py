@@ -191,7 +191,7 @@
 #         serializer.is_valid(raise_exception=True)
 #         serializer.save()
 #         return Response(serializer.data)
-from django.db.models import Q,OuterRef,Subquery
+from django.db.models import Q,OuterRef,Subquery,Count
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -1665,3 +1665,198 @@ class CallLogListAPIView(ListAPIView):
             queryset = queryset.filter(session_id__icontains=session_id)
 
         return queryset.order_by("-created_at")
+
+
+class AgentCallSummaryAPI(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+
+        user_id = request.GET.get("user_id")
+        from_date = request.GET.get("start_date")
+        to_date = request.GET.get("end_date")
+
+        if not user_id:
+            return Response(
+                {"error": "user_id required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # -----------------------------
+        # GET AGENT ID
+        # -----------------------------
+        agent_id = get_agent_id_by_user(user_id)
+
+        if not agent_id:
+            return Response(
+                {"error": "Agent not assigned"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # -----------------------------
+        # CALL LOG FILTER
+        # -----------------------------
+        call_logs = CallLog.objects.filter(agent_id=agent_id)
+
+        if from_date and to_date:
+            call_logs = call_logs.filter(
+                created_at__date__range=[from_date, to_date]
+            )
+
+        total_calls = call_logs.count()
+
+        # -----------------------------
+        # UNIQUE PHONE NUMBERS
+        # -----------------------------
+        phones = list(
+            call_logs.values_list("phone", flat=True).distinct()
+        )
+
+        if not phones:
+            return Response({
+                "agent_id": agent_id,
+                "total_calls": 0,
+                "unique_numbers": 0,
+                "appointments": {},
+                "orders": {},
+                "appointment_order_conversion": {},
+                "data": []
+            })
+
+        # -----------------------------
+        # APPOINTMENT COUNTS PER PHONE
+        # -----------------------------
+        appointment_counts = dict(
+            Appointment.objects.filter(
+                patient_phone__in=phones
+            )
+            .values("patient_phone")
+            .annotate(cnt=Count("id"))
+            .values_list("patient_phone", "cnt")
+        )
+
+        # -----------------------------
+        # ORDER COUNTS PER PHONE
+        # -----------------------------
+        order_counts = dict(
+            Order_Table.objects.filter(
+                customer_phone__in=phones,
+                is_deleted=False
+            )
+            .values("customer_phone")
+            .annotate(cnt=Count("id"))
+            .values_list("customer_phone", "cnt")
+        )
+
+        # -----------------------------
+        # SUMMARY VARIABLES
+        # -----------------------------
+        fresh_appointment = 0
+        repeat_appointment = 0
+        fresh_order = 0
+        repeat_order = 0
+
+        conversion_dict = {
+            "total_numbers": 0,
+            "fresh_appointment_fresh_order": 0,
+            "fresh_appointment_repeat_order": 0,
+            "repeat_appointment_fresh_order": 0,
+            "repeat_appointment_repeat_order": 0,
+        }
+
+        data = []
+
+        # -----------------------------
+        # CALL COUNT PER PHONE
+        # -----------------------------
+        call_summary = (
+            call_logs.values("phone")
+            .annotate(call_count=Count("id"))
+        )
+
+        for item in call_summary:
+
+            phone = item["phone"]
+
+            app_count = appointment_counts.get(phone, 0)
+            order_count = order_counts.get(phone, 0)
+
+            # -------------------------
+            # APPOINTMENT TYPE
+            # -------------------------
+            if app_count == 1:
+                app_type = "fresh"
+                fresh_appointment += 1
+            elif app_count > 1:
+                app_type = "repeat"
+                repeat_appointment += 1
+            else:
+                app_type = None
+
+            # -------------------------
+            # ORDER TYPE
+            # -------------------------
+            if order_count == 1:
+                order_type = "fresh"
+                fresh_order += 1
+            elif order_count > 1:
+                order_type = "repeat"
+                repeat_order += 1
+            else:
+                order_type = None
+
+            # -------------------------
+            # CONVERSION LOGIC
+            # -------------------------
+            if app_count > 0 and order_count > 0:
+
+                conversion_dict["total_numbers"] += 1
+
+                if app_type == "fresh" and order_type == "fresh":
+                    conversion_dict["fresh_appointment_fresh_order"] += 1
+
+                elif app_type == "fresh" and order_type == "repeat":
+                    conversion_dict["fresh_appointment_repeat_order"] += 1
+
+                elif app_type == "repeat" and order_type == "fresh":
+                    conversion_dict["repeat_appointment_fresh_order"] += 1
+
+                elif app_type == "repeat" and order_type == "repeat":
+                    conversion_dict["repeat_appointment_repeat_order"] += 1
+
+            # -------------------------
+            # PER NUMBER DATA
+            # -------------------------
+            data.append({
+                "phone": phone,
+                "call_count": item["call_count"],
+                "appointment_count": app_count,
+                "appointment_type": app_type,
+                "order_count": order_count,
+                "order_type": order_type,
+            })
+
+        # -----------------------------
+        # FINAL RESPONSE
+        # -----------------------------
+        return Response({
+            "agent_id": agent_id,
+            "total_calls": total_calls,
+            "unique_numbers": len(phones),
+
+            "appointments": {
+                "total": sum(appointment_counts.values()),
+                "fresh": fresh_appointment,
+                "repeat": repeat_appointment
+            },
+
+            "orders": {
+                "total": sum(order_counts.values()),
+                "fresh": fresh_order,
+                "repeat": repeat_order
+            },
+
+            "appointment_order_conversion": conversion_dict,
+
+            "data": data
+        })

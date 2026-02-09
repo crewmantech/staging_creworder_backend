@@ -11,6 +11,7 @@ from rest_framework.routers import DefaultRouter
 #     UserMailSetupView
 # )
 from .views import (
+    AgentCallSummaryAPI,
     CallActivityCreateAPIView,
     CallLeadDetailAPIView,
     CallLogListAPIView,
@@ -53,6 +54,7 @@ urlpatterns = [
     path("call-followups/today/", TodayFollowupAPIView.as_view()),
     path("call-activity/", CallActivityCreateAPIView.as_view()),
     path("call-logs/", CallLogListAPIView.as_view(), name="call-log-list"),
+    path("agent-call-summary/",AgentCallSummaryAPI.as_view(),name="agent-call-summary"),
     # path(
     #     "createCloudTelephoneyChannel/",
     #     CreateCloudTelephoneyChannel.as_view(),
