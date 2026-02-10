@@ -4704,7 +4704,7 @@ class CompanyMonthlySalaryPreviewAPIView(APIView):
         )
 
         total_days = calendar.monthrange(year, month)[1]
-        print(present_dates,"<-- Present Dates-----------------------4707")
+        print(present_dates,total_days,"<-- Present Dates-----------------------4707")
         present_days = 0
 
         for day in range(1, total_days + 1):
