@@ -1666,7 +1666,7 @@ class CallLogListAPIView(ListAPIView):
 
         return queryset.order_by("-created_at")
 
-
+from django.db.models.functions import Right
 class AgentCallSummaryAPI(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -1682,9 +1682,9 @@ class AgentCallSummaryAPI(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # -----------------------------
+        # --------------------------------------------------
         # GET AGENT ID
-        # -----------------------------
+        # --------------------------------------------------
         agent_id = get_agent_id_by_user(user_id)
 
         if not agent_id:
@@ -1693,12 +1693,11 @@ class AgentCallSummaryAPI(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        # -----------------------------
+        # --------------------------------------------------
         # CALL LOG FILTER
-        # -----------------------------
-        print(agent_id,"------------------agent id")  # Debug: Check agent_id value
-        call_logs = CallLog.objects.filter(agent_id=agent_id)
-        print(call_logs)  # Debug: Check the generated SQL query
+        # --------------------------------------------------
+        call_logs = CallLog.objects.filter(agent_id=str(agent_id))
+
         if from_date and to_date:
             start_datetime = datetime.strptime(from_date, "%Y-%m-%d")
             end_datetime = datetime.strptime(to_date, "%Y-%m-%d") + timedelta(days=1)
@@ -1707,15 +1706,16 @@ class AgentCallSummaryAPI(APIView):
                 created_at__gte=start_datetime,
                 created_at__lt=end_datetime
             )
-        print(call_logs)  # Debug: Check call logs after date filtering
-        print(from_date, to_date)  # Debug: Check date range values
+
         total_calls = call_logs.count()
-        print(total_calls,"------------------total calls")  # Debug: Check total calls count
-        # -----------------------------
-        # UNIQUE PHONE NUMBERS
-        # -----------------------------
+
+        # --------------------------------------------------
+        # UNIQUE PHONE NUMBERS (LAST 10 DIGIT)
+        # --------------------------------------------------
         phones = list(
-            call_logs.values_list("phone", flat=True).distinct()
+            call_logs.annotate(
+                last10=Right("phone", 10)
+            ).values_list("last10", flat=True).distinct()
         )
 
         if not phones:
@@ -1729,34 +1729,38 @@ class AgentCallSummaryAPI(APIView):
                 "data": []
             })
 
-        # -----------------------------
-        # APPOINTMENT COUNTS PER PHONE
-        # -----------------------------
+        # --------------------------------------------------
+        # APPOINTMENT COUNTS PER PHONE (LAST 10 DIGIT)
+        # --------------------------------------------------
         appointment_counts = dict(
-            Appointment.objects.filter(
-                patient_phone__in=phones
+            Appointment.objects.annotate(
+                last10=Right("patient_phone", 10)
             )
-            .values("patient_phone")
+            .filter(last10__in=phones)
+            .values("last10")
             .annotate(cnt=Count("id"))
-            .values_list("patient_phone", "cnt")
+            .values_list("last10", "cnt")
         )
 
-        # -----------------------------
-        # ORDER COUNTS PER PHONE
-        # -----------------------------
+        # --------------------------------------------------
+        # ORDER COUNTS PER PHONE (LAST 10 DIGIT)
+        # --------------------------------------------------
         order_counts = dict(
-            Order_Table.objects.filter(
-                customer_phone__in=phones,
+            Order_Table.objects.annotate(
+                last10=Right("customer_phone", 10)
+            )
+            .filter(
+                last10__in=phones,
                 is_deleted=False
             )
-            .values("customer_phone")
+            .values("last10")
             .annotate(cnt=Count("id"))
-            .values_list("customer_phone", "cnt")
+            .values_list("last10", "cnt")
         )
 
-        # -----------------------------
+        # --------------------------------------------------
         # SUMMARY VARIABLES
-        # -----------------------------
+        # --------------------------------------------------
         fresh_appointment = 0
         repeat_appointment = 0
         fresh_order = 0
@@ -1772,17 +1776,20 @@ class AgentCallSummaryAPI(APIView):
 
         data = []
 
-        # -----------------------------
+        # --------------------------------------------------
         # CALL COUNT PER PHONE
-        # -----------------------------
+        # --------------------------------------------------
         call_summary = (
-            call_logs.values("phone")
+            call_logs.annotate(
+                last10=Right("phone", 10)
+            )
+            .values("last10")
             .annotate(call_count=Count("id"))
         )
 
         for item in call_summary:
 
-            phone = item["phone"]
+            phone = item["last10"]
 
             app_count = appointment_counts.get(phone, 0)
             order_count = order_counts.get(phone, 0)
@@ -1842,9 +1849,9 @@ class AgentCallSummaryAPI(APIView):
                 "order_type": order_type,
             })
 
-        # -----------------------------
+        # --------------------------------------------------
         # FINAL RESPONSE
-        # -----------------------------
+        # --------------------------------------------------
         return Response({
             "agent_id": agent_id,
             "total_calls": total_calls,
