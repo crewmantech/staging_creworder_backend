@@ -1096,3 +1096,5 @@ class AppointmentAggregationByStatusAPIView(APIView):
             "agent_list": agent_list,
             "team_target_summary": team_target_summary
         })
+
+

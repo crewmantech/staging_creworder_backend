@@ -4692,18 +4692,34 @@ class CompanyMonthlySalaryPreviewAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get_present_days(self, user, year, month):
-        attendances = Attendance.objects.filter(
-            user=user,
-            date__year=year,
-            date__month=month,
-            attendance="P"
+
+        # Get all present attendance dates
+        present_dates = set(
+            Attendance.objects.filter(
+                user=user,
+                date__year=year,
+                date__month=month,
+                attendance="P"
+            ).values_list("date", flat=True)
         )
 
-        present_days = sum(
-            1 for a in attendances if a.date.weekday() != 6
-        )
+        total_days = calendar.monthrange(year, month)[1]
+
+        present_days = 0
+
+        for day in range(1, total_days + 1):
+            current_date = date(year, month, day)
+
+            # If Sunday → count automatically
+            if current_date.weekday() == 6:
+                present_days += 1
+
+            # Other days → count only if present
+            elif current_date in present_dates:
+                present_days += 1
+
         return present_days
-
+    
     def get_user_monthwise_delivered_amount(self, user, monthyear):
         try:
             year, month = map(int, monthyear.split("-"))
