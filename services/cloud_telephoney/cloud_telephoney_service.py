@@ -137,7 +137,7 @@ class CloudConnectService:
             headers=headers,
             timeout=10
         )
-
+        print(response.status_code, response.text, "-----------------response from cloudconnect------------------")
         try:
             result = response.json()
         except Exception:
