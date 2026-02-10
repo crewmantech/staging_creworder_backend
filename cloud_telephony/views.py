@@ -1696,15 +1696,16 @@ class AgentCallSummaryAPI(APIView):
         # -----------------------------
         # CALL LOG FILTER
         # -----------------------------
+        print(agent_id,"------------------agent id")  # Debug: Check agent_id value
         call_logs = CallLog.objects.filter(agent_id=agent_id)
-
+        print(call_logs)  # Debug: Check the generated SQL query
         if from_date and to_date:
             call_logs = call_logs.filter(
                 created_at__date__range=[from_date, to_date]
             )
 
         total_calls = call_logs.count()
-
+        print(total_calls,"------------------total calls")  # Debug: Check total calls count
         # -----------------------------
         # UNIQUE PHONE NUMBERS
         # -----------------------------
