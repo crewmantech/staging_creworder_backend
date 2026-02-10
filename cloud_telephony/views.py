@@ -239,7 +239,7 @@ from datetime import datetime, date as dt_date
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers, status, viewsets
 from django.utils import timezone
-
+from datetime import  timedelta
 class CloudTelephonyVendorViewSet(viewsets.ModelViewSet):
     queryset = CloudTelephonyVendor.objects.all()
     serializer_class = CloudTelephonyVendorSerializer
@@ -1700,8 +1700,12 @@ class AgentCallSummaryAPI(APIView):
         call_logs = CallLog.objects.filter(agent_id=agent_id)
         print(call_logs)  # Debug: Check the generated SQL query
         if from_date and to_date:
+            start_datetime = datetime.strptime(from_date, "%Y-%m-%d")
+            end_datetime = datetime.strptime(to_date, "%Y-%m-%d") + timedelta(days=1)
+
             call_logs = call_logs.filter(
-                created_at__date__range=[from_date, to_date]
+                created_at__gte=start_datetime,
+                created_at__lt=end_datetime
             )
         print(call_logs)  # Debug: Check call logs after date filtering
         print(from_date, to_date)  # Debug: Check date range values
