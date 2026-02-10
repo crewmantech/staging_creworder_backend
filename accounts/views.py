@@ -4693,6 +4693,8 @@ class CompanyMonthlySalaryPreviewAPIView(APIView):
 
     def get_present_days(self, user, year, month):
 
+        today = date.today()
+
         # Get all present attendance dates
         present_dates = set(
             Attendance.objects.filter(
@@ -4703,18 +4705,25 @@ class CompanyMonthlySalaryPreviewAPIView(APIView):
             ).values_list("date", flat=True)
         )
 
-        total_days = calendar.monthrange(year, month)[1]
-        print(present_dates,total_days,"<-- Present Dates-----------------------4707")
+        # Total days in month
+        month_total_days = calendar.monthrange(year, month)[1]
+
+        # ✅ If current month, count only till today
+        if year == today.year and month == today.month:
+            total_days = today.day
+        else:
+            total_days = month_total_days
+
         present_days = 0
 
         for day in range(1, total_days + 1):
             current_date = date(year, month, day)
 
-            # If Sunday → count automatically
+            # Sunday auto present
             if current_date.weekday() == 6:
                 present_days += 1
 
-            # Other days → count only if present
+            # Other days only if present
             elif current_date in present_dates:
                 present_days += 1
 
