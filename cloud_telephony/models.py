@@ -152,7 +152,9 @@ class CloudTelephonyChannelAssign(BaseModel):
         if (
             self.agent_password
             and self.cloud_telephony_channel
-            and self.cloud_telephony_channel.cloudtelephony_vendor.name == "Cloud Connect"
+            and (
+                self.cloud_telephony_channel.cloudtelephony_vendor.name or ""
+            ).strip().lower() == "cloud connect"
             and not is_md5(self.agent_password)
         ):
             self.agent_password = hashlib.md5(
