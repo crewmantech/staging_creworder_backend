@@ -1703,7 +1703,8 @@ class AgentCallSummaryAPI(APIView):
             call_logs = call_logs.filter(
                 created_at__date__range=[from_date, to_date]
             )
-
+        print(call_logs)  # Debug: Check call logs after date filtering
+        print(from_date, to_date)  # Debug: Check date range values
         total_calls = call_logs.count()
         print(total_calls,"------------------total calls")  # Debug: Check total calls count
         # -----------------------------
