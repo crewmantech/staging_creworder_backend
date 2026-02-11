@@ -4691,7 +4691,7 @@ class CompanySalaryViewSet(viewsets.ModelViewSet):
 class CompanyMonthlySalaryPreviewAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get_present_days(self, user, year, month):
+    def get_present_days(self, user, year, month, target=False):
 
         today = date.today()
 
@@ -4726,6 +4726,10 @@ class CompanyMonthlySalaryPreviewAPIView(APIView):
             # Other days only if present
             elif current_date in present_dates:
                 present_days += 1
+
+        # ✅ Target logic
+        if target and present_days >= 24:
+            return month_total_days
 
         return present_days
     
@@ -4810,9 +4814,11 @@ class CompanyMonthlySalaryPreviewAPIView(APIView):
                 amount = self.get_user_monthwise_delivered_amount(user, monthyear)
 
                 if amount >= 50000:
+                    present_days = self.get_present_days(user, year, month,True)
                     rule = "Full Salary"
                     salary = per_day_salary * present_days
                 else:
+                    present_days = self.get_present_days(user, year, month,False)
                     rule = "Half Salary (Target Not Achieved)"
                     salary = (per_day_salary / 2) * present_days
 
