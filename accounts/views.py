@@ -4818,7 +4818,7 @@ class CompanyMonthlySalaryPreviewAPIView(APIView):
                     rule = "Full Salary"
                     salary = per_day_salary * present_days
                 else:
-                    present_days = self.get_present_days(user, year, month,False)
+                    # present_days = self.get_present_days(user, year, month,False)
                     rule = "Half Salary (Target Not Achieved)"
                     salary = (per_day_salary / 2) * present_days
 
