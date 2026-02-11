@@ -4830,7 +4830,8 @@ class CompanyMonthlySalaryPreviewAPIView(APIView):
                     # present_days = self.get_present_days(user, year, month,False)
                     rule = "Half Salary (Target Not Achieved)"
                     salary = (per_day_salary / 2) * present_days
-
+                if round(float(salary), 2)>10000:
+                    salary = 10000
                 results.append({
                     "user_id": user.id,
                     "username": user.username,
