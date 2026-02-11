@@ -4661,7 +4661,16 @@ class CompanySalaryViewSet(viewsets.ModelViewSet):
     queryset = CompanySalary.objects.all()
     serializer_class = CompanySalarySerializer
     permission_classes = [IsAuthenticated]
+    # ✅ Filter data company-wise
+    def get_queryset(self):
+        user = self.request.user
 
+        if not hasattr(user, "profile") or not user.profile.company:
+            return CompanySalary.objects.none()
+
+        return CompanySalary.objects.filter(
+            company=user.profile.company
+        )
     def create(self, request, *args, **kwargs):
         user = request.user
 
