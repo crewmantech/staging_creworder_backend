@@ -1163,6 +1163,7 @@ def get_vendor_service(shipment_or_vendor):
             vendor_name = (name or "").strip().lower()
             username = getattr(vendor, "credential_username", None) or (vendor.get("credential_username") if isinstance(vendor, dict) else None)
             password = getattr(vendor, "credential_password", None) or (vendor.get("credential_password") if isinstance(vendor, dict) else None)
+            token = getattr(vendor, "credential_token", None) or (vendor.get("credential_token") if isinstance(vendor, dict) else None)
             if not username:
                 cred = getattr(vendor, "credentials", None) or (vendor.get("credentials") if isinstance(vendor, dict) else None)
                 if isinstance(cred, dict):
@@ -1179,6 +1180,8 @@ def get_vendor_service(shipment_or_vendor):
         return ShiprocketScheduleOrder(username, password)
     if vendor_name == "nimbuspost":
         return NimbuspostAPI(username, password)
+    if vendor_name == "eshopbox":
+        return EshopboxAPI(username, password, token)
     raise ValueError(f"Unsupported shipment vendor: {vendor_name}")
 
 
@@ -1211,7 +1214,46 @@ def normalize_vendor_response(vendor_name: str, vendor_result, awb: str = None, 
             normalized["message"] = vendor_result.get("message", "") or vendor_result.get("detail", "")
         else:
             normalized["message"] = "Unexpected NimbusPost response shape"
+    elif vendor_name == "eshopbox":
 
+        if isinstance(vendor_result, dict):
+
+
+            status_val = str(vendor_result.get("status", "")).lower()
+            success_val = vendor_result.get("success")
+
+            # -------- SUCCESS DETECTION --------
+            if success_val is True:
+                normalized["success"] = True
+
+            elif status_val in ["success", "ok", "updated"]:
+                normalized["success"] = True
+
+            elif http_status and int(http_status) in (200, 201, 202):
+                normalized["success"] = True
+
+            else:
+                normalized["success"] = False
+
+            # -------- MESSAGE EXTRACTION --------
+            normalized["message"] = (
+                vendor_result.get("message")
+                or vendor_result.get("detail")
+                or (
+                    ", ".join(vendor_result.get("errors"))
+                    if isinstance(vendor_result.get("errors"), list)
+                    else ""
+                )
+                or status_val
+            )
+
+        else:
+            # fallback if vendor returned raw response
+            if http_status and int(http_status) in (200, 201, 202):
+                normalized["success"] = True
+                normalized["message"] = f"HTTP {http_status}"
+            else:
+                normalized["message"] = "Unexpected Eshopbox response shape"
     elif vendor_name == "shiprocket":
         if isinstance(vendor_result, dict):
             val = vendor_result.get("status", None)
@@ -1320,6 +1362,121 @@ def build_vendor_payload_for_ndr(vendor_name: str, awb: str, action: str, commen
                     break
 
         return ship_kwargs, "shiprocket", merged
+    if vendor_name == "eshopbox":
+
+        # ---------------- ACTION → RESOLUTION CODE ---------------- #
+        action_map = {
+            "change_address": "ACTF001",
+            "change_phone": "ACTF001",
+            "re-attempt": "ACTF002",
+            "return": "ACTF003",
+        }
+
+        resolution_code = action_map.get(action)
+
+        if not resolution_code:
+            raise ValueError(f"Unsupported Eshopbox action: {action}")
+
+        # ---------------- FETCH ORDER (FOR FALLBACK DATA) ---------------- #
+        order = (
+            Order_Table.objects
+            .filter(order_wayBill=awb)
+            .only(
+                "order_id",
+                "customer_name",
+                "customer_email",
+                "customer_phone",
+                "customer_address",
+                "customer_city",
+                "customer_postal",
+                "customer_state",
+            )
+            .first()
+        )
+
+        # ---------------- BUILD CURRENT ADDRESS ---------------- #
+        current_address = merged.get("currentAddress")
+
+        if not current_address and order:
+            state_name = (
+                order.customer_state.name
+                if order.customer_state else ""
+            )
+
+            current_address = (
+                f"{order.customer_address}, "
+                f"{order.customer_city}, "
+                f"{state_name}, "
+                f"{order.customer_postal}"
+            )
+
+        # ---------------- BASE PAYLOAD ---------------- #
+        payload = {
+            "trackingId": awb,
+            "resolutionCode": resolution_code,
+            "customerOrderNumber": (
+                merged.get("customerOrderNumber")
+                or (order.order_id if order else None)
+            ),
+        }
+
+        if comments:
+            payload["remarks"] = comments
+
+        if merged.get("actionSource"):
+            payload["actionSource"] = merged["actionSource"]
+
+        # ---------------- ACTF001 (Address / Phone Change) ---------------- #
+        if resolution_code == "ACTF001":
+
+            phone_number = (
+                merged.get("contactPhoneNumber")
+                or merged.get("phone")
+                or (order.customer_phone if order else None)
+            )
+
+            if phone_number:
+                payload["contactPhoneNumber"] = phone_number
+
+            shipping_details = {
+                "name": merged.get("name") or (order.customer_name if order else None),
+                "email": merged.get("email") or (order.customer_email if order else None),
+                "currentAddress": current_address,
+                "updatedAddress": merged.get("updatedAddress") or merged.get("address_1"),
+                "landmark": merged.get("landmark"),
+                "notes": merged.get("notes"),
+            }
+
+            # remove empty values
+            shipping_details = {
+                k: v for k, v in shipping_details.items()
+                if v not in [None, ""]
+            }
+
+            if shipping_details:
+                payload["shippingDetails"] = shipping_details
+
+        # ---------------- ACTF002 (Re-attempt / Reschedule) ---------------- #
+        elif resolution_code == "ACTF002":
+
+            phone_number = (
+                merged.get("contactPhoneNumber")
+                or merged.get("phone")
+                or (order.customer_phone if order else None)
+            )
+
+            if phone_number:
+                payload["contactPhoneNumber"] = phone_number
+
+            if merged.get("deferredDate"):
+                payload["deferredDate"] = merged["deferredDate"]
+
+        # ---------------- ACTF003 (Return / Cancel) ---------------- #
+        elif resolution_code == "ACTF003":
+            # minimal payload only
+            pass
+
+        return payload, "eshopbox", merged
 
     raise ValueError(f"Unsupported vendor for mapping: {vendor_name}")
 
@@ -1332,7 +1489,8 @@ class NDRActionAPIView(APIView):
     ALLOWED_ACTIONS = {
         "nimbuspost": {"re-attempt", "change_address", "change_phone"},
         "shiprocket": {"re-attempt", "return", "change_address", "change_phone"},
-    }
+        "eshopbox": {"re-attempt", "return", "change_address", "change_phone"},
+        }
 
     def _simple_response(self, success, message, data=None, http_status=status.HTTP_200_OK):
         return Response(
@@ -1436,6 +1594,17 @@ class NDRActionAPIView(APIView):
 
                 elif call_style == "shiprocket":
                     vendor_result = service.action_ndr(**payload)
+                elif call_style == "eshopbox":
+                    vendor_result = service.resolve_ndr(
+                        customer_order_number=payload.get("customerOrderNumber"),
+                        tracking_id=payload.get("trackingId"),
+                        resolution_code=payload.get("resolutionCode"),
+                        contact_phone_number=payload.get("contactPhoneNumber"),
+                        action_source=payload.get("actionSource"),
+                        deferred_date=payload.get("deferredDate"),
+                        shipping_details=payload.get("shippingDetails"),
+                        remarks=payload.get("remarks"),
+                    )
 
                 else:
                     raise ValueError("Unsupported vendor call style")

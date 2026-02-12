@@ -2168,71 +2168,84 @@ class EshopboxAPI:
         url = "https://wms.eshopbox.com/api/v1/shipping/return"
         res = requests.post(url, json=payload, headers=self.headers, timeout=30)
         return res.json()
-    def resolve_ndr(self,customer_order_number,tracking_id,resolution_code,contact_phone_number=None,action_source=None,deferred_date=None,shipping_details=None,remarks=None,):
+    def resolve_ndr(
+    self,
+    customer_order_number,
+    tracking_id,
+    resolution_code,
+    contact_phone_number=None,
+    action_source=None,
+    deferred_date=None,
+    shipping_details=None,
+    remarks=None,
+    order_item_id=None,
+    timeline="forwardTrackingTimeline",
+    client_email=None,
+    actor_type=None,
+    actor=None,
+):
         """
         Eshopbox NDR Resolution
-
-        ACTF001 -> Reattempt delivery (shippingDetails required)
-        ACTF002 -> Delivery rescheduled (deferredDate required)
-        ACTF003 -> Cancel (minimal payload)
-        ACTF004 -> Return to origin initiated (shippingDetails required)
         """
 
         payload = {
             "customerOrderNumber": str(customer_order_number),
             "trackingId": str(tracking_id),
             "resolutionCode": resolution_code,
+            "timeline": timeline,
         }
 
-        # Optional common fields
+        # optional common fields
+        if order_item_id:
+            payload["orderItemID"] = order_item_id
+
+        if client_email:
+            payload["clientEmail"] = client_email
+
         if action_source:
             payload["actionSource"] = action_source
 
         if remarks:
             payload["remarks"] = remarks
 
-        # ---------------- ACTF001 (Reattempt Delivery) ----------------
-        if resolution_code == "ACTF001":
+        if actor_type:
+            payload["actorType"] = actor_type
+
+        if actor:
+            payload["actor"] = actor
+
+        # ---------------- ACTF001 / ACTF004 ---------------- #
+        if resolution_code in ["ACTF001", "ACTF004"]:
+
             if contact_phone_number:
                 payload["contactPhoneNumber"] = str(contact_phone_number)
 
             if shipping_details:
                 payload["shippingDetails"] = {
-                    "name": shipping_details.get("name"),
-                    "email": shipping_details.get("email"),
-                    "currentAddress": shipping_details.get("currentAddress"),
-                    "updatedAddress": shipping_details.get("updatedAddress"),
-                    "landmark": shipping_details.get("landmark"),
-                    "notes": shipping_details.get("notes"),
+                    k: v for k, v in {
+                        "name": shipping_details.get("name"),
+                        "email": shipping_details.get("email"),
+                        "currentAddress": shipping_details.get("currentAddress"),
+                        "updatedAddress": shipping_details.get("updatedAddress"),
+                        "landmark": shipping_details.get("landmark"),
+                        "notes": shipping_details.get("notes"),
+                    }.items() if v not in [None, ""]
                 }
 
-        # ---------------- ACTF002 (Reschedule Delivery) ----------------
+        # ---------------- ACTF002 ---------------- #
         elif resolution_code == "ACTF002":
+
             if contact_phone_number:
                 payload["contactPhoneNumber"] = str(contact_phone_number)
 
+            # IMPORTANT: must not be empty
             if deferred_date:
                 payload["deferredDate"] = deferred_date
 
-        # ---------------- ACTF003 (Cancel Order) ----------------
+        # ---------------- ACTF003 ---------------- #
         elif resolution_code == "ACTF003":
-            # Only minimal payload required
+            # minimal payload only
             pass
-
-        # ---------------- ACTF004 (Return to Origin Initiated) ----------------
-        elif resolution_code == "ACTF004":
-            if contact_phone_number:
-                payload["contactPhoneNumber"] = str(contact_phone_number)
-
-            if shipping_details:
-                payload["shippingDetails"] = {
-                    "name": shipping_details.get("name"),
-                    "email": shipping_details.get("email"),
-                    "currentAddress": shipping_details.get("currentAddress"),
-                    "updatedAddress": shipping_details.get("updatedAddress"),
-                    "landmark": shipping_details.get("landmark"),
-                    "notes": shipping_details.get("notes"),
-                }
 
         else:
             return {"success": False, "error": "Invalid resolution code"}
@@ -2255,4 +2268,4 @@ class EshopboxAPI:
 
         except Exception as e:
             logger.error(f"Eshopbox NDR error: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": str(e)}, 500
