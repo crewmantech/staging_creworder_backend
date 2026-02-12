@@ -1710,6 +1710,7 @@ class EshopboxAPI:
     ORDER_URL = "https://wms.eshopbox.com/api/order"
     SHIPMENT_URL = "https://wms.eshopbox.com/api/v1/shipping/order"
     RATE_URL = "https://{domain}/shipping/api/v1/calculate/rate"
+    NDR_RESOLUTION_URL = "https://wms.eshopbox.com/api/v2/ndrResolution"
 
     def __init__(self, client_id, client_secret, refresh_token):
         self.client_id = client_id
@@ -2167,3 +2168,91 @@ class EshopboxAPI:
         url = "https://wms.eshopbox.com/api/v1/shipping/return"
         res = requests.post(url, json=payload, headers=self.headers, timeout=30)
         return res.json()
+    def resolve_ndr(self,customer_order_number,tracking_id,resolution_code,contact_phone_number=None,action_source=None,deferred_date=None,shipping_details=None,remarks=None,):
+        """
+        Eshopbox NDR Resolution
+
+        ACTF001 -> Reattempt delivery (shippingDetails required)
+        ACTF002 -> Delivery rescheduled (deferredDate required)
+        ACTF003 -> Cancel (minimal payload)
+        ACTF004 -> Return to origin initiated (shippingDetails required)
+        """
+
+        payload = {
+            "customerOrderNumber": str(customer_order_number),
+            "trackingId": str(tracking_id),
+            "resolutionCode": resolution_code,
+        }
+
+        # Optional common fields
+        if action_source:
+            payload["actionSource"] = action_source
+
+        if remarks:
+            payload["remarks"] = remarks
+
+        # ---------------- ACTF001 (Reattempt Delivery) ----------------
+        if resolution_code == "ACTF001":
+            if contact_phone_number:
+                payload["contactPhoneNumber"] = str(contact_phone_number)
+
+            if shipping_details:
+                payload["shippingDetails"] = {
+                    "name": shipping_details.get("name"),
+                    "email": shipping_details.get("email"),
+                    "currentAddress": shipping_details.get("currentAddress"),
+                    "updatedAddress": shipping_details.get("updatedAddress"),
+                    "landmark": shipping_details.get("landmark"),
+                    "notes": shipping_details.get("notes"),
+                }
+
+        # ---------------- ACTF002 (Reschedule Delivery) ----------------
+        elif resolution_code == "ACTF002":
+            if contact_phone_number:
+                payload["contactPhoneNumber"] = str(contact_phone_number)
+
+            if deferred_date:
+                payload["deferredDate"] = deferred_date
+
+        # ---------------- ACTF003 (Cancel Order) ----------------
+        elif resolution_code == "ACTF003":
+            # Only minimal payload required
+            pass
+
+        # ---------------- ACTF004 (Return to Origin Initiated) ----------------
+        elif resolution_code == "ACTF004":
+            if contact_phone_number:
+                payload["contactPhoneNumber"] = str(contact_phone_number)
+
+            if shipping_details:
+                payload["shippingDetails"] = {
+                    "name": shipping_details.get("name"),
+                    "email": shipping_details.get("email"),
+                    "currentAddress": shipping_details.get("currentAddress"),
+                    "updatedAddress": shipping_details.get("updatedAddress"),
+                    "landmark": shipping_details.get("landmark"),
+                    "notes": shipping_details.get("notes"),
+                }
+
+        else:
+            return {"success": False, "error": "Invalid resolution code"}
+
+        try:
+            print(payload, "------------ Eshopbox NDR Payload ------------")
+
+            res = requests.post(
+                self.NDR_RESOLUTION_URL,
+                json=payload,
+                headers=self.headers,
+                timeout=30
+            )
+
+            response_data = res.json()
+
+            print(response_data, "------------ Eshopbox NDR Response ------------")
+
+            return response_data, res.status_code
+
+        except Exception as e:
+            logger.error(f"Eshopbox NDR error: {e}")
+            return {"success": False, "error": str(e)}
