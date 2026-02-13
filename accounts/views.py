@@ -3753,7 +3753,7 @@ class UserPermissionStatusView(APIView):
                     'accounts.view_whatsapp_button_others'
                 ),
                 # ✅ NEW VIRTUAL PERMISSION
-                "view_cloud_dialer": has_cloud_dialer,
+                "view_cloud_dialer": user.has_perm('accounts.view_cloud_dialer_others'),
                 
             }
         else:
@@ -3800,7 +3800,7 @@ class UserPermissionStatusView(APIView):
                     'accounts.view_whatsapp_button_others'
                 ),
                 # ✅ NEW VIRTUAL PERMISSION
-                "view_cloud_dialer": has_cloud_dialer,
+                "view_cloud_dialer": user.has_perm('accounts.view_cloud_dialer_others'),
             }   
 
         return Response(response_data)

@@ -1092,6 +1092,7 @@ class Others(models.Model):
             ('edit_appointment_status_others', 'Can edit appointment status others'),
              # ✅ NEW PERMISSION
             ('view_whatsapp_button_others', 'Can view WhatsApp button others'),
+            ('view_cloud_dialer_others', 'Can view cloud dialer others'),
 
             )
     def __str__(self):
