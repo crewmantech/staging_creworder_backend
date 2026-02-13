@@ -192,11 +192,12 @@
 #         serializer.save()
 #         return Response(serializer.data)
 from django.db.models import Q,OuterRef,Subquery,Count
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status,filters
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from accounts.models import CallQc
+from accounts.views import StandardResultsSetPagination
 from cloud_telephony.utils import duration_to_seconds, get_agent_id_by_user, get_company_from_agent_campaign, has_valid_recording
 from follow_up.models import Appointment, Follow_Up
 from follow_up.serializers import AppointmentSerializer, FollowUpSerializer
@@ -262,6 +263,26 @@ class CloudTelephonyChannelAssignViewSet(viewsets.ModelViewSet):
     serializer_class = CloudTelephonyChannelAssignSerializer
     permission_classes = [IsAuthenticated]
 
+    # ✅ Pagination
+    pagination_class = StandardResultsSetPagination
+
+    # ✅ Search + Ordering
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+
+    # Change fields according to your model
+    search_fields = [
+        "user__first_name",
+        "user__last_name",
+        "user__username",
+        "cloud_telephony_channel__name",
+        "cloud_telephony_channel__cloudtelephony_vendor__name",
+        "agent_phone",
+        "agent_name",
+    ]
+
+    ordering_fields = ["id", "created_at", "is_active"]
+    ordering = ["-id"]
+
     def get_queryset(self):
         user = self.request.user
         company = user.profile.company
@@ -270,7 +291,7 @@ class CloudTelephonyChannelAssignViewSet(viewsets.ModelViewSet):
 
         qs = CloudTelephonyChannelAssign.objects.filter(company=company)
 
-        # If ?self_assign=true → only my channels
+        # ✅ Only my assigned channels
         if self_assign and self_assign.lower() == "true":
             qs = qs.filter(user=user)
 
@@ -281,38 +302,33 @@ class CloudTelephonyChannelAssignViewSet(viewsets.ModelViewSet):
         try:
             serializer.save(company=company)
         except DjangoValidationError as e:
-            # Extract and format error messages
-            error_message = self._format_validation_error(e)
-            raise serializers.ValidationError({"error": error_message})
+            raise serializers.ValidationError(
+                {"error": self._format_validation_error(e)}
+            )
 
     def perform_update(self, serializer):
         try:
             serializer.save()
         except DjangoValidationError as e:
-            # Extract and format error messages
-            error_message = self._format_validation_error(e)
-            raise serializers.ValidationError({"error": error_message})
+            raise serializers.ValidationError(
+                {"error": self._format_validation_error(e)}
+            )
 
     def _format_validation_error(self, exception):
-        """
-        Convert Django ValidationError to clean error message
-        """
         if hasattr(exception, 'message_dict'):
-            # Collect all error messages from all fields
             messages = []
             for field, errors in exception.message_dict.items():
                 if isinstance(errors, list):
                     messages.extend(errors)
                 else:
                     messages.append(str(errors))
-            # Join multiple messages with comma
             return ", ".join(messages)
+
         elif hasattr(exception, 'messages'):
             return ", ".join(exception.messages)
-        else:
-            return str(exception)
 
-    # ✅ CUSTOM URL: /activate_monitoring/<id>/
+        return str(exception)
+
     @action(detail=False, methods=["post"], url_path="activate_monitoring/(?P<id>[^/.]+)")
     def activate_monitoring(self, request, id=None):
 
@@ -330,28 +346,25 @@ class CloudTelephonyChannelAssignViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # security: same company only
         if instance.company != request.user.profile.company:
             return Response(
                 {"error": "Not allowed"},
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        # deactivate others
         CloudTelephonyChannelAssign.objects.filter(
             user=instance.user,
             company=instance.company,
             type=2
         ).update(is_active=False)
 
-        # activate this
         instance.is_active = True
+
         try:
             instance.save()
         except DjangoValidationError as e:
-            error_message = self._format_validation_error(e)
             return Response(
-                {"error": error_message},
+                {"error": self._format_validation_error(e)},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -359,7 +372,6 @@ class CloudTelephonyChannelAssignViewSet(viewsets.ModelViewSet):
             "message": "Monitoring channel activated successfully",
             "active_id": instance.id
         })
-
 
 class UserMailSetupViewSet(viewsets.ModelViewSet):
     queryset = UserMailSetup.objects.all()
