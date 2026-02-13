@@ -33,6 +33,14 @@ class CloudTelephonyChannelSerializer(serializers.ModelSerializer):
 class CloudTelephonyChannelAssignSerializer(serializers.ModelSerializer):
     company = serializers.PrimaryKeyRelatedField(read_only=True)
     vendor_name = serializers.SerializerMethodField()
+    agent_name = serializers.SerializerMethodField()
+    def get_agent_name(self, obj):
+        if not obj.user:
+            return None
+
+        first = obj.user.first_name or ""
+        last = obj.user.last_name or ""
+        return f"{first} {last}".strip()
     class Meta:
         model = CloudTelephonyChannelAssign
         fields = "__all__"
