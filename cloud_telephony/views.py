@@ -1666,6 +1666,10 @@ class CallLogListAPIView(ListAPIView):
                 return CallLog.objects.none()
             queryset = queryset.filter(agent_id=agent_id)
         if answered is not None:
+            agent_id = get_agent_id_by_user(agent_param)
+            if not agent_id:
+                return CallLog.objects.none()
+            queryset = queryset.filter(agent_id=user)
             if answered.lower() == "true":
                 queryset = queryset.filter(status__iexact="Answered")
             
