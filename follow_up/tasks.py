@@ -51,7 +51,7 @@ def followup_reminder_scheduler():
                 followup=followup,
                 notification_type="followup_reminder",
                 defaults={
-                    "message": f"⏰ Follow-up reminder for {followup.customer_name}",
+                    "message": f"Follow-up reminder for {followup.customer_name}",
                     "url": f"/followups/{followup.followup_id}/"
                 }
             )
