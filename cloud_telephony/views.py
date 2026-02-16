@@ -1655,7 +1655,7 @@ class CallLogListAPIView(ListAPIView):
         status_param = self.request.query_params.get("status")
         session_id = self.request.query_params.get("session_id")
         campaign_id = self.request.query_params.get("campaign_id")
-
+        answered = self.request.query_params.get("answered")
         # 🔹 Base queryset → company level security
         queryset = CallLog.objects.filter(company=company)
 
@@ -1665,6 +1665,10 @@ class CallLogListAPIView(ListAPIView):
             if not agent_id:
                 return CallLog.objects.none()
             queryset = queryset.filter(agent_id=agent_id)
+        if answered is not None:
+            if answered.lower() == "true":
+                queryset = queryset.filter(status__iexact="Answered")
+            
 
         # 🔹 Other filters (optional)
         if campaign_id:
