@@ -12,8 +12,8 @@ class FollowUpConfig(AppConfig):
 
     def ready(self):
         # ❌ Prevent duplicate threads in dev server
-        if os.environ.get("RUN_MAIN") != "true":
-            return
+        # if os.environ.get("RUN_MAIN") != "true":
+        #     return
 
         from follow_up.tasks import followup_reminder_scheduler
 
