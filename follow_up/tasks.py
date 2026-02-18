@@ -28,9 +28,7 @@ def followup_reminder_scheduler():
         reminder_date__gte=start_time,
         reminder_date__lt=end_time
     )
-    print(followups,"-------------222-------------")
     for followup in followups:
-        print("-------------333-------------,followup",followup)
         users_to_notify = set()
 
         # 👤 Assigned user

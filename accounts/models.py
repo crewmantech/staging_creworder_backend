@@ -524,7 +524,7 @@ class Department(BaseModel):
             permission_name = f"Department {perm_name.replace('_', ' ').capitalize()} {self.name.replace('_', ' ')} - {company_name}"
             permission_codename = f"department_{perm_name}_{self.name.lower().replace(' ', '_')}"
 
-            print(permission_codename, permission_name, "-----------------466")
+            # print(permission_codename, permission_name, "-----------------466")
 
             try:
                 Permission.objects.get_or_create(

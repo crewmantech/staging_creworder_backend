@@ -295,7 +295,7 @@ class UserViewSet(viewsets.ModelViewSet):
             # Only filter active for list/retrieve
             if self.action in ["list", "retrieve"]:
                 queryset = queryset.filter(profile__status=1)
-            print("----------------------257")
+            # print("----------------------257")
             if user.profile.user_type == "superadmin":
                 company_id = self.request.query_params.get("company_id")
                 if company_id:
@@ -311,11 +311,11 @@ class UserViewSet(viewsets.ModelViewSet):
                     queryset = queryset.filter(profile__branch=branch_id)
 
             elif user.profile.user_type == "agent":
-                print("----------------------272")
+                # print("----------------------272")
                
                 
                 try:
-                    print("--------------------------277", user.has_perm('accounts.department_can_view_all'))
+                    # print("--------------------------277", user.has_perm('accounts.department_can_view_all'))
                     user_permissions = user.user_permissions.values_list('codename', flat=True)
                    
                     # 🟢 1. Full Access: All departments
@@ -350,7 +350,7 @@ class UserViewSet(viewsets.ModelViewSet):
                     if branch_id:
                         queryset = queryset.filter(profile__branch=branch_id)
                 except Exception as e:
-                    print("Agent filtering error:", e)
+                    # print("Agent filtering error:", e)
                     queryset = queryset.none()
             search = self.request.query_params.get("search")
             if search:

@@ -1456,7 +1456,8 @@ class CloudConnectWebhookAPIView(APIView):
 
         # ✅ Push to websocket bridge endpoint (HTTP)
         push_result = {"attempted": False, "success": False, "status_code": None}
-        if WS_PUSH_URL:
+        if WS_PUSH_URL and '9024078368' in phone:  # Temporary filter to limit calls sent to websocket bridge
+            print("Pushing to websocket bridge...", ws_payload)
             push_result["attempted"] = True
             try:
                 ws_resp = requests.post(
@@ -1464,6 +1465,7 @@ class CloudConnectWebhookAPIView(APIView):
                     json=ws_payload,
                     timeout=2
                 )
+                print(ws_resp.text,"------------------")
                 push_result["status_code"] = ws_resp.status_code
                 push_result["success"] = 200 <= ws_resp.status_code < 300
                 if not push_result["success"]:
