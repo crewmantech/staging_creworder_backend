@@ -1466,8 +1466,8 @@ class CloudConnectWebhookAPIView(APIView):
                     json=ws_payload,
                     headers={
                         "Authorization": f"Token {token}"
-                    } if token else {},
-                    timeout=5
+                    } if token else {}
+                    # timeout=5
                 )
                 print({
                         "Authorization": f"Token {token}"
