@@ -233,6 +233,7 @@ from .serializers import (
 )
 from django.shortcuts import get_object_or_404
 import requests
+import hashlib
 import csv
 from io import TextIOWrapper
 from django.db import transaction
@@ -1443,6 +1444,11 @@ class CloudConnectWebhookAPIView(APIView):
             }
         )
 
+        utoken = get_token_from_agent(agent_id)
+        token_fingerprint = (
+            hashlib.sha256(utoken.encode("utf-8")).hexdigest() if utoken else None
+        )
+
         # ✅ Prepare websocket payload
         ws_payload = {
             "type": "call_event",
@@ -1451,9 +1457,9 @@ class CloudConnectWebhookAPIView(APIView):
             "agent_id": agent_id,
             "status": status_value,
             "reason": data.get("reason"),
+            "token_fingerprint": token_fingerprint,
             "timestamp": str(now())
         }
-        utoken = get_token_from_agent(agent_id)
         # ✅ Push to websocket bridge endpoint (HTTP)
         push_result = {"attempted": False, "success": False, "status_code": None}
         if utoken and WS_PUSH_URL:
