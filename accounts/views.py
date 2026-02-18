@@ -352,6 +352,13 @@ class UserViewSet(viewsets.ModelViewSet):
                 except Exception as e:
                     # print("Agent filtering error:", e)
                     queryset = queryset.none()
+
+            telecalling_assign = self.request.query_params.get("telecalling_assign")
+            if str(telecalling_assign).strip().lower() in {"true", "1", "yes"}:
+                queryset = queryset.filter(
+                    cloudtelephonychannelassign__id__isnull=False
+                ).distinct()
+
             search = self.request.query_params.get("search")
             if search:
                 queryset = queryset.filter(

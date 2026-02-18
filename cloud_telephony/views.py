@@ -389,6 +389,7 @@ class CallServiceViewSet(viewsets.ViewSet):
         followup_id = request.data.get("followup_id")
         appointment_id = request.data.get("appointment_id")
         call_id = request.data.get("call_id")
+        mobile = request.data.get("mobile")
         user = self.request.user  # Proper user instance
         try:
             channel_assign = CloudTelephonyChannelAssign.objects.get(user_id=user.id,is_active=True)
@@ -441,6 +442,8 @@ class CallServiceViewSet(viewsets.ViewSet):
                 phone_number = CallLog.objects.get(call_id=call_id).phone
             except CallLog.DoesNotExist:
                 return Response({"error": "Call log not found."}, status=status.HTTP_404_NOT_FOUND)
+        elif mobile:
+            phone_number = mobile
         else:
             return Response({"error": "Provide either lead_id, order_id,appointment_id, or followup_id."}, status=status.HTTP_400_BAD_REQUEST)
 

@@ -276,12 +276,15 @@ class UserSerializer(serializers.ModelSerializer):
     profile = UserProfileCreateSerializer()
     role = serializers.SerializerMethodField()
     activity = serializers.SerializerMethodField()
-    branch_name = serializers.SerializerMethodField() 
+    branch_name = serializers.SerializerMethodField()
+    telecalling_assign_type = serializers.SerializerMethodField()
+    telecalling_assign_type_label = serializers.SerializerMethodField()
     
     class Meta:
         model = User
         fields = ['id', 'username', 'password',  'first_name', 'last_name', 'email', 'last_login', 'date_joined',
-                  'is_staff', 'profile','role','activity','branch_name']
+                  'is_staff', 'profile','role','activity','branch_name',
+                  'telecalling_assign_type', 'telecalling_assign_type_label']
         extra_kwargs = {
             'password': {'write_only': True}
         }
@@ -311,6 +314,33 @@ class UserSerializer(serializers.ModelSerializer):
         else:
             existing_token =  True
         return "online" if existing_token else "offline"
+
+    def _get_user_telephony_assign(self, user):
+        cached_assign = getattr(user, "_telecalling_assign_cache", None)
+        if cached_assign is not None:
+            return cached_assign
+
+        active_assign = user.cloudtelephonychannelassign_set.filter(
+            is_active=True
+        ).order_by("type", "-updated_at").first()
+        if active_assign:
+            user._telecalling_assign_cache = active_assign
+            return active_assign
+
+        assign = user.cloudtelephonychannelassign_set.order_by(
+            "type", "-updated_at"
+        ).first()
+        user._telecalling_assign_cache = assign
+        return assign
+
+    def get_telecalling_assign_type(self, user):
+        assign = self._get_user_telephony_assign(user)
+        return assign.type if assign else None
+
+    def get_telecalling_assign_type_label(self, user):
+        assign = self._get_user_telephony_assign(user)
+        return assign.get_type_display() if assign else None
+
     def create(self, validated_data):
         profile_data = validated_data.pop("profile")
         user = User.objects.create_user(**validated_data)
@@ -1168,4 +1198,3 @@ class CompanyQcSerializer(serializers.ModelSerializer):
             "created_at",
             "answers"
         ]
-
