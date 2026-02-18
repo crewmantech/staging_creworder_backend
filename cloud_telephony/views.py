@@ -1395,6 +1395,12 @@ class CloudTelephonyChannelAssignCSVUploadAPIView(APIView):
 from rest_framework import status as drf_status
 from django.utils.timezone import now
 from rest_framework.permissions import AllowAny
+from django.conf import settings
+import logging
+
+logger = logging.getLogger(__name__)
+WS_PUSH_URL = getattr(settings, "WS_PUSH_URL", None)
+
 class CloudConnectWebhookAPIView(APIView):
     permission_classes = [AllowAny]
 
@@ -1414,9 +1420,10 @@ class CloudConnectWebhookAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # 🔥 Resolve company
+        # ✅ Resolve company
         company = get_company_from_agent_campaign(agent_id)
-        print(company,"-------------------company")
+
+        # ✅ Save / Update Call Log
         call_log, created = CallLog.objects.update_or_create(
             call_id=call_id,
             defaults={
@@ -1426,7 +1433,7 @@ class CloudConnectWebhookAPIView(APIView):
                 "status": status_value,
                 "direction": data.get("call_direction"),
                 "campaign_id": campaign_id,
-                "company": company,   # ✅ auto mapped
+                "company": company,
                 "session_id": data.get("sessionId"),
                 "transfer_id": data.get("transfer_id"),
                 "job_id": data.get("job_id"),
@@ -1436,18 +1443,53 @@ class CloudConnectWebhookAPIView(APIView):
             }
         )
 
+        # ✅ Prepare websocket payload
+        ws_payload = {
+            "type": "call_event",
+            "call_id": call_id,
+            "phone": phone,
+            "agent_id": agent_id,
+            "status": status_value,
+            "reason": data.get("reason"),
+            "timestamp": str(now())
+        }
+
+        # ✅ Push to websocket bridge endpoint (HTTP)
+        push_result = {"attempted": False, "success": False, "status_code": None}
+        if WS_PUSH_URL:
+            push_result["attempted"] = True
+            try:
+                ws_resp = requests.post(
+                    WS_PUSH_URL,
+                    json=ws_payload,
+                    timeout=2
+                )
+                push_result["status_code"] = ws_resp.status_code
+                push_result["success"] = 200 <= ws_resp.status_code < 300
+                if not push_result["success"]:
+                    logger.warning(
+                        "WebSocket push non-2xx response. url=%s status=%s body=%s",
+                        WS_PUSH_URL,
+                        ws_resp.status_code,
+                        ws_resp.text[:500],
+                    )
+            except Exception as e:
+                logger.exception("WebSocket push failed: %s", str(e))
+        else:
+            logger.warning("WS_PUSH_URL is not configured; skipping websocket push")
+
         return Response(
             {
                 "received": True,
                 "call_id": call_id,
                 "status": status_value,
                 "company_id": company.id if company else None,
-                "created": created
+                "created": created,
+                "ws_push": push_result,
             },
             status=status.HTTP_200_OK
         )
-
-
+    
 class CustomerDataByMobileAPI(APIView):
     """
     Get all related data by mobile number

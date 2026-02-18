@@ -27,6 +27,8 @@ SECRET_KEY = 'django-insecure-l@!ajgx@)v#ip%5g^^2r*#f^wg9*a)a-m2(d#@oc7w7rw17fgp
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 BASE_URL = "https://app.creworder.com"
+WS_PUSH_URL = "https://dev.creworder.com/push/call-event"
+WS_SOCKET_URL = "wss://dev.creworder.com/ws"
 ALLOWED_HOSTS = [
     '127.0.0.1',
     'localhost',
