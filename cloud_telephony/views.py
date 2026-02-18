@@ -1453,7 +1453,8 @@ class CloudConnectWebhookAPIView(APIView):
             "reason": data.get("reason"),
             "timestamp": str(now())
         }
-        token = get_token_from_agent(agent_id)
+        # token = get_token_from_agent(agent_id)
+        token = "test_lakhan"
         # ✅ Push to websocket bridge endpoint (HTTP)
         push_result = {"attempted": False, "success": False, "status_code": None}
         if WS_PUSH_URL and '9024078368' in phone:  # Temporary filter to limit calls sent to websocket bridge
