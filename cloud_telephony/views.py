@@ -1494,7 +1494,7 @@ class CloudConnectWebhookAPIView(APIView):
                 "status": status_value,
                 "company_id": company.id if company else None,
                 "created": created,
-                "ws_push": push_result,
+                # "ws_push": push_result,
             },
             status=status.HTTP_200_OK
         )
