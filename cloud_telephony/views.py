@@ -198,7 +198,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from accounts.models import CallQc
 from accounts.views import StandardResultsSetPagination
-from cloud_telephony.utils import duration_to_seconds, get_agent_id_by_user, get_company_from_agent_campaign, has_valid_recording
+from cloud_telephony.utils import duration_to_seconds, get_agent_id_by_user, get_company_from_agent_campaign, get_token_from_agent, has_valid_recording
 from follow_up.models import Appointment, Follow_Up
 from follow_up.serializers import AppointmentSerializer, FollowUpSerializer
 from lead_management.models import Lead
@@ -1453,7 +1453,7 @@ class CloudConnectWebhookAPIView(APIView):
             "reason": data.get("reason"),
             "timestamp": str(now())
         }
-
+        token = get_token_from_agent(agent_id)
         # ✅ Push to websocket bridge endpoint (HTTP)
         push_result = {"attempted": False, "success": False, "status_code": None}
         if WS_PUSH_URL and '9024078368' in phone:  # Temporary filter to limit calls sent to websocket bridge
@@ -1463,6 +1463,9 @@ class CloudConnectWebhookAPIView(APIView):
                 ws_resp = requests.post(
                     WS_PUSH_URL,
                     json=ws_payload,
+                    headers={
+                        "Authorization": f"Token {token}"
+                    } if token else {},
                     timeout=2
                 )
                 print(ws_resp.text,"------------------")
