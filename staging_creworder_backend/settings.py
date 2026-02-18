@@ -27,7 +27,7 @@ SECRET_KEY = 'django-insecure-l@!ajgx@)v#ip%5g^^2r*#f^wg9*a)a-m2(d#@oc7w7rw17fgp
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 BASE_URL = "https://app.creworder.com"
-WS_PUSH_URL = "https://dev.creworder.com/push/call-event"
+WS_PUSH_URL = "https://dev.creworder.com/api/push/call-event"
 WS_SOCKET_URL = "wss://dev.creworder.com/ws"
 ALLOWED_HOSTS = [
     '127.0.0.1',
@@ -283,5 +283,4 @@ SANDBOX_API_SECRET = 'secret_live_riAHC7MP2KQuSQsgirK0lKONJvXQ1KIg'
 SANDBOX_HOST = 'https://api.sandbox.co.in'
 SMS_API_KEY = "dqWOcbPzrncSkgX9"
 SMS_SENDER_ID = "CrOrdr"
-
 
