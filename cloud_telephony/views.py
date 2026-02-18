@@ -1466,8 +1466,11 @@ class CloudConnectWebhookAPIView(APIView):
                     headers={
                         "Authorization": f"Token {token}"
                     } if token else {},
-                    timeout=2
+                    timeout=5
                 )
+                print({
+                        "Authorization": f"Token {token}"
+                    } if token else {},"------------------")
                 print(ws_resp.text,"------------------")
                 push_result["status_code"] = ws_resp.status_code
                 push_result["success"] = 200 <= ws_resp.status_code < 300
