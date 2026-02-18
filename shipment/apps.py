@@ -136,10 +136,13 @@ class ShipmentsConfig(AppConfig):
                             'ACCEPTED', 'No Response', 'Future Order', 'Non Serviceable',
                             'DELIVERED', 'RTO DELIVERED', 'EXCEPTION',"PENDING"
                         ]
-                        orders = Order_Table.objects.filter(
+                        orders = (Order_Table.objects.filter(
                             order_wayBill__isnull=False,
                             company=company
                         ).exclude(order_wayBill='').exclude(order_status__name__in=excluded_statuses)
+                        .order_by('-updated_at')   # ✅ latest first
+                    )
+
 
                         for order in orders:
                             try:
