@@ -1454,25 +1454,19 @@ class CloudConnectWebhookAPIView(APIView):
             "timestamp": str(now())
         }
         utoken = get_token_from_agent(agent_id)
-        token = "test_lakhan"
         # ✅ Push to websocket bridge endpoint (HTTP)
         push_result = {"attempted": False, "success": False, "status_code": None}
-        if utoken and WS_PUSH_URL and '9024078368' in phone:  # Temporary filter to limit calls sent to websocket bridge
-            print("Pushing to websocket bridge...", ws_payload)
+        if utoken and WS_PUSH_URL:
             push_result["attempted"] = True
             try:
                 ws_resp = requests.post(
                     WS_PUSH_URL,
                     json=ws_payload,
                     headers={
-                        "Authorization": f"Token {token}"
-                    } if token else {}
-                    # timeout=5
+                        "Authorization": f"Token {utoken}"
+                    },
+                    timeout=5
                 )
-                print({
-                        "Authorization": f"Token {token}"
-                    } if token else {},"------------------")
-                print(ws_resp.text,"------------------")
                 push_result["status_code"] = ws_resp.status_code
                 push_result["success"] = 200 <= ws_resp.status_code < 300
                 if not push_result["success"]:
@@ -1485,7 +1479,11 @@ class CloudConnectWebhookAPIView(APIView):
             except Exception as e:
                 logger.exception("WebSocket push failed: %s", str(e))
         else:
-            logger.warning("WS_PUSH_URL is not configured; skipping websocket push")
+            logger.warning(
+                "Skipping websocket push. ws_push_url_configured=%s token_found=%s",
+                bool(WS_PUSH_URL),
+                bool(utoken),
+            )
 
         return Response(
             {
