@@ -752,7 +752,7 @@ class CallServiceViewSet(viewsets.ViewSet):
                         value["call_qc"] = call_id in qc_call_ids
 
                         calls.append(value)
-            print(calls,"---------------------725")
+            # print(calls,"---------------------725")
             return Response({
                 "success": True,
                 "data": calls,
