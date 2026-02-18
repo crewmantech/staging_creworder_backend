@@ -243,25 +243,41 @@ class CloudConnectService:
     # =========================
     # CALL LOGS & DETAILS
     # =========================
-    def get_call_details(self, date, phone_number):
-        if phone_number:
-            data = {
-                "date": date,
-                "phone_number": phone_number,
-                # "agent_id": agent_id,
-                # "session_id": session_id,
-                "token": self.token,
-                "tenant_id": self.tenant_id
-            }
-        else:
-            data = {
-            "date": date,
-            # "agent_id": agent_id,
-            # "session_id": session_id,
+    def get_call_details(
+        self,
+        date=None,
+        phone_number=None,
+        search_on_time=None,
+        search_type=None,
+        start_datetime=None,
+        end_datetime=None,
+        call_id=None,
+        agent_id=None,
+        queue_id=None,
+        camp_id=None,
+    ):
+        data = {
             "token": self.token,
-            "tenant_id": self.tenant_id
+            "tenant_id": self.tenant_id,
         }
-        print(data,"-----------------178")
+
+        optional_filters = {
+            "search_on_time": search_on_time,
+            "search_type": search_type,
+            "date": date,
+            "start_datetime": start_datetime,
+            "end_datetime": end_datetime,
+            "call_id": call_id,
+            "phone_number": phone_number,
+            "agent_id": agent_id,
+            "queue_id": queue_id,
+            "camp_id": camp_id,
+        }
+        for key, value in optional_filters.items():
+            if value not in (None, "", [], ()):
+                data[key] = value
+
+        print(data, "-----------------178")
         return self._post_request("getCallHistory", data)
 
     def get_call_history(self, start_datetime, end_datetime):

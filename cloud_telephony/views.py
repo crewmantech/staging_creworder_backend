@@ -698,13 +698,28 @@ class CallServiceViewSet(viewsets.ViewSet):
     @action(detail=False, methods=['get'], url_path='get-call-details')
     def get_call_details(self, request):
         phone_number = request.query_params.get("phone_number")
-        agent_id = request.query_params.get("agent_id")
         date = request.query_params.get("date")
+        call_id = request.query_params.get("call_id")
+        search_on_time = request.query_params.get("search_on_time")
+        search_type = request.query_params.get("search_type")
+        start_datetime = request.query_params.get("start_datetime")
+        end_datetime = request.query_params.get("end_datetime")
 
-        if not date:
-            return Response({
-                "error": "Missing required parameters: 'date' is required."
-            }, status=status.HTTP_400_BAD_REQUEST)
+        def parse_list_param(param_name):
+            raw_values = request.query_params.getlist(param_name)
+            parsed = []
+            for raw in raw_values:
+                if raw is None:
+                    continue
+                parts = [part.strip() for part in str(raw).split(",")]
+                parsed.extend([part for part in parts if part])
+            return parsed
+
+        agent_id = parse_list_param("agent_id")
+        queue_id = parse_list_param("queue_id")
+        camp_id = parse_list_param("camp_id")
+
+        
 
         user = request.user
         company = user.profile.company 
@@ -726,9 +741,30 @@ class CallServiceViewSet(viewsets.ViewSet):
                     {"error": "token and tenant_id required for CloudConnect."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-
+            if not any([date, start_datetime, end_datetime, call_id, phone_number, agent_id, queue_id, camp_id]):
+                return Response(
+                    {
+                        "error": (
+                            "At least one filter is required. "
+                            "Use any of: date, start_datetime/end_datetime, call_id, "
+                            "phone_number, agent_id, queue_id, camp_id."
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             cloud_connect_service = CloudConnectService(channel.token, channel.tenent_id)
-            response_data = cloud_connect_service.get_call_details(date, phone_number)
+            response_data = cloud_connect_service.get_call_details(
+                date=date,
+                phone_number=phone_number,
+                search_on_time=search_on_time,
+                search_type=search_type,
+                start_datetime=start_datetime,
+                end_datetime=end_datetime,
+                call_id=call_id,
+                agent_id=agent_id,
+                queue_id=queue_id,
+                camp_id=camp_id,
+            )
             qc_call_ids = set(
                 CallQc.objects.filter(company=company)
                 .values_list("call_id", flat=True)
@@ -781,6 +817,10 @@ class CallServiceViewSet(viewsets.ViewSet):
 
         # ============ SANSOFTWARES ============
         elif cloud_vendor == 'sansoftwares':
+            if not date:
+                return Response({
+                    "error": "Missing required parameters: 'date' is required."
+                }, status=status.HTTP_400_BAD_REQUEST)
             # Sanssoft docs only show phone_number + process_id (no date),
             # so we will primarily use phone_number here.
             process_id = channel.tenent_id
