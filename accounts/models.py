@@ -1423,6 +1423,7 @@ class CallQcsTable(BaseModel):
     QUESTION_TYPE = (
         ("critical", "Critical"),
         ("normal", "Normal"),
+        ("notrequired", "notrequired")
     )
 
     ANSWER_TYPE = (

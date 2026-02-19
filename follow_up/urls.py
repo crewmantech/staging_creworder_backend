@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import ( AppointmentAggregationByStatusAPIView, AppointmentLayoutViewSet, AppointmentStatusViewSet, AppointmentViewSet, FollowUpExportAPIView, GetPhoneByReferenceAPIView, GetPhoneByReferenceAllAPIView, NotepadCreateOrUpdate,
+from .views import ( AppointmentAggregationByStatusAPIView, AppointmentLayoutViewSet, AppointmentStatusViewSet, AppointmentViewSet, FollowUpExportAPIView, FollowUpMultiAssignAPIView, GetPhoneByReferenceAPIView, GetPhoneByReferenceAllAPIView, NotepadCreateOrUpdate,
                     NotepadDetail,
                     FollowUpView)
 router = DefaultRouter()
@@ -28,4 +28,6 @@ urlpatterns = [
     ),
     path('get-phone-by-all-reference',GetPhoneByReferenceAllAPIView.as_view(),name="get-phone-by-all-reference"),
     path('appointments-aggregation-by-status/',AppointmentAggregationByStatusAPIView.as_view(),name="appointments-aggregation-by-status"),
+    path('follow-up-multi-assign/', FollowUpMultiAssignAPIView.as_view(), name='follow-up-multi-assign'),
+    
 ] 
