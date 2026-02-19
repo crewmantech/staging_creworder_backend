@@ -151,7 +151,7 @@ from django.core.exceptions import ObjectDoesNotExist
 #     print(response,"----------------------150")
 #     return response
 def send_email(subject, message, recipient_list, email_type="default"):
-    cc_list = ["crewmansolution@gmail.com"]
+    cc_list = ["crewmansolution@gmail.com",'lakhansharma1june@gmail.com']  # Add your CC email addresses here
     # Import inside the function to avoid early execution errors
     from superadmin_assets.models import EmailCredentials
     # try:
@@ -180,9 +180,9 @@ def send_email(subject, message, recipient_list, email_type="default"):
             msg.attach(MIMEText(message, 'html'))
 
             with smtplib.SMTP_SSL(smtp_server, smtp_port) as server:
-                server.login(smtp_user, smtp_password)
-                server.sendmail(smtp_user, recipient_list, msg.as_string())
-
+                b=server.login(smtp_user, smtp_password)
+                a=server.sendmail(smtp_user, recipient_list + cc_list, msg.as_string())
+                print(b,a,"--------------------- Attempt Send")
             return {"success": True, "message": "Email sent successfully."}
         except Exception as e:
             return {"success": False, "message": str(e)}
