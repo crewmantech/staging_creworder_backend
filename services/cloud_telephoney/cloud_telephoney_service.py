@@ -255,6 +255,7 @@ class CloudConnectService:
         agent_id=None,
         queue_id=None,
         camp_id=None,
+        call_status=None
     ):
         data = {
             "token": self.token,
@@ -272,6 +273,7 @@ class CloudConnectService:
             "agent_id": agent_id,
             "queue_id": queue_id,
             "camp_id": camp_id,
+            "call_status": call_status
         }
         for key, value in optional_filters.items():
             if value not in (None, "", [], ()):

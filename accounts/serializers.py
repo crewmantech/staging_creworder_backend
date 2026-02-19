@@ -279,12 +279,15 @@ class UserSerializer(serializers.ModelSerializer):
     branch_name = serializers.SerializerMethodField()
     telecalling_assign_type = serializers.SerializerMethodField()
     telecalling_assign_type_label = serializers.SerializerMethodField()
+    telecalling_camp_id = serializers.SerializerMethodField()
+    telecalling_agent_id = serializers.SerializerMethodField()
     
     class Meta:
         model = User
         fields = ['id', 'username', 'password',  'first_name', 'last_name', 'email', 'last_login', 'date_joined',
                   'is_staff', 'profile','role','activity','branch_name',
-                  'telecalling_assign_type', 'telecalling_assign_type_label']
+                  'telecalling_assign_type', 'telecalling_assign_type_label',
+                  'telecalling_camp_id', 'telecalling_agent_id']
         extra_kwargs = {
             'password': {'write_only': True}
         }
@@ -340,6 +343,14 @@ class UserSerializer(serializers.ModelSerializer):
     def get_telecalling_assign_type_label(self, user):
         assign = self._get_user_telephony_assign(user)
         return assign.get_type_display() if assign else None
+
+    def get_telecalling_camp_id(self, user):
+        assign = self._get_user_telephony_assign(user)
+        return assign.camp_id if assign else None
+
+    def get_telecalling_agent_id(self, user):
+        assign = self._get_user_telephony_assign(user)
+        return assign.agent_id if assign else None
 
     def create(self, validated_data):
         profile_data = validated_data.pop("profile")

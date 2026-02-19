@@ -718,7 +718,7 @@ class CallServiceViewSet(viewsets.ViewSet):
         agent_id = parse_list_param("agent_id")
         queue_id = parse_list_param("queue_id")
         camp_id = parse_list_param("camp_id")
-
+        call_status = parse_list_param("call_status")
         
 
         user = request.user
@@ -764,14 +764,15 @@ class CallServiceViewSet(viewsets.ViewSet):
                 agent_id=agent_id,
                 queue_id=queue_id,
                 camp_id=camp_id,
+                call_status = call_status
             )
             qc_call_ids = set(
                 CallQc.objects.filter(company=company)
                 .values_list("call_id", flat=True)
             )
-            print(qc_call_ids,"---------------------710")
+            # print(qc_call_ids,"---------------------710")
             data = response_data.get("result", {})
-            print(data,"---------------------705")
+            # print(data,"---------------------705")
             qc_call_ids = set(
             CallQc.objects.filter(company=company)
             .values_list("call_id", flat=True)
