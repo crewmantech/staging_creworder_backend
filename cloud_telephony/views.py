@@ -466,14 +466,14 @@ class CallServiceViewSet(viewsets.ViewSet):
             if session_response.get("code") != 200 or "session_id" not in session_response:
                 return Response({"error": "Failed to get session ID from CloudConnect."}, status=status.HTTP_400_BAD_REQUEST)
             session_id = session_response["session_id"]
-            print(session_id,"--------------340")
+            # print(session_id,"--------------340")
             response_data = cloud_connect_service.manual_call_originate(
                 channel_assign.agent_id,
                 session_id,
                 phone_number,
                 channel_assign.camp_id
             )
-            print(response_data,"--------------356")
+            # print(response_data,"--------------356")
         elif cloud_vendor == 'tatasmartflo':
             api_key = request.data.get('api_key')
             if not api_key:
@@ -510,7 +510,7 @@ class CallServiceViewSet(viewsets.ViewSet):
                 agent_name=agent_name,
                 dialed_number=str(phone_number)[-10:]
             )
-            print(response_data,"--------------379")
+            # print(response_data,"--------------379")
         else:
             return Response(
                 {"error": f"{cloud_vendor} is not supported."},
@@ -629,7 +629,7 @@ class CallServiceViewSet(viewsets.ViewSet):
             sans_service = SansSoftwareService(process_id=process_id)
             if call_id:
                 details_response = sans_service.get_number(call_id)
-                print(details_response,"-------------------509")
+                # print(details_response,"-------------------509")
                 
                 if not details_response.get("success"):
                     return Response(
@@ -657,7 +657,7 @@ class CallServiceViewSet(viewsets.ViewSet):
                 end_date
             )  
             # response_data = sans_service.get_all_call_log_detail(phone_number,date,date)
-            print(response_data,"--------------511")
+            # print(response_data,"--------------511")
             if not response_data:
                 return Response(
                     {"error": "Failed to retrieve call details from Sanssoftwares."},
@@ -667,7 +667,7 @@ class CallServiceViewSet(viewsets.ViewSet):
             #         return Response({"error": "Failed to retrieve call recording."}, status=status.HTTP_400_BAD_REQUEST)
                
             data = response_data.get("result", {})
-            print(data,"--------------------------521")
+            # print(data,"--------------------------521")
             calls = []
 
             # Loop over all keys that are digits (i.e., actual call entries)

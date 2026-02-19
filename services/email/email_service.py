@@ -193,7 +193,9 @@ def send_email(subject, message, recipient_list, email_type="default"):
 
     # If primary fails, use alternate email
     alternate_credentials = EmailCredentials.objects.filter(use_for="alternate_email").first()
+    print(alternate_credentials,response['success'],"------------------ Alternate Credentials")
     if not response['success'] and alternate_credentials:
+        print(alternate_credentials.user,alternate_credentials.password,alternate_credentials.smtp_server,alternate_credentials.smtp_port,"------------------ Alternate Credentials Details")
         response = attempt_send(alternate_credentials.user, alternate_credentials.password,alternate_credentials.smtp_server,alternate_credentials.smtp_port)
         print(response, "--------------- Alternate Email Attempt")
 
