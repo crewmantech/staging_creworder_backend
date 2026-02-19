@@ -1799,6 +1799,8 @@ class AgentCallSummaryAPI(APIView):
         user_id = request.GET.get("user_id")
         from_date = request.GET.get("start_date")
         to_date = request.GET.get("end_date")
+        start_datetime = from_date
+        end_datetime = to_date
 
         if not user_id:
             return Response(
@@ -1856,11 +1858,18 @@ class AgentCallSummaryAPI(APIView):
         # --------------------------------------------------
         # APPOINTMENT COUNTS PER PHONE (LAST 10 DIGIT)
         # --------------------------------------------------
-        appointment_counts = dict(
-            Appointment.objects.annotate(
-                last10=Right("patient_phone", 10)
+        appointment_queryset = Appointment.objects.annotate(
+            last10=Right("patient_phone", 10)
+        ).filter(last10__in=phones)
+
+        if start_datetime and end_datetime:
+            appointment_queryset = appointment_queryset.filter(
+                created_at__gte=start_datetime,
+                created_at__lt=end_datetime
             )
-            .filter(last10__in=phones)
+
+        appointment_counts = dict(
+            appointment_queryset
             .values("last10")
             .annotate(cnt=Count("id"))
             .values_list("last10", "cnt")
@@ -1869,14 +1878,21 @@ class AgentCallSummaryAPI(APIView):
         # --------------------------------------------------
         # ORDER COUNTS PER PHONE (LAST 10 DIGIT)
         # --------------------------------------------------
+        order_queryset = Order_Table.objects.annotate(
+            last10=Right("customer_phone", 10)
+        ).filter(
+            last10__in=phones,
+            is_deleted=False
+        )
+
+        if start_datetime and end_datetime:
+            order_queryset = order_queryset.filter(
+                created_at__gte=start_datetime,
+                created_at__lt=end_datetime
+            )
+
         order_counts = dict(
-            Order_Table.objects.annotate(
-                last10=Right("customer_phone", 10)
-            )
-            .filter(
-                last10__in=phones,
-                is_deleted=False
-            )
+            order_queryset
             .values("last10")
             .annotate(cnt=Count("id"))
             .values_list("last10", "cnt")
