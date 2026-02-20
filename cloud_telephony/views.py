@@ -519,6 +519,214 @@ class CallServiceViewSet(viewsets.ViewSet):
 
         return Response({"success": True, "response": response_data}, status=status.HTTP_200_OK)
 
+    # =====================================================
+    # UNIVERSAL QUICK CALL
+    # =====================================================
+    @action(detail=False, methods=['post'], url_path='quick-call-universal')
+    def quick_call_universal(self, request):
+
+        call_value = request.data.get("call")
+        user = request.user
+
+        if not call_value:
+            return Response(
+                {"error": "call field is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # ============================================
+        # GET ACTIVE CHANNEL
+        # ============================================
+        try:
+            channel_assign = CloudTelephonyChannelAssign.objects.get(
+                user_id=user.id,
+                is_active=True
+            )
+        except CloudTelephonyChannelAssign.DoesNotExist:
+            return Response(
+                {"error": "No channel assigned to user."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        cloud_channel_id = channel_assign.cloud_telephony_channel.id
+
+        try:
+            channel = CloudTelephonyChannel.objects.get(id=cloud_channel_id)
+        except CloudTelephonyChannel.DoesNotExist:
+            return Response(
+                {"error": "Invalid CloudTelephonyChannel ID."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # ============================================
+        # FIND PHONE NUMBER (AUTO DETECT)
+        # ============================================
+
+        phone_number = None
+
+        # 1. Try Lead
+        lead = Lead.objects.filter(
+            Q(lead_id=call_value) | Q(id=call_value)
+        ).only("customer_phone").first()
+
+        if lead:
+            phone_number = lead.customer_phone
+
+        # 2. Try Order
+        if not phone_number:
+            order = Order_Table.objects.filter(
+                order_id=call_value
+            ).only("customer_phone").first()
+
+            if order:
+                phone_number = order.customer_phone
+
+        # 3. Try Followup
+        if not phone_number:
+            followup = Follow_Up.objects.filter(
+                followup_id=call_value
+            ).only("customer_phone").first()
+
+            if followup:
+                phone_number = followup.customer_phone
+
+        # 4. Try Appointment
+        if not phone_number:
+            from follow_up.models import Appointment
+
+            appointment = Appointment.objects.filter(
+                id=call_value
+            ).only("patient_phone").first()
+
+            if appointment:
+                phone_number = appointment.patient_phone
+
+        # 5. Try Call Log
+        if not phone_number:
+            call_log = CallLog.objects.filter(
+                call_id=call_value
+            ).only("phone").first()
+
+            if call_log:
+                phone_number = call_log.phone
+
+        # 6. Try Direct Mobile
+        if not phone_number:
+            if str(call_value).isdigit() and len(str(call_value)) >= 10:
+                phone_number = call_value
+
+        # ============================================
+        # VALIDATE NUMBER
+        # ============================================
+
+        if not phone_number:
+            return Response(
+                {"error": "Unable to find phone number from call value."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # ============================================
+        # CALL VIA CLOUD PROVIDER
+        # ============================================
+
+        cloud_vendor = channel.cloudtelephony_vendor.name.lower()
+        response_data = {}
+
+        # -------- CLOUD CONNECT --------
+        if cloud_vendor == 'cloud connect':
+
+            token = channel.token
+            tenant_id = channel.tenent_id
+
+            if not token or not tenant_id:
+                return Response(
+                    {"error": "token and tenant_id required."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            cloud_service = CloudConnectService(token, tenant_id)
+
+            session_response = cloud_service.get_session_id(
+                channel_assign.agent_id
+            )
+
+            if session_response.get("code") != 200:
+                return Response(
+                    {"error": "Failed to get session ID."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            session_id = session_response["session_id"]
+
+            response_data = cloud_service.manual_call_originate(
+                channel_assign.agent_id,
+                session_id,
+                phone_number,
+                channel_assign.camp_id
+            )
+
+        # -------- TATA SMARTFLO --------
+        elif cloud_vendor == 'tatasmartflo':
+
+            api_key = request.data.get('api_key')
+
+            if not api_key:
+                return Response(
+                    {"error": "api_key required."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            tata_service = TataSmartfloService(api_key)
+
+            response_data = tata_service.initiate_click_to_call(
+                request.data.get('agent_number', ''),
+                phone_number,
+                request.data.get('caller_id', '')
+            )
+
+        # -------- SANSOFTWARE --------
+        elif cloud_vendor == 'sansoftwares':
+
+            process_id = channel.tenent_id
+
+            if not process_id:
+                return Response(
+                    {"error": "process_id required."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            sans_service = SansSoftwareService(process_id)
+
+            agent_name = channel_assign.agent_username or user.username
+
+            if not agent_name:
+                return Response(
+                    {"error": "agent name required."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            response_data = sans_service.click_to_call(
+                agent_name=agent_name,
+                dialed_number=str(phone_number)[-10:]
+            )
+
+        else:
+            return Response(
+                {"error": f"{cloud_vendor} not supported."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # ============================================
+        # FINAL RESPONSE (SAME AS quick_call)
+        # ============================================
+
+        return Response(
+            {
+                "success": True,
+                "response": response_data
+            },
+            status=status.HTTP_200_OK
+        )
 
     # @action(detail=False, methods=['get'], url_path='get-number')
     # def get_number(self, request):
