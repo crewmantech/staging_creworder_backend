@@ -295,7 +295,7 @@ class UserViewSet(viewsets.ModelViewSet):
             # Only filter active for list/retrieve
             if self.action in ["list", "retrieve"]:
                 queryset = queryset.filter(profile__status=1)
-            print("----------------------257")
+            # print("----------------------257")
             if user.profile.user_type == "superadmin":
                 company_id = self.request.query_params.get("company_id")
                 if company_id:
@@ -311,11 +311,11 @@ class UserViewSet(viewsets.ModelViewSet):
                     queryset = queryset.filter(profile__branch=branch_id)
 
             elif user.profile.user_type == "agent":
-                print("----------------------272")
+                # print("----------------------272")
                
                 
                 try:
-                    print("--------------------------277", user.has_perm('accounts.department_can_view_all'))
+                    # print("--------------------------277", user.has_perm('accounts.department_can_view_all'))
                     user_permissions = user.user_permissions.values_list('codename', flat=True)
                    
                     # 🟢 1. Full Access: All departments
@@ -350,8 +350,15 @@ class UserViewSet(viewsets.ModelViewSet):
                     if branch_id:
                         queryset = queryset.filter(profile__branch=branch_id)
                 except Exception as e:
-                    print("Agent filtering error:", e)
+                    # print("Agent filtering error:", e)
                     queryset = queryset.none()
+
+            telecalling_assign = self.request.query_params.get("telecalling_assign")
+            if str(telecalling_assign).strip().lower() in {"true", "1", "yes"}:
+                queryset = queryset.filter(
+                    cloudtelephonychannelassign__id__isnull=False
+                ).distinct()
+
             search = self.request.query_params.get("search")
             if search:
                 queryset = queryset.filter(
@@ -3753,7 +3760,7 @@ class UserPermissionStatusView(APIView):
                     'accounts.view_whatsapp_button_others'
                 ),
                 # ✅ NEW VIRTUAL PERMISSION
-                "view_cloud_dialer": has_cloud_dialer,
+                "view_cloud_dialer": user.has_perm('accounts.view_cloud_dialer_others'),
                 
             }
         else:
@@ -3800,7 +3807,7 @@ class UserPermissionStatusView(APIView):
                     'accounts.view_whatsapp_button_others'
                 ),
                 # ✅ NEW VIRTUAL PERMISSION
-                "view_cloud_dialer": has_cloud_dialer,
+                "view_cloud_dialer": user.has_perm('accounts.view_cloud_dialer_others'),
             }   
 
         return Response(response_data)
@@ -4661,7 +4668,16 @@ class CompanySalaryViewSet(viewsets.ModelViewSet):
     queryset = CompanySalary.objects.all()
     serializer_class = CompanySalarySerializer
     permission_classes = [IsAuthenticated]
+    # ✅ Filter data company-wise
+    def get_queryset(self):
+        user = self.request.user
 
+        if not hasattr(user, "profile") or not user.profile.company:
+            return CompanySalary.objects.none()
+
+        return CompanySalary.objects.filter(
+            company=user.profile.company
+        )
     def create(self, request, *args, **kwargs):
         user = request.user
 
@@ -4691,19 +4707,48 @@ class CompanySalaryViewSet(viewsets.ModelViewSet):
 class CompanyMonthlySalaryPreviewAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get_present_days(self, user, year, month):
-        attendances = Attendance.objects.filter(
-            user=user,
-            date__year=year,
-            date__month=month,
-            attendance="P"
+    def get_present_days(self, user, year, month, target=False):
+
+        today = date.today()
+
+        # Get all present attendance dates
+        present_dates = set(
+            Attendance.objects.filter(
+                user=user,
+                date__year=year,
+                date__month=month,
+                attendance="P"
+            ).values_list("date", flat=True)
         )
 
-        present_days = sum(
-            1 for a in attendances if a.date.weekday() != 6
-        )
+        # Total days in month
+        month_total_days = calendar.monthrange(year, month)[1]
+
+        # ✅ If current month, count only till today
+        if year == today.year and month == today.month:
+            total_days = today.day
+        else:
+            total_days = month_total_days
+
+        present_days = 0
+
+        for day in range(1, total_days + 1):
+            current_date = date(year, month, day)
+
+            # Sunday auto present
+            if current_date.weekday() == 6:
+                present_days += 1
+
+            # Other days only if present
+            elif current_date in present_dates:
+                present_days += 1
+
+        # ✅ Target logic
+        if target and present_days >= 24:
+            return month_total_days
+
         return present_days
-
+    
     def get_user_monthwise_delivered_amount(self, user, monthyear):
         try:
             year, month = map(int, monthyear.split("-"))
@@ -4785,12 +4830,15 @@ class CompanyMonthlySalaryPreviewAPIView(APIView):
                 amount = self.get_user_monthwise_delivered_amount(user, monthyear)
 
                 if amount >= 50000:
+                    present_days = self.get_present_days(user, year, month,True)
                     rule = "Full Salary"
                     salary = per_day_salary * present_days
                 else:
+                    # present_days = self.get_present_days(user, year, month,False)
                     rule = "Half Salary (Target Not Achieved)"
                     salary = (per_day_salary / 2) * present_days
-
+                if round(float(salary), 2)>10000:
+                    salary = 10000
                 results.append({
                     "user_id": user.id,
                     "username": user.username,

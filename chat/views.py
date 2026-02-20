@@ -90,12 +90,10 @@ class createChat(APIView):
     # =======================================================================
 
     def post(self, request):
-        print("➡️ Entered createChat.post()")
 
         from_user = request.data.get("from_user")
         to_user = request.data.get("to_user")  # group_id if group_chat
         chat_type = request.data.get("chat_type")
-        print(f"📥 Request Data → from_user={from_user}, to_user={to_user}, chat_type={chat_type}")
 
         session = None
 
@@ -103,7 +101,6 @@ class createChat(APIView):
         #   Step 1: Try to find session if chat_type is None
         # ============================================================
         if chat_type is None:
-            print("🔍 Chat type is None → finding existing session between two users")
             session = (
                 Chat.objects.filter(from_user=from_user, to_user=to_user).first()
                 or Chat.objects.filter(from_user=to_user, to_user=from_user).first()
@@ -111,43 +108,32 @@ class createChat(APIView):
 
         if session:
             session_id = session.chat_session_id
-            print(f"✅ Existing session found → session_id={session_id}")
         else:
-            print("⚠️ No existing session found → creating or fetching new session")
             if chat_type == "group_chat":
                 session = ChatSession.objects.filter(name=f"{to_user}").first()
-                print(f"🔸 Checking for existing group session → name={to_user}")
             else:
                 session = (
                     ChatSession.objects.filter(name=f"{from_user}_{to_user}").first()
                     or ChatSession.objects.filter(name=f"{to_user}_{from_user}").first()
                 )
-                print(f"🔸 Checking for existing personal chat session between {from_user} and {to_user}")
 
             if session:
                 session_id = session.id
-                print(f"✅ Session found → session_id={session_id}")
             else:
-                print("⚙️ No session found → creating new session")
                 if chat_type == "group_chat":
                     new_session = ChatSession.objects.create(name=f"{to_user}")
-                    print(f"🆕 Created new group chat session → name={to_user}")
                 else:
                     new_session = ChatSession.objects.create(name=f"{from_user}_{to_user}")
-                    print(f"🆕 Created new personal chat session → name={from_user}_{to_user}")
                 session_id = new_session.id
 
         # ============================================================
         #   Step 2: Handle group chat
         # ============================================================
         if chat_type == "group_chat":
-            print("👥 Detected group_chat type → starting group message flow")
 
             try:
                 group = Group.objects.get(id=to_user, group_status=1)
-                print(f"✅ Group found → group_id={group.id}, group_name={group.group_name}")
             except Group.DoesNotExist:
-                print("❌ Invalid or inactive group_id")
                 return Response(
                     {"Success": False, "Error": "Invalid or inactive group_id"},
                     status=status.HTTP_400_BAD_REQUEST,
@@ -165,7 +151,6 @@ class createChat(APIView):
             serializer = ChatSerializer(data=chat_data)
             if serializer.is_valid():
                 chat_message = serializer.save()
-                print(f"✅ Single group chat message saved → chat_id={chat_message.id}, group_id={group.id}")
 
                 # ✅ Step 2: Notify each member (excluding sender)
                 group_members = GroupDetails.objects.filter(group=group).exclude(member_id=from_user)
@@ -184,11 +169,9 @@ class createChat(APIView):
                     if notification_serializer.is_valid():
                         notification_serializer.save()
                         sent_to.append(member.member.id)
-                        print(f"🔔 Notification created for member_id={member.member.id}")
                     else:
                         print(f"⚠️ Notification validation failed for user_id={member.member.id}: {notification_serializer.errors}")
 
-                print(f"✅ Group message processed successfully → group_id={group.id}, notified_members={sent_to}")
                 return Response(
                     {
                         "Success": True,
@@ -200,7 +183,6 @@ class createChat(APIView):
                     status=status.HTTP_201_CREATED,
                 )
             else:
-                print(f"❌ ChatSerializer validation failed for group_id={to_user}: {serializer.errors}")
                 return Response(
                     {"Success": False, "Errors": serializer.errors},
                     status=status.HTTP_400_BAD_REQUEST,
@@ -209,11 +191,9 @@ class createChat(APIView):
         # ============================================================
         #   Step 3: Normal (one-to-one) chat logic
         # ============================================================
-        print("💬 Processing one-to-one chat flow")
         serializer = ChatSerializer(data={**request.data, "chat_session": session_id})
         if serializer.is_valid():
             chat_message = serializer.save()
-            print(f"✅ Chat message saved between {from_user} → {to_user}")
 
             # Create a notification for the recipient
             notification_message = f'New message from {chat_message.from_user.username}'
@@ -227,20 +207,17 @@ class createChat(APIView):
             notification_serializer = NotificationSerializer(data=notification_data)
             if notification_serializer.is_valid():
                 notification = notification_serializer.save()
-                print(f"🔔 Notification created for recipient user_id={chat_message.to_user.id}")
 
                 return Response(
                     {"Success": True, "ChatData": serializer.data, "SessionID": session_id},
                     status=status.HTTP_201_CREATED,
                 )
             else:
-                print(f"⚠️ Notification serializer invalid: {notification_serializer.errors}")
                 return Response(
                     {"Success": False, "Errors": notification_serializer.errors},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
         else:
-            print(f"❌ ChatSerializer validation failed: {serializer.errors}")
             return Response(
                 {"Success": False, "Errors": serializer.errors},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -282,64 +259,44 @@ class chat_count(APIView):
 
     def get(self, request):
 
-        print("===== 🔍 DEBUG: chat_count API called =====")
 
         from_user = request.query_params.get("from_user")
         to_user = request.query_params.get("to_user")
 
-        print(f"STEP 1️⃣: Extracted query params -> from_user={from_user}, to_user={to_user}")
 
         # ============================================================
         # STEP 2: Try detecting chat session
         # ============================================================
 
-        print("STEP 2️⃣: Searching for PRIVATE session (direct match)...")
         s1 = Chat.objects.filter(from_user=from_user, to_user=to_user)
-        print(f"   QueryResult s1 count = {s1.count()}")
         s1 = s1.first()
-        print(f"   s1 -> {s1}")
 
-        print("STEP 2️⃣: Searching for PRIVATE session (reverse match)...")
         s2 = Chat.objects.filter(from_user=to_user, to_user=from_user)
-        print(f"   QueryResult s2 count = {s2.count()}")
         s2 = s2.first()
-        print(f"   s2 -> {s2}")
 
-        print("STEP 2️⃣: Searching for GROUP session...")
         s3 = Chat.objects.filter(group_id=to_user)
-        print(f"   QueryResult s3 count = {s3.count()}")
         s3 = s3.first()
-        print(f"   s3 -> {s3}")
 
         session = s1 or s2 or s3
-        print(f"STEP 2️⃣ RESULT: Selected session -> {session}")
 
         if not session:
-            print("⚠️ No active chat session found — returning error now.")
             return Response(
                 {"Success": False, "Errors": "Session not found"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         session_id = session.chat_session_id
-        print(f"STEP 3️⃣: Extracted session_id = {session_id}")
 
         # ============================================================
         # STEP 3: Determine chat type
         # ============================================================
 
-        print("STEP 3️⃣: Determining chat type...")
-        print(f"   session.group_id = {session.group_id}")
-        print(f"   session.to_user_id = {session.to_user_id}")
 
         # *************************************************
         # PRIVATE CHAT DETECTED
         # *************************************************
         if session.group_id is None and session.to_user_id is not None:
-            print("💬 Chat Type DETECTED: PRIVATE CHAT")
-            print("STEP 4️⃣: Counting unread private messages...")
 
-            print(f"   Query -> to_user_id={to_user}, session_id={session_id}")
 
             chat_count = Chat.objects.filter(
                 to_user_id=to_user,
@@ -348,9 +305,7 @@ class chat_count(APIView):
                 group__isnull=True
             ).count()
 
-            print(f"📊 PRIVATE unread_count = {chat_count}")
 
-            print("STEP 4️⃣: Returning private chat response")
             return Response(
                 {
                     "Success": True,
@@ -365,9 +320,6 @@ class chat_count(APIView):
         # GROUP CHAT DETECTED
         # *************************************************
         elif session.group_id is not None:
-            print("👥 Chat Type DETECTED: GROUP CHAT")
-            print(f"STEP 4️⃣: Counting unread group messages for group_id={session.group_id}")
-            print(f"   Excluding messages from from_user={from_user}")
 
             chat_count = Chat.objects.filter(
                 group_id=session.group_id,
@@ -375,9 +327,7 @@ class chat_count(APIView):
                 chat_status=0
             ).exclude(from_user_id=from_user).count()
 
-            print(f"📊 GROUP unread_count = {chat_count}")
 
-            print("STEP 4️⃣: Returning group chat response")
             return Response(
                 {
                     "Success": True,
@@ -393,7 +343,6 @@ class chat_count(APIView):
         # UNKNOWN CHAT TYPE
         # *************************************************
         else:
-            print("❌ ERROR: Unable to determine chat type.")
             return Response(
                 {"Success": False, "Errors": "Unable to determine chat type"},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -432,7 +381,6 @@ class getUserListChat(APIView):
                 Q(profile__login_allowed=True),
                 Q(profile__status=1) | Q(profile__status=0)
             )
-        print("-----------------------",users,398)
         user_serializer = UserSerializer(users, many=True)
 
         return Response(
@@ -452,8 +400,6 @@ class getUserListChatAdmin(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        print("\n===== 🟩 START getUserListChatAdmin =====")
-        print(f"➡️ user_id from request: {user_id}")
 
         # # ✅ Get users the requester has chatted with
         # unique_to_users = (
@@ -479,7 +425,6 @@ class getUserListChatAdmin(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        print(f"👤 Employee found: {employee.user.username} | Type: {employee.user_type}")
         
         final_users = []  # initialize empty list
 
@@ -497,7 +442,6 @@ class getUserListChatAdmin(APIView):
                 profile__login_allowed=True,
                 profile__status=1,
             )
-            print(f"👥 Admin+Agents added: {admin_and_agents.count()} users")
             final_users = list(set(final_users + list(admin_and_agents)))
 
         # ==========================
@@ -508,10 +452,8 @@ class getUserListChatAdmin(APIView):
             import re
 
             agent_groups = employee.user.groups.all()
-            print(f"🧩 Agent Groups: {[g.name for g in agent_groups]}")
 
             group_permissions = Permission.objects.filter(group__in=agent_groups).values_list("name", flat=True)
-            print(f"🔑 Permissions for agent's groups: {list(group_permissions)}")
 
             allowed_department_names = set()
             for perm in group_permissions:
@@ -522,7 +464,6 @@ class getUserListChatAdmin(APIView):
                     if dept_name and "own department" not in dept_name.lower():
                         allowed_department_names.add(dept_name.lower())
 
-            print(f"🏢 Allowed departments (from permissions): {allowed_department_names}")
 
             allowed_departments = list(
                 Employees.objects.filter(
@@ -532,7 +473,6 @@ class getUserListChatAdmin(APIView):
                 ).values_list("department__id", flat=True)
             )
 
-            print(f"📊 Allowed department IDs: {allowed_departments}")
 
             same_group_and_dept_users = User.objects.filter(
                 # groups__in=agent_groups,
@@ -542,18 +482,14 @@ class getUserListChatAdmin(APIView):
                 profile__login_allowed=True
             ).distinct()
 
-            print(f"👥 Users in same group & allowed departments: {same_group_and_dept_users.count()}")
 
             final_users = list(set(final_users + list(same_group_and_dept_users)))
 
         # ✅ Exclude current user for both admin & agent
         final_users = [u for u in final_users if u.id != int(user_id)]
-        print(f"🚫 Removed current user, final count: {len(final_users)}")
 
         # ✅ Serialize combined and filtered data
         final_serializer = UserSerializer(final_users, many=True)
-        print(f"📦 Final serialized user count: {len(final_serializer.data)}")
-        print("===== 🟥 END getUserListChatAdmin =====\n")
 
         return Response(
             {"Success": True, "results": final_serializer.data},
@@ -668,7 +604,6 @@ class GetNotifications(APIView):
 
     def get(self, request):
         user = request.user
-        print(f"➡️ Fetching notifications for user_id={user.id}")
 
         notifications = (
             Notification.objects
@@ -684,7 +619,6 @@ class GetNotifications(APIView):
             extracted_user_id = None
             extracted_group_id = None
 
-            print(f"🔔 Processing notification_id={n.id}, type={n.notification_type}, url={url}")
 
             # ========================================================
             # CASE 1: Normal chat_message → extract ?user_id=
@@ -698,7 +632,6 @@ class GetNotifications(APIView):
                     user_id_list = query_params.pop("user_id", None)
                     if user_id_list:
                         extracted_user_id = user_id_list[0]
-                        print(f"✅ Extracted user_id={extracted_user_id} from URL")
 
                     # Rebuild the URL without user_id param
                     new_query = urlencode(query_params, doseq=True)
@@ -722,12 +655,10 @@ class GetNotifications(APIView):
                     try:
                         group_id = url.split("/chat/group/")[1].strip("/")
                         extracted_group_id = group_id
-                        print(f"✅ Extracted group_id={group_id} from group chat URL")
 
                         # Remove the numeric part to clean the URL
                         url = "/chat/group/"
                     except Exception as e:
-                        print(f"⚠️ Failed to extract group_id from URL: {e}")
                         extracted_group_id = None
                 
                 # ✅ Force URL to /chat/ (no /group/)
@@ -745,7 +676,6 @@ class GetNotifications(APIView):
             # CASE 3: Any other type (fallback)
             # ========================================================
             else:
-                print(f"ℹ️ Notification type '{n.notification_type}' not handled specially.")
                 serializer_data.append({
                     "id": n.id,
                     "message": n.message,
@@ -753,7 +683,6 @@ class GetNotifications(APIView):
                     "url": url,
                 })
 
-        print(f"✅ Returning {len(serializer_data)} unread notifications")
 
         return Response(
             {"Success": True, "notifications": serializer_data},

@@ -1,5 +1,7 @@
+from accounts.models import ExpiringToken
 from cloud_telephony.models import CloudTelephonyChannelAssign
 
+from django.utils.timezone import now
 
 def get_company_from_agent_campaign(agent_id):
     assign = CloudTelephonyChannelAssign.objects.filter(
@@ -45,3 +47,35 @@ def duration_to_seconds(duration_str):
         return h * 3600 + m * 60 + s
     except Exception:
         return 0
+    
+def get_or_create_user_token(user):
+    """
+    Returns existing token or creates new token for user.
+    Also updates last_used timestamp.
+    """
+
+    if not user:
+        return None
+
+    token, created = ExpiringToken.objects.get_or_create(
+        user=user
+    )
+
+    # update last used time
+    token.last_used = now()
+    token.save(update_fields=["last_used"])
+
+    return token.key
+
+
+def get_token_from_agent(agent_id):
+    """
+    agent_id → user → token
+    """
+
+    user = get_user_from_agent_campaign(agent_id)
+
+    if not user:
+        return None
+
+    return get_or_create_user_token(user)

@@ -39,19 +39,19 @@ class ShipmentsConfig(AppConfig):
 
         # Main function to fetch and update all shipments from Shiprocket, Tekipost, Nimbuspost
         def fetch_and_update_shipments():
-            # print("0000000000000in fetch")
-            # try:
+            print("0000000000000in fetch")
+            try:
                 shipments = ShipmentModel.objects.filter(status=1)
                 serializer = ShipmentSerializer(shipments, many=True)
                 serialized_data = serializer.data
-                print(serialized_data,"------------------Serialized Shipment Data-------------------")  # Debug: Check serialized data
+
                 for shipmentData in serialized_data:
                     vendor_data = shipmentData['shipment_vendor']
                     vendor_id = vendor_data.get('id')
                     vendor_name = vendor_data.get('name', '').lower()
                     company = shipmentData["company_id"]  # CharField
                     # branch = shipmentData["branch_id"]    # CharField
-                    print(f"Processing shipment for vendor: {vendor_name}, company: {company}")  # Debug
+
                     # --- SHIPROCKET ---
                     if vendor_name == 'shiprocket' and shipmentData['credential_username']:
                         shiprocket_service = ShiprocketScheduleOrder(
@@ -136,10 +136,13 @@ class ShipmentsConfig(AppConfig):
                             'ACCEPTED', 'No Response', 'Future Order', 'Non Serviceable',
                             'DELIVERED', 'RTO DELIVERED', 'EXCEPTION',"PENDING"
                         ]
-                        orders = Order_Table.objects.filter(
+                        orders = (Order_Table.objects.filter(
                             order_wayBill__isnull=False,
                             company=company
                         ).exclude(order_wayBill='').exclude(order_status__name__in=excluded_statuses)
+                        .order_by('-updated_at')   # ✅ latest first
+                    )
+
 
                         for order in orders:
                             try:
@@ -169,8 +172,7 @@ class ShipmentsConfig(AppConfig):
                                 logger.error(f"[Nimbuspost] Error updating order {order.id}: {e}")
                     
                     elif vendor_name == 'eshopbox' and shipmentData['credential_username']:
-                        print("In Eshopbox-----------------",shipmentData)
-                        print(shipmentData['credential_username'],"-----------------Eshopbox Credential Username-------------------",shipmentData['credential_password'],"-----------------Eshopbox Credential Password-------------------",serialized_data['credential_token'],"-----------------Eshopbox Credential Token-------------------")
+                        print("In Eshopbox-----------------")
                         eshopbox_service = EshopboxAPI(
                             shipmentData['credential_username'],shipmentData['credential_password'],serialized_data['credential_token']
                         )
@@ -183,10 +185,10 @@ class ShipmentsConfig(AppConfig):
                             order_wayBill__isnull=False,
                             company=company
                         ).exclude(order_wayBill='').exclude(order_status__name__in=excluded_statuses)
-                        print(orders,"  tst")
+
                         for order in orders:
-                            # try:
-                                print(order,"------------------order-------------------")
+                            try:
+                                
                                 awb_number = order.order_wayBill
                                 print(awb_number,"------------------AWB NUMBER-------------------")
                                 response = eshopbox_service.track_bulk_shipments([awb_number])
@@ -212,8 +214,8 @@ class ShipmentsConfig(AppConfig):
                                             except Exception as e:
                                                 print(f"Error triggering order status notification: {e}")
                                                 pass 
-                            # except Exception as e:
-                            #     logger.error(f"[eshopbox] Error updating order {order.id}: {e}")
+                            except Exception as e:
+                                logger.error(f"[eshopbox] Error updating order {order.id}: {e}")
 
                     elif vendor_name == 'zoopship' and shipmentData['credential_username']:
                         zoopship_service = ZoopshipService(
@@ -256,15 +258,15 @@ class ShipmentsConfig(AppConfig):
                                                 pass 
                             except Exception as e:
                                 logger.error(f"[zoopship] Error updating order {order.id}: {e}")
-            # except Exception as e:
-            #     logger.error(f"Error fetching shipment details: {e}")
+            except Exception as e:
+                logger.error(f"Error fetching shipment details: {e}")
 
 
         # Set up the scheduler to periodically call the `fetch_and_update_shipments` function
         scheduler = BackgroundScheduler()
         scheduler.add_job(
             fetch_and_update_shipments,
-            IntervalTrigger(minutes=1),  # Run every 20 minutes
+            IntervalTrigger(minutes=20),  # Run every 20 minutes
             id="fetch_and_update_shipments",
             max_instances=1,
             # misfire_grace_time=30,  # Optional

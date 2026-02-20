@@ -155,7 +155,7 @@ def download_and_save_recording(call_id, url):
         )
 
     except requests.exceptions.RequestException as e:
-        print("Recording download failed:", e)
+        # print("Recording download failed:", e)
         return None
 
 

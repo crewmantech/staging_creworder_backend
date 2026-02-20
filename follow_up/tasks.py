@@ -22,17 +22,12 @@ def followup_reminder_scheduler():
         microsecond=0
     )
 
-    start_time = end_time - timedelta(minutes=5)
-
-    print(
-        f"⏳ Checking followups from {start_time} → {end_time}"
-    )
+    start_time = end_time - timedelta(minutes=10)
 
     followups = Follow_Up.objects.filter(
         reminder_date__gte=start_time,
         reminder_date__lt=end_time
     )
-
     for followup in followups:
         users_to_notify = set()
 
@@ -54,7 +49,7 @@ def followup_reminder_scheduler():
                 followup=followup,
                 notification_type="followup_reminder",
                 defaults={
-                    "message": f"⏰ Follow-up reminder for {followup.customer_name}",
+                    "message": f"Follow-up reminder for {followup.customer_name}",
                     "url": f"/followups/{followup.followup_id}/"
                 }
             )

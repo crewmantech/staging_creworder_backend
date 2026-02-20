@@ -1096,3 +1096,137 @@ class AppointmentAggregationByStatusAPIView(APIView):
             "agent_list": agent_list,
             "team_target_summary": team_target_summary
         })
+    
+class PhoneResolverService:
+
+    @staticmethod
+    def resolve(call_id, phone_number, user):
+
+        if phone_number and "*" not in phone_number:
+            return phone_number
+
+        lead = (
+            Lead.objects
+            .filter(Q(lead_id=call_id) | Q(id=call_id))
+            .only("customer_phone")
+            .first()
+        )
+
+        if lead and lead.customer_phone:
+            return lead.customer_phone
+
+        try:
+            channel_assign = CloudTelephonyChannelAssign.objects.get(
+                user_id=user.id,
+                is_active=True
+            )
+            channel = channel_assign.cloud_telephony_channel
+        except CloudTelephonyChannelAssign.DoesNotExist:
+            return None
+
+        vendor = channel.cloudtelephony_vendor.name.lower()
+        tenant = channel.tenent_id
+        token = channel.token
+
+        if vendor == "cloud connect":
+            service = CloudConnectService(token, tenant)
+            resp = service.call_details(call_id)
+            return resp.get("result", {}).get("phone_number")
+
+        if vendor == "sansoftwares":
+            service = SansSoftwareService(process_id=tenant)
+            resp = service.get_number(call_id)
+            result = resp.get("result", [])
+
+            if isinstance(result, list) and result:
+                return result[0].get("Phone_number")
+
+        return None
+
+class FollowUpMultiAssignAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request):
+
+        call_ids = request.data.get("call_ids", [])
+        user_ids = request.data.get("user_ids", [])
+        reminder_date = request.data.get("reminder_date")
+        follow_status_id = request.data.get("follow_status")
+
+        if not call_ids:
+            return Response({"error": "call_ids required"}, status=400)
+
+        if not user_ids:
+            return Response({"error": "user_ids required"}, status=400)
+
+        users = list(User.objects.filter(id__in=user_ids))
+
+        if not users:
+            return Response({"error": "No valid users found"}, status=400)
+
+        assigner = request.user
+        assigner_name = assigner.get_full_name() or assigner.username
+
+        total_calls = len(call_ids)
+        total_users = len(users)
+
+        calls_per_user = total_calls // total_users
+        extra = total_calls % total_users
+
+        created = []
+        start = 0
+
+        for index, user in enumerate(users):
+
+            end = start + calls_per_user
+            if index < extra:
+                end += 1
+
+            assigned_calls = call_ids[start:end]
+            start = end
+
+            # get branch & company from user.profile
+            branch = getattr(user.profile, "branch", None) if hasattr(user, "profile") else None
+            company = getattr(user.profile, "company", None) if hasattr(user, "profile") else None
+
+            for call_id in assigned_calls:
+
+                # 🔹 Resolve phone number
+                resolved_phone = PhoneResolverService.resolve(
+                    call_id=call_id,
+                    phone_number=None,
+                    user=assigner
+                )
+
+                if not resolved_phone:
+                    return Response(
+                        {"error": f"Phone not found for call_id {call_id}"},
+                        status=400
+                    )
+
+                followup = Follow_Up.objects.create(
+                    call_id=call_id,
+                    customer_name="NA",
+                    customer_phone=resolved_phone,
+                    reminder_date=reminder_date,
+                    description=f"Assigned by {assigner_name}",
+                    snooze="pending",
+                    follow_status_id=follow_status_id,
+                    follow_add_by=assigner,
+                    assign_user=user,
+                    branch=branch,
+                    company=company
+                )
+
+                created.append({
+                    "followup_id": followup.followup_id,
+                    "call_id": call_id,
+                    "assigned_to": user.id
+                })
+
+        return Response({
+            "message": "Followups distributed successfully",
+            "total_created": len(created),
+            "distribution": created
+        }, status=201)

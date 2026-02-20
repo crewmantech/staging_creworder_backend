@@ -1710,6 +1710,7 @@ class EshopboxAPI:
     ORDER_URL = "https://wms.eshopbox.com/api/order"
     SHIPMENT_URL = "https://wms.eshopbox.com/api/v1/shipping/order"
     RATE_URL = "https://{domain}/shipping/api/v1/calculate/rate"
+    NDR_RESOLUTION_URL = "https://wms.eshopbox.com/api/v2/ndrResolution"
 
     def __init__(self, client_id, client_secret, refresh_token):
         self.client_id = client_id
@@ -2167,3 +2168,104 @@ class EshopboxAPI:
         url = "https://wms.eshopbox.com/api/v1/shipping/return"
         res = requests.post(url, json=payload, headers=self.headers, timeout=30)
         return res.json()
+    def resolve_ndr(
+    self,
+    customer_order_number,
+    tracking_id,
+    resolution_code,
+    contact_phone_number=None,
+    action_source=None,
+    deferred_date=None,
+    shipping_details=None,
+    remarks=None,
+    order_item_id=None,
+    timeline="forwardTrackingTimeline",
+    client_email=None,
+    actor_type=None,
+    actor=None,
+):
+        """
+        Eshopbox NDR Resolution
+        """
+
+        payload = {
+            "customerOrderNumber": str(customer_order_number),
+            "trackingId": str(tracking_id),
+            "resolutionCode": resolution_code,
+            "timeline": timeline,
+        }
+
+        # optional common fields
+        if order_item_id:
+            payload["orderItemID"] = order_item_id
+
+        if client_email:
+            payload["clientEmail"] = client_email
+
+        if action_source:
+            payload["actionSource"] = action_source
+
+        if remarks:
+            payload["remarks"] = remarks
+
+        if actor_type:
+            payload["actorType"] = actor_type
+
+        if actor:
+            payload["actor"] = actor
+
+        # ---------------- ACTF001 / ACTF004 ---------------- #
+        if resolution_code in ["ACTF001", "ACTF004"]:
+
+            if contact_phone_number:
+                payload["contactPhoneNumber"] = str(contact_phone_number)
+
+            if shipping_details:
+                payload["shippingDetails"] = {
+                    k: v for k, v in {
+                        "name": shipping_details.get("name"),
+                        "email": shipping_details.get("email"),
+                        "currentAddress": shipping_details.get("currentAddress"),
+                        "updatedAddress": shipping_details.get("updatedAddress"),
+                        "landmark": shipping_details.get("landmark"),
+                        "notes": shipping_details.get("notes"),
+                    }.items() if v not in [None, ""]
+                }
+
+        # ---------------- ACTF002 ---------------- #
+        elif resolution_code == "ACTF002":
+
+            if contact_phone_number:
+                payload["contactPhoneNumber"] = str(contact_phone_number)
+
+            # IMPORTANT: must not be empty
+            if deferred_date:
+                payload["deferredDate"] = deferred_date
+
+        # ---------------- ACTF003 ---------------- #
+        elif resolution_code == "ACTF003":
+            # minimal payload only
+            pass
+
+        else:
+            return {"success": False, "error": "Invalid resolution code"}
+
+        try:
+            print(payload, "------------ Eshopbox NDR Payload ------------")
+
+            res = requests.post(
+                self.NDR_RESOLUTION_URL,
+                json=payload,
+                headers=self.headers,
+                timeout=30
+            )
+
+            response_data = res.json()
+
+            print(response_data, "------------ Eshopbox NDR Response ------------")
+
+            return response_data, res.status_code
+
+        except Exception as e:
+            logger.error(f"Eshopbox NDR error: {e}")
+            return {"success": False, "error": str(e)}, 500

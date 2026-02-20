@@ -135,7 +135,7 @@ class AccountsConfig(AppConfig):
                 logger.error(f"❌ Error while fixing attendance clock_out: {e}")
                 return 0
         def deactivate_old_demo_companies():
-            print("-----------------137")
+            # print("-----------------137")
             """Deactivate companies with 'demo' package older than 3 days."""
             three_days_ago = timezone.now().date() - timedelta(days=3)
             companies = Company.objects.filter(
@@ -144,7 +144,7 @@ class AccountsConfig(AppConfig):
                 status=True
             )
             updated_count = companies.update(status=False)
-            print(f"Deactivated {updated_count} demo companies older than 3 days.")
+            # print(f"Deactivated {updated_count} demo companies older than 3 days.")
             # for company in companies:
             #     company.status = False
             #     status = company.update(update_fields=['status'])

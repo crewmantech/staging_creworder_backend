@@ -137,7 +137,7 @@ class CloudConnectService:
             headers=headers,
             timeout=10
         )
-
+        # print(response.status_code, response.text, "-----------------response from cloudconnect------------------")
         try:
             result = response.json()
         except Exception:
@@ -165,12 +165,12 @@ class CloudConnectService:
             "agent_username": agent_username,
             "agent_password": agent_password,
             "loginType": "AUTO",
-            "campaign_name": camp_id,
+            "campaign_name": campangin_name,
             "token": self.token,
             # "queue_id": camp_id,
             "tenant_id": self.tenant_id
         }
-        print("    ↳ FINAL PAYLOAD =", data)
+        # print("    ↳ FINAL PAYLOAD =", data)
 
         return self._post_request("createSession", data)
 
@@ -243,25 +243,43 @@ class CloudConnectService:
     # =========================
     # CALL LOGS & DETAILS
     # =========================
-    def get_call_details(self, date, phone_number):
-        if phone_number:
-            data = {
-                "date": date,
-                "phone_number": phone_number,
-                # "agent_id": agent_id,
-                # "session_id": session_id,
-                "token": self.token,
-                "tenant_id": self.tenant_id
-            }
-        else:
-            data = {
-            "date": date,
-            # "agent_id": agent_id,
-            # "session_id": session_id,
+    def get_call_details(
+        self,
+        date=None,
+        phone_number=None,
+        search_on_time=None,
+        search_type=None,
+        start_datetime=None,
+        end_datetime=None,
+        call_id=None,
+        agent_id=None,
+        queue_id=None,
+        camp_id=None,
+        call_status=None
+    ):
+        data = {
             "token": self.token,
-            "tenant_id": self.tenant_id
+            "tenant_id": self.tenant_id,
         }
-        print(data,"-----------------178")
+
+        optional_filters = {
+            "search_on_time": search_on_time,
+            "search_type": search_type,
+            "date": date,
+            "start_datetime": start_datetime,
+            "end_datetime": end_datetime,
+            "call_id": call_id,
+            "phone_number": phone_number,
+            "agent_id": agent_id,
+            "queue_id": queue_id,
+            "camp_id": camp_id,
+            "call_status": call_status
+        }
+        for key, value in optional_filters.items():
+            if value not in (None, "", [], ()):
+                data[key] = value
+
+        # print(data, "-----------------178")
         return self._post_request("getCallHistory", data)
 
     def get_call_history(self, start_datetime, end_datetime):
@@ -539,7 +557,7 @@ class SansSoftwareService:
         url = f"{self.BASE_URL}/{endpoint.lstrip('/')}"
         headers = {"Content-Type": "application/json"}
         response = requests.post(url, json=data, headers=headers)
-        print(response.text,"----------542")
+        # print(response.text,"----------542")
         # You can add error handling/logging here if needed
         return response.json()
 
@@ -548,7 +566,7 @@ class SansSoftwareService:
     def get_number(self, lead_id: str, process_id: Optional[str] = None):
 
         final_process_id = process_id or self.process_id
-        print(final_process_id,"-----------self.process_id")
+        # print(final_process_id,"-----------self.process_id")
         data = {
             "Lead_ID": lead_id,
             "process_id": final_process_id,
@@ -593,7 +611,7 @@ class SansSoftwareService:
                 "from_date": from_date,
                 "to_date": to_date,
             }
-        print(data, "-----------342")
+        # print(data, "-----------342")
 
         return self._post_request("api/getAllCallLogDetail", data)
 
@@ -627,9 +645,9 @@ class SansSoftwareService:
             "agent_name": agent_name,
             "dialed_number": dialed_number,
         }
-        print(data,"-------------------436")
+        # print(data,"-------------------436")
         res = self._post_request("caller/Api/ClicktoCallDial", data)
-        print(res,"-----------self._post_request")
+        # print(res,"-----------self._post_request")
         return res
     
     
@@ -644,7 +662,7 @@ def get_phone_number_by_call_id(user, call_id):
         raise ValidationError("No channel assigned to this user.")
 
     cloud_vendor = channel.cloudtelephony_vendor.name.lower()
-    print(cloud_vendor,"-----------------cloudvendor")
+    # print(cloud_vendor,"-----------------cloudvendor")
     # -------- CLOUD CONNECT --------
     if cloud_vendor == "cloud connect":
         if not channel.token or not channel.tenent_id:
@@ -671,7 +689,7 @@ def get_phone_number_by_call_id(user, call_id):
 
         service = SansSoftwareService(process_id=process_id)
         response = service.get_number(call_id)
-        print(response,"-----------------sansoftwaresresponse")
+        # print(response,"-----------------sansoftwaresresponse")
         result = response.get("result", [])
 
         if not result or "Phone_number" not in result[0]:
