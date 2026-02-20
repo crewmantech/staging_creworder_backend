@@ -3761,6 +3761,7 @@ class UserPermissionStatusView(APIView):
                 ),
                 # ✅ NEW VIRTUAL PERMISSION
                 "view_cloud_dialer": user.has_perm('accounts.view_cloud_dialer_others'),
+                "view_all_dashboard_team_order_list": user.has_perm('accounts.view_all_dashboard_team_order_list'),
                 
             }
         else:
@@ -3808,6 +3809,7 @@ class UserPermissionStatusView(APIView):
                 ),
                 # ✅ NEW VIRTUAL PERMISSION
                 "view_cloud_dialer": user.has_perm('accounts.view_cloud_dialer_others'),
+                "view_all_dashboard_team_order_list": user.has_perm('accounts.view_all_dashboard_team_order_list'),
             }   
 
         return Response(response_data)
