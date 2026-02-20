@@ -6064,13 +6064,12 @@ class CompanyAllQcAPI(APIView):
 class UserPublicViewSet(viewsets.ReadOnlyModelViewSet):
     """
     Public user listing for Admin & Agent
-    (Same filters, no menu permission)
+    (Same filters, no menu permission restriction)
     """
 
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
     pagination_class = StandardResultsSetPagination
-
 
     def get_queryset(self):
 
@@ -6084,11 +6083,23 @@ class UserPublicViewSet(viewsets.ReadOnlyModelViewSet):
         print("User Company:", getattr(user.profile, "company", None))
 
         try:
-            # ---------------- BASE QUERYSET ----------------
-            queryset = User.objects.all()
+            # ==================================================
+            # 🔒 BASE QUERYSET (CRITICAL FIX - COMPANY SAFE)
+            # ==================================================
+            if user.profile.user_type == "superadmin":
+                queryset = User.objects.all()
+                print("Superadmin → All users")
+            else:
+                queryset = User.objects.filter(
+                    profile__company=user.profile.company
+                )
+                print("Company restricted queryset")
+
             print("Initial queryset count:", queryset.count())
 
-            # ---------------- QUERY PARAMS ----------------
+            # ==================================================
+            # QUERY PARAMS
+            # ==================================================
             params = self.request.query_params
             print("Query Params:", params)
 
@@ -6106,7 +6117,9 @@ class UserPublicViewSet(viewsets.ReadOnlyModelViewSet):
             print("telecalling_assign:", telecalling_assign)
             print("search:", search)
 
-            # ---------------- ATTENDANCE ----------------
+            # ==================================================
+            # ATTENDANCE FILTER
+            # ==================================================
             if attendance:
                 print("Applying attendance filter")
 
@@ -6117,48 +6130,52 @@ class UserPublicViewSet(viewsets.ReadOnlyModelViewSet):
 
                 print("After attendance:", queryset.count())
 
-            # ---------------- STATUS ----------------
+            # ==================================================
+            # STATUS FILTER
+            # ==================================================
             if user_status:
-                print("Applying status:", user_status)
+                print("Applying status filter:", user_status)
 
                 try:
                     queryset = queryset.filter(
                         profile__status=int(user_status)
                     )
-                    print("After status:", queryset.count())
+                    print("After status filter:", queryset.count())
 
                 except ValueError:
-                    print("Invalid status")
+                    print("Invalid status value")
 
-            # ---------------- DOCTOR ----------------
+            # ==================================================
+            # DOCTOR FILTER
+            # ==================================================
             if doctor == "true":
-
                 print("Applying doctor filter")
 
                 queryset = queryset.filter(
                     doctor_profile__isnull=True
                 )
 
-                print("After doctor:", queryset.count())
+                print("After doctor filter:", queryset.count())
 
-            # ---------------- ACTIVE ----------------
+            # ==================================================
+            # ACTIVE FILTER (SAME AS ORIGINAL API)
+            # ==================================================
             if self.action in ["list", "retrieve"]:
-
-                print("Applying active filter")
+                print("Applying active filter (status=1)")
 
                 queryset = queryset.filter(
                     profile__status=1
                 )
 
-                print("After active:", queryset.count())
+                print("After active filter:", queryset.count())
 
-            # ---------------- ROLE ----------------
-            print("Checking user role")
+            # ==================================================
+            # ROLE BASED FILTERING
+            # ==================================================
+            print("Checking user role...")
 
-            # ===== SUPERADMIN =====
+            # ---------------- SUPERADMIN ----------------
             if user.profile.user_type == "superadmin":
-
-                print("SUPERADMIN")
 
                 company_id = params.get("company_id")
 
@@ -6171,55 +6188,49 @@ class UserPublicViewSet(viewsets.ReadOnlyModelViewSet):
                         profile__company=None
                     )
 
-                print("After superadmin:", queryset.count())
+                print("After superadmin filter:", queryset.count())
 
-            # ===== ADMIN PARAM =====
+            # ---------------- ADMIN PARAM ----------------
             elif admin:
-
-                print("Admin param")
 
                 queryset = queryset.filter(
                     profile__company=user.profile.company,
                     profile__user_type="admin"
                 )
 
-                print("After admin param:", queryset.count())
+                print("After admin param filter:", queryset.count())
 
-            # ===== ADMIN USER =====
+            # ---------------- ADMIN USER ----------------
             elif user.profile.user_type == "admin":
-
-                print("ADMIN USER")
 
                 queryset = queryset.filter(
                     profile__company=user.profile.company
                 )
 
-                print("After company:", queryset.count())
+                print("After admin company filter:", queryset.count())
 
                 branch_id = params.get("branch_id")
 
                 if branch_id:
-
                     queryset = queryset.filter(
                         profile__branch=branch_id
                     )
 
-                    print("After branch:", queryset.count())
+                    print("After branch filter:", queryset.count())
 
-            # ===== AGENT =====
+            # ---------------- AGENT USER ----------------
             elif user.profile.user_type == "agent":
 
-                print("AGENT USER")
+                print("Agent logic executing")
 
                 try:
-
-                    perms = list(
+                    user_permissions = list(
                         user.user_permissions.values_list(
                             "codename", flat=True
                         )
                     )
 
-                    print("Permissions:", perms)
+                    print("User Permissions:", user_permissions)
 
                     has_all = user.has_perm(
                         "accounts.department_can_view_all"
@@ -6229,18 +6240,19 @@ class UserPublicViewSet(viewsets.ReadOnlyModelViewSet):
                         "accounts.department_can_view_own_department"
                     )
 
-                    print("All:", has_all, "Own:", has_own)
+                    print("Has ALL:", has_all)
+                    print("Has OWN:", has_own)
 
-                    # FULL
+                    # FULL ACCESS
                     if has_all:
 
                         queryset = queryset.filter(
                             profile__company=user.profile.company
                         )
 
-                        print("FULL ACCESS")
+                        print("Applied FULL access")
 
-                    # OWN
+                    # OWN DEPARTMENT
                     elif has_own:
 
                         queryset = queryset.filter(
@@ -6248,55 +6260,77 @@ class UserPublicViewSet(viewsets.ReadOnlyModelViewSet):
                             profile__department=user.profile.department
                         )
 
-                        print("OWN DEPARTMENT")
+                        print("Applied OWN department")
 
-                    # DEFAULT
+                    # SPECIFIC OR DEFAULT
                     else:
 
                         queryset = queryset.filter(
                             profile__branch=user.profile.branch
                         )
 
-                        print("DEFAULT BRANCH")
+                        department_permissions = [
+                            perm.split("department_can_view_department_")[1]
+                            for perm in user_permissions
+                            if perm.startswith("department_can_view_department_")
+                        ]
+
+                        print("Department permissions:", department_permissions)
+
+                        if department_permissions:
+
+                            queryset = queryset.filter(
+                                profile__department__name__in=department_permissions
+                            )
+
+                            print("Applied department based filter")
+
+                        else:
+
+                            queryset = queryset.filter(id=user.id)
+
+                            print("No department permission → SELF only")
 
                 except Exception as e:
 
                     print("AGENT ERROR:", e)
-
                     queryset = queryset.none()
 
-            # ---------------- TELECALLING ----------------
-            if str(telecalling_assign).lower() in {"true", "1", "yes"}:
-
-                print("Applying telecalling")
+            # ==================================================
+            # TELECALLING FILTER
+            # ==================================================
+            if str(telecalling_assign).strip().lower() in {"true", "1", "yes"}:
 
                 queryset = queryset.filter(
                     cloudtelephonychannelassign__id__isnull=False
                 ).distinct()
 
-                print("After telecalling:", queryset.count())
+                print("After telecalling filter:", queryset.count())
 
-            # ---------------- SEARCH ----------------
+            # ==================================================
+            # SEARCH FILTER
+            # ==================================================
             if search:
-
-                print("Applying search:", search)
 
                 queryset = queryset.filter(
                     Q(username__icontains=search) |
-                    Q(first_name__icontains=search) |
-                    Q(email__icontains=search) |
                     Q(profile__contact_no__icontains=search) |
+                    Q(profile__professional_email__icontains=search) |
                     Q(profile__employee_id__icontains=search) |
-                    Q(profile__department__name__icontains=search)
+                    Q(profile__gender__icontains=search) |
+                    Q(profile__department__name__icontains=search) |
+                    Q(profile__designation__name__icontains=search) |
+                    Q(first_name__icontains=search) |
+                    Q(email__icontains=search)
                 ).distinct()
 
-                print("After search:", queryset.count())
+                print("After search filter:", queryset.count())
 
-            print("FINAL COUNT:", queryset.count())
+            print("========== FINAL COUNT ==========")
+            print("Final queryset count:", queryset.count())
 
         except Exception as e:
-
-            print("PUBLIC API ERROR:", e)
+            print("PUBLIC USER API ERROR:", e)
 
         print("========== PUBLIC USER API END ==========\n")
 
