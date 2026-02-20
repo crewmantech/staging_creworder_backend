@@ -1093,7 +1093,6 @@ class Others(models.Model):
              # ✅ NEW PERMISSION
             ('view_whatsapp_button_others', 'Can view WhatsApp button others'),
             ('view_cloud_dialer_others', 'Can view cloud dialer others'),
-            ('view_all_dashboard_team_order_list','Can view all dashboard team order list'),
 
             )
     def __str__(self):
