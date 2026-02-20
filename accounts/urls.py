@@ -10,7 +10,7 @@ from .views import AgentAttendanceUserWiseAPIView, AgentDashboardAPI, AgreementV
     AppreciationViewSet, ShiftViewSet, AttendanceViewSet, Testing, GetUsernameSuggestions, AttendanceView, \
     IPRestrictedLoginView,ShiftRosterViewSet,GetPackageModule,CustomAuthGroupViewSet,UserGroupViewSet,\
     GroupPermissionViewSet,PermmisionViewSet,FetchPermissionView,PickUpPointView,TargetView,AdminBankDetailsViewSet,\
-    AddAllowIpViewSet,QcViewSet,GetPackagesModule , UserTargetsDelailsFilterAPIView, UsersTeamAPIView, UsersWithTargetsAPIView,UsersNdrAPIView,UserMonthlyPerformanceAPIView
+    AddAllowIpViewSet,QcViewSet,GetPackagesModule , UserTargetsDelailsFilterAPIView, UsersTeamAPIView, UsersWithTargetsAPIView,UsersNdrAPIView,UserMonthlyPerformanceAPIView,UserPublicViewSet
 
 router = DefaultRouter()
 router.register(r'users', UserViewSet)
@@ -57,6 +57,11 @@ router.register(r"company-salary", CompanySalaryViewSet, basename="company-salar
 router.register(r"doctors", DoctorViewSet, basename="doctor")
 router.register(r"call-qc-questions", CallQcsTableViewSet,basename="call-qc-questions")
 # router.register(r'assign-role',AssignRole,basename='assign-role')
+router.register(
+    r'public-users',
+    UserPublicViewSet,
+    basename='public-users'
+)
 urlpatterns = [
     path('', include(router.urls)),
     path('users-with-targets/', UsersWithTargetsAPIView.as_view(), name='users-with-targets'),

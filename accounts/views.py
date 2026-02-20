@@ -6060,3 +6060,244 @@ class CompanyAllQcAPI(APIView):
 
         serializer = CompanyQcSerializer(qs, many=True)
         return Response(serializer.data)
+    
+class UserPublicViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Public user listing for Admin & Agent
+    (Same filters, no menu permission)
+    """
+
+    serializer_class = UserSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = StandardResultsSetPagination
+
+
+    def get_queryset(self):
+
+        print("\n========== PUBLIC USER API START ==========")
+
+        user = self.request.user
+        print("Logged-in User:", user)
+        print("User Type:", getattr(user.profile, "user_type", None))
+        print("User Branch:", getattr(user.profile, "branch", None))
+        print("User Department:", getattr(user.profile, "department", None))
+        print("User Company:", getattr(user.profile, "company", None))
+
+        try:
+            # ---------------- BASE QUERYSET ----------------
+            queryset = User.objects.all()
+            print("Initial queryset count:", queryset.count())
+
+            # ---------------- QUERY PARAMS ----------------
+            params = self.request.query_params
+            print("Query Params:", params)
+
+            attendance = params.get("attendance")
+            admin = params.get("admin")
+            user_status = params.get("status")
+            doctor = params.get("doctor")
+            telecalling_assign = params.get("telecalling_assign")
+            search = params.get("search")
+
+            print("attendance:", attendance)
+            print("admin:", admin)
+            print("status:", user_status)
+            print("doctor:", doctor)
+            print("telecalling_assign:", telecalling_assign)
+            print("search:", search)
+
+            # ---------------- ATTENDANCE ----------------
+            if attendance:
+                print("Applying attendance filter")
+
+                queryset = queryset.filter(
+                    profile__login_allowed=True,
+                    profile__user_type="agent"
+                )
+
+                print("After attendance:", queryset.count())
+
+            # ---------------- STATUS ----------------
+            if user_status:
+                print("Applying status:", user_status)
+
+                try:
+                    queryset = queryset.filter(
+                        profile__status=int(user_status)
+                    )
+                    print("After status:", queryset.count())
+
+                except ValueError:
+                    print("Invalid status")
+
+            # ---------------- DOCTOR ----------------
+            if doctor == "true":
+
+                print("Applying doctor filter")
+
+                queryset = queryset.filter(
+                    doctor_profile__isnull=True
+                )
+
+                print("After doctor:", queryset.count())
+
+            # ---------------- ACTIVE ----------------
+            if self.action in ["list", "retrieve"]:
+
+                print("Applying active filter")
+
+                queryset = queryset.filter(
+                    profile__status=1
+                )
+
+                print("After active:", queryset.count())
+
+            # ---------------- ROLE ----------------
+            print("Checking user role")
+
+            # ===== SUPERADMIN =====
+            if user.profile.user_type == "superadmin":
+
+                print("SUPERADMIN")
+
+                company_id = params.get("company_id")
+
+                if company_id:
+                    queryset = queryset.filter(
+                        profile__company_id=company_id
+                    )
+                else:
+                    queryset = queryset.filter(
+                        profile__company=None
+                    )
+
+                print("After superadmin:", queryset.count())
+
+            # ===== ADMIN PARAM =====
+            elif admin:
+
+                print("Admin param")
+
+                queryset = queryset.filter(
+                    profile__company=user.profile.company,
+                    profile__user_type="admin"
+                )
+
+                print("After admin param:", queryset.count())
+
+            # ===== ADMIN USER =====
+            elif user.profile.user_type == "admin":
+
+                print("ADMIN USER")
+
+                queryset = queryset.filter(
+                    profile__company=user.profile.company
+                )
+
+                print("After company:", queryset.count())
+
+                branch_id = params.get("branch_id")
+
+                if branch_id:
+
+                    queryset = queryset.filter(
+                        profile__branch=branch_id
+                    )
+
+                    print("After branch:", queryset.count())
+
+            # ===== AGENT =====
+            elif user.profile.user_type == "agent":
+
+                print("AGENT USER")
+
+                try:
+
+                    perms = list(
+                        user.user_permissions.values_list(
+                            "codename", flat=True
+                        )
+                    )
+
+                    print("Permissions:", perms)
+
+                    has_all = user.has_perm(
+                        "accounts.department_can_view_all"
+                    )
+
+                    has_own = user.has_perm(
+                        "accounts.department_can_view_own_department"
+                    )
+
+                    print("All:", has_all, "Own:", has_own)
+
+                    # FULL
+                    if has_all:
+
+                        queryset = queryset.filter(
+                            profile__company=user.profile.company
+                        )
+
+                        print("FULL ACCESS")
+
+                    # OWN
+                    elif has_own:
+
+                        queryset = queryset.filter(
+                            profile__branch=user.profile.branch,
+                            profile__department=user.profile.department
+                        )
+
+                        print("OWN DEPARTMENT")
+
+                    # DEFAULT
+                    else:
+
+                        queryset = queryset.filter(
+                            profile__branch=user.profile.branch
+                        )
+
+                        print("DEFAULT BRANCH")
+
+                except Exception as e:
+
+                    print("AGENT ERROR:", e)
+
+                    queryset = queryset.none()
+
+            # ---------------- TELECALLING ----------------
+            if str(telecalling_assign).lower() in {"true", "1", "yes"}:
+
+                print("Applying telecalling")
+
+                queryset = queryset.filter(
+                    cloudtelephonychannelassign__id__isnull=False
+                ).distinct()
+
+                print("After telecalling:", queryset.count())
+
+            # ---------------- SEARCH ----------------
+            if search:
+
+                print("Applying search:", search)
+
+                queryset = queryset.filter(
+                    Q(username__icontains=search) |
+                    Q(first_name__icontains=search) |
+                    Q(email__icontains=search) |
+                    Q(profile__contact_no__icontains=search) |
+                    Q(profile__employee_id__icontains=search) |
+                    Q(profile__department__name__icontains=search)
+                ).distinct()
+
+                print("After search:", queryset.count())
+
+            print("FINAL COUNT:", queryset.count())
+
+        except Exception as e:
+
+            print("PUBLIC API ERROR:", e)
+
+        print("========== PUBLIC USER API END ==========\n")
+
+        return queryset
